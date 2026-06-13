@@ -1,6 +1,6 @@
 provider "cloudflare" {
-  api_token   = var.cloudflare_api_token
-  account_id  = var.cloudflare_account_id
+  api_token  = var.cloudflare_api_token
+  account_id = var.cloudflare_account_id
 }
 
 data "cloudflare_zone" "site" {
@@ -16,8 +16,8 @@ resource "cloudflare_worker_script" "skill_api" {
   content = file("${path.module}/../worker/skill-persistence-worker.js")
 
   kv_namespace {
-    binding       = "SKILL_STORE"
-    namespace_id  = cloudflare_workers_kv_namespace.skills.id
+    binding      = "SKILL_STORE"
+    namespace_id = cloudflare_workers_kv_namespace.skills.id
   }
 }
 

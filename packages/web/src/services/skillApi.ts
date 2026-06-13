@@ -6,7 +6,7 @@ export type SkillPayload = {
   persona: string;
 };
 
-const apiBase = import.meta.env.VITE_SKILL_API_URL || 'https://skills.eastern-shore-solutions.com/api';
+const apiBase = (import.meta.env.VITE_SKILL_API_URL as string | undefined) || 'https://skills.eastern-shore-solutions.com/api';
 
 export async function listSkills() {
   const response = await fetch(`${apiBase}/skills`);

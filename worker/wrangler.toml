@@ -1,0 +1,12 @@
+name = "skill-builder-landing-api"
+main = "skill-persistence-worker.js"
+compatibility_date = "2024-01-01"
+
+[[kv_namespaces]]
+binding = "SKILL_STORE"
+id = "skill-store-namespace"
+preview_id = "skill-store-preview"
+
+[[routes]]
+pattern = "skills.eastern-shore-solutions.com/api/*"
+zone_name = "eastern-shore-solutions.com"

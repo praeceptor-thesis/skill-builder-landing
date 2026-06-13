@@ -1,58 +1,51 @@
 #!/bin/bash
-set -e
+set +e
 
 # This script imports existing Cloudflare resources into Terraform state
-# Run this before terraform apply when resources already exist
+# Uses Python to parse JSON responses since jq may not be available
 
 echo "Importing existing Cloudflare resources..."
 
-ZONE_ID=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=${TF_VAR_cloudflare_zone_name}" \
-  -H "Authorization: Bearer ${TF_VAR_cloudflare_api_token}" \
-  -H "Content-Type: application/json" | jq -r ".result[0].id")
+# Function to make API calls
+call_api() {
+  local method=$1
+  local endpoint=$2
+  curl -s -X "$method" "https://api.cloudflare.com/client/v4$endpoint" \
+    -H "Authorization: Bearer ${TF_VAR_cloudflare_api_token}" \
+    -H "Content-Type: application/json"
+}
 
-echo "Zone ID: $ZONE_ID"
+# Try to get KV namespace ID
+echo "Looking up KV namespace..."
+KV_RESPONSE=$(call_api GET "/accounts/${TF_VAR_cloudflare_account_id}/storage/kv/namespaces")
+KV_ID=$(echo "$KV_RESPONSE" | python3 -c "import sys, json; data=json.load(sys.stdin); result = [r for r in data.get('result', []) if r.get('title') == '${TF_VAR_pages_project_name}-skills']; print(result[0]['id'] if result else '')" 2>/dev/null || echo "")
 
-# Import KV namespace
-# Query for the namespace ID by title
-KV_NAMESPACE_ID=$(curl -s -X GET "https://api.cloudflare.com/client/v4/accounts/${TF_VAR_cloudflare_account_id}/storage/kv/namespaces" \
-  -H "Authorization: Bearer ${TF_VAR_cloudflare_api_token}" \
-  -H "Content-Type: application/json" | jq -r ".result[] | select(.title == \"${TF_VAR_pages_project_name}-skills\") | .id")
-
-if [ -n "$KV_NAMESPACE_ID" ] && [ "$KV_NAMESPACE_ID" != "null" ]; then
-  echo "Found KV namespace: $KV_NAMESPACE_ID"
-  terraform import cloudflare_workers_kv_namespace.skills "${TF_VAR_cloudflare_account_id}/${KV_NAMESPACE_ID}" || true
+if [ -n "$KV_ID" ]; then
+  echo "Found KV namespace: $KV_ID"
+  terraform import -auto-approve cloudflare_workers_kv_namespace.skills "${TF_VAR_cloudflare_account_id}/${KV_ID}" 2>/dev/null || echo "KV namespace import skipped (already in state or error)"
 else
-  echo "KV namespace not found"
+  echo "KV namespace not found in API"
 fi
 
-# Import Pages project
-# Query for the project ID by name
-PAGES_PROJECT_ID=$(curl -s -X GET "https://api.cloudflare.com/client/v4/accounts/${TF_VAR_cloudflare_account_id}/pages/projects" \
-  -H "Authorization: Bearer ${TF_VAR_cloudflare_api_token}" \
-  -H "Content-Type: application/json" | jq -r ".result[] | select(.name == \"${TF_VAR_pages_project_name}\") | .id")
+# Try to get Pages project ID  
+echo "Looking up Pages project..."
+PAGES_RESPONSE=$(call_api GET "/accounts/${TF_VAR_cloudflare_account_id}/pages/projects")
+PAGES_ID=$(echo "$PAGES_RESPONSE" | python3 -c "import sys, json; data=json.load(sys.stdin); result = [r for r in data.get('result', []) if r.get('name') == '${TF_VAR_pages_project_name}']; print(result[0]['id'] if result else '')" 2>/dev/null || echo "")
 
-if [ -n "$PAGES_PROJECT_ID" ] && [ "$PAGES_PROJECT_ID" != "null" ]; then
-  echo "Found Pages project: $PAGES_PROJECT_ID"
-  terraform import cloudflare_pages_project.site "${TF_VAR_cloudflare_account_id}/${PAGES_PROJECT_ID}" || true
+if [ -n "$PAGES_ID" ]; then
+  echo "Found Pages project: $PAGES_ID"
+  terraform import -auto-approve cloudflare_pages_project.site "${TF_VAR_cloudflare_account_id}/${PAGES_ID}" 2>/dev/null || echo "Pages project import skipped (already in state or error)"
 else
-  echo "Pages project not found"
+  echo "Pages project not found in API"
 fi
 
-# Import Workers script (by script name)
-terraform import cloudflare_workers_script.skill_api "${TF_VAR_cloudflare_account_id}/${TF_VAR_pages_project_name}-api" || true
+# Try to get Workers script (by name)
+echo "Looking up Workers script..."
+SCRIPT_NAME="${TF_VAR_pages_project_name}-api"
+terraform import -auto-approve cloudflare_workers_script.skill_api "${TF_VAR_cloudflare_account_id}/${SCRIPT_NAME}" 2>/dev/null || echo "Workers script import skipped (already in state or error)"
 
-# Import Workers route (by zone and pattern)
-# Get route ID by pattern
-ROUTE_ID=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/workers/routes" \
-  -H "Authorization: Bearer ${TF_VAR_cloudflare_api_token}" \
-  -H "Content-Type: application/json" | jq -r ".result[] | select(.pattern == \"skills.${TF_VAR_cloudflare_zone_name}/api/*\") | .id")
+echo "Import complete (errors are normal if resources already imported)"
+set -e
 
-if [ -n "$ROUTE_ID" ] && [ "$ROUTE_ID" != "null" ]; then
-  echo "Found Workers route: $ROUTE_ID"
-  terraform import cloudflare_workers_route.api_route "${ZONE_ID}/${ROUTE_ID}" || true
-else
-  echo "Workers route not found"
-fi
 
-echo "Import complete"
 

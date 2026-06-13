@@ -10,7 +10,7 @@ output "pages_custom_domain" {
 
 output "worker_script_name" {
   description = "The Cloudflare Worker script name."
-  value       = cloudflare_workers_script.skill_api.name
+  value       = cloudflare_workers_script.skill_api.script_name
 }
 
 output "kv_namespace_id" {

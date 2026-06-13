@@ -64,6 +64,8 @@ terraform init
 terraform apply
 ```
 
+Always be friendly :) 
+
 ### Notes
 
 - Pages builds the frontend from `packages/web` and publishes `packages/web/dist`.

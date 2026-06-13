@@ -28,6 +28,10 @@ jobs:
         run: terraform fmt -check -recursive
         working-directory: ./terraform
 
+      - name: Terraform init
+        run: terraform init
+        working-directory: ./terraform
+
       - name: Terraform validate
         run: terraform validate
         working-directory: ./terraform

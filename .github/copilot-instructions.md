@@ -1,0 +1,4 @@
+- Scaffold a monorepo with a web package and a CLI package.
+- Create a designer-grade skill builder UI with React, Vite, Tailwind.
+- Add a Node CLI package for installing and publishing skills.
+- Include README and tasks for running the app.

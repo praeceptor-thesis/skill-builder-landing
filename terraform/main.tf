@@ -20,9 +20,9 @@ resource "cloudflare_workers_script" "skill_api" {
 }
 
 resource "cloudflare_workers_route" "api_route" {
-  zone_id  = data.cloudflare_zone.site.id
-  pattern  = "skills.${var.cloudflare_zone_name}/api/*"
-  script   = cloudflare_workers_script.skill_api.script_name
+  zone_id = data.cloudflare_zone.site.id
+  pattern = "skills.${var.cloudflare_zone_name}/api/*"
+  script  = cloudflare_workers_script.skill_api.script_name
 }
 
 resource "cloudflare_pages_project" "site" {

@@ -57,6 +57,14 @@ jobs:
         with:
           terraform_version: ${{ env.TERRAFORM_VERSION }}
 
+      - name: Restore Terraform state
+        uses: actions/cache@v3
+        with:
+          path: terraform/terraform.tfstate
+          key: terraform-state-${{ hashFiles('terraform/*.tf') }}
+          restore-keys: |
+            terraform-state-
+
       - name: Install dependencies
         run: npm ci
 
@@ -139,4 +147,11 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Save Terraform state
+        if: always()
+        uses: actions/cache@v3
+        with:
+          path: terraform/terraform.tfstate
+          key: terraform-state-${{ hashFiles('terraform/*.tf') }}
 

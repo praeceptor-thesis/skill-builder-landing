@@ -5,12 +5,12 @@ output "pages_project_name" {
 
 output "pages_custom_domain" {
   description = "The deployed Pages custom domain."
-  value       = cloudflare_pages_custom_domain.site_domain.domain
+  value       = cloudflare_pages_domain.site_domain.name
 }
 
 output "worker_script_name" {
   description = "The Cloudflare Worker script name."
-  value       = cloudflare_worker_script.skill_api.name
+  value       = cloudflare_workers_script.skill_api.name
 }
 
 output "kv_namespace_id" {

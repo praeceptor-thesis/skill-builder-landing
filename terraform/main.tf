@@ -7,23 +7,20 @@ data "cloudflare_zone" "site" {
 }
 
 resource "cloudflare_workers_kv_namespace" "skills" {
-  title = "${var.pages_project_name}-skills"
+  account_id = var.cloudflare_account_id
+  title      = "${var.pages_project_name}-skills"
 }
 
-resource "cloudflare_worker_script" "skill_api" {
-  name    = "${var.pages_project_name}-api"
-  content = file("${path.module}/../worker/skill-persistence-worker.js")
-
-  kv_namespace {
-    binding      = "SKILL_STORE"
-    namespace_id = cloudflare_workers_kv_namespace.skills.id
-  }
+resource "cloudflare_workers_script" "skill_api" {
+  account_id = var.cloudflare_account_id
+  name       = "${var.pages_project_name}-api"
+  content    = file("${path.module}/../worker/skill-persistence-worker.js")
 }
 
-resource "cloudflare_worker_route" "api_route" {
+resource "cloudflare_workers_route" "api_route" {
   zone_id     = data.cloudflare_zone.site.id
   pattern     = "skills.${var.cloudflare_zone_name}/api/*"
-  script_name = cloudflare_worker_script.skill_api.name
+  script_name = cloudflare_workers_script.skill_api.name
 }
 
 resource "cloudflare_pages_project" "site" {
@@ -32,14 +29,13 @@ resource "cloudflare_pages_project" "site" {
   production_branch = "main"
 
   build_config {
-    root_dir        = "."
     build_command   = "npm install && npm run build --workspace packages/web"
     destination_dir = "packages/web/dist"
   }
 }
 
-resource "cloudflare_pages_custom_domain" "site_domain" {
+resource "cloudflare_pages_domain" "site_domain" {
+  account_id   = var.cloudflare_account_id
   project_name = cloudflare_pages_project.site.name
-  zone_id      = data.cloudflare_zone.site.id
-  domain       = "skills.${var.cloudflare_zone_name}"
+  name         = "skills.${var.cloudflare_zone_name}"
 }

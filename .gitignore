@@ -21,6 +21,12 @@ dist/
 packages/web/dist/
 packages/cli/dist/
 
+# Terraform
+terraform/.terraform/
+terraform/terraform.tfstate
+terraform/terraform.tfstate.backup
+terraform/*.tfvars
+
 # Turborepo cache
 .turbo/
 

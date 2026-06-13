@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { listSkills, saveSkill } from './services/skillApi';
 
 const sampleSkills = [
   {
@@ -66,21 +67,46 @@ function App() {
     [selected, skills],
   );
 
-  const handleCreate = () => {
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const result = await listSkills();
+        if (Array.isArray(result.skills)) {
+          setSkills(result.skills);
+          if (result.skills.length > 0) {
+            setSelected(result.skills[0].id);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load skills from API:', error);
+      }
+    };
+
+    load();
+  }, []);
+
+  const handleCreate = async () => {
     if (!editor.name || !editor.description) return;
     const id = editor.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-    setSkills((prev) => [
-      ...prev,
-      {
-        id,
-        name: editor.name,
-        description: editor.description,
-        category: editor.category,
-        persona: editor.persona,
-      },
-    ]);
-    setSelected(id);
-    setEditor(initialEditorState);
+    const newSkill = {
+      id,
+      name: editor.name,
+      description: editor.description,
+      category: editor.category,
+      persona: editor.persona,
+    };
+
+    try {
+      await saveSkill(newSkill);
+      setSkills((prev) => [...prev, newSkill]);
+      setSelected(id);
+      setEditor(initialEditorState);
+    } catch (error) {
+      console.error('Failed to save skill:', error);
+      setSkills((prev) => [...prev, newSkill]);
+      setSelected(id);
+      setEditor(initialEditorState);
+    }
   };
 
   const runAgent = () => {

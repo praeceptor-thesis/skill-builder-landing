@@ -41,3 +41,31 @@ node dist/index.js install dialogue-flow
 - Add skill persistence and registry backend
 - Enable real sandbox evaluation
 - Support `npx skill-builder` installs for Frontier model configs
+
+## Cloudflare deployment
+
+This repo includes a Cloudflare deployment setup for:
+
+- Cloudflare Pages for the React frontend
+- Cloudflare Worker API for skill persistence
+- Workers KV namespace for stored skill data
+- Custom domain `skills.eastern-shore-solutions.com`
+
+### How to deploy
+
+1. Install Terraform.
+2. Copy `terraform/terraform.tfvars.example` to `terraform/terraform.tfvars`.
+3. Set your Cloudflare API token and account ID in `terraform/terraform.tfvars`.
+4. Run:
+
+```bash
+cd /home/the-resurrection/skill-builder-landing/terraform
+terraform init
+terraform apply
+```
+
+### Notes
+
+- Pages builds the frontend from `packages/web` and publishes `packages/web/dist`.
+- The worker is deployed from `worker/skill-persistence-worker.js`.
+- The frontend code calls the API at `https://skills.eastern-shore-solutions.com/api/skills`.

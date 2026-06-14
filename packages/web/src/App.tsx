@@ -1,5 +1,5 @@
 import React from 'react';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { listSkills, saveSkill, forkSkill, chatAgent, executeSkill, login, register, getCurrentUser, setAuthToken, clearAuthToken, getAuthToken, type Skill, type AgentMessage, type User, generateNpxCommand } from './services/api';
 import { renderMarkdown } from './renderMarkdown';
 
@@ -128,6 +128,8 @@ function App() {
   const [selected, setSelected] = useState<string | null>(null);
   const [editor, setEditor] = useState<EditorState>(initialEditorState);
   const [assistantMessages, setAssistantMessages] = useState<AgentMessage[]>(initialAssistantMessages);
+  const assistantMessagesRef = useRef(assistantMessages);
+  useEffect(() => { assistantMessagesRef.current = assistantMessages; }, [assistantMessages]);
   const [assistantInput, setAssistantInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -152,6 +154,18 @@ function App() {
     [selected, skills],
   );
 
+  const markdownPreview = useMemo(() => renderMarkdown(editor.markdown), [editor.markdown]);
+
+  const visibleAssistantMessages = useMemo(
+    () => assistantMessages.filter(m => m.role !== 'system'),
+    [assistantMessages],
+  );
+
+  const npxCommand = useMemo(
+    () => selectedSkill ? generateNpxCommand(selectedSkill) : '',
+    [selectedSkill],
+  );
+
   useEffect(() => {
     const load = async () => {
       try {
@@ -174,7 +188,7 @@ function App() {
     }
   }, []);
 
-  const handleCreate = async () => {
+  const handleCreate = useCallback(async () => {
     if (!editor.name || !editor.description || !editor.markdown) return;
     const baseId = editor.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'untitled';
     const id = skills.some(s => s.id === baseId) ? `${baseId}-${Date.now()}` : baseId;
@@ -203,21 +217,21 @@ function App() {
       setSelected(id);
       setEditor(initialEditorState);
     }
-  };
+  }, [editor.name, editor.description, editor.markdown, editor.category, editor.tags, skills, user]);
 
-  const handleOpenRegistry = () => {
+  const handleOpenRegistry = useCallback(() => {
     setView('workspace');
     setShowRegistry(true);
-  };
+  }, []);
 
-  const handleStartAuthoring = () => {
+  const handleStartAuthoring = useCallback(() => {
     setSelected(null);
     setEditor(initialEditorState);
     setAssistantMessages(initialAssistantMessages);
     setView('workspace');
-  };
+  }, []);
 
-  const sendMessage = async () => {
+  const sendMessage = useCallback(async () => {
     if (!assistantInput.trim() || isLoading) return;
 
     const userMessage: AgentMessage = {
@@ -231,10 +245,11 @@ function App() {
     setError(null);
 
     try {
+      const currentMessages = assistantMessagesRef.current;
       const currentDraft = editor.markdown ? `\n\nCurrent editor draft:\n\`\`\`markdown\n${editor.markdown}\n\`\`\`` : '';
-      const hasSystem = assistantMessages[0]?.role === 'system';
-      const tail = [...assistantMessages.slice(hasSystem ? 1 : 0), userMessage].slice(-19);
-      const recentMessages = hasSystem ? [assistantMessages[0], ...tail] : tail;
+      const hasSystem = currentMessages[0]?.role === 'system';
+      const tail = [...currentMessages.slice(hasSystem ? 1 : 0), userMessage].slice(-19);
+      const recentMessages = hasSystem ? [currentMessages[0], ...tail] : tail;
       const response = await chatAgent({
         messages: recentMessages,
         skillId: selectedSkill?.id,
@@ -248,9 +263,9 @@ function App() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [assistantInput, isLoading, selectedSkill, editor.markdown]);
 
-  const handlePublishSkill = async () => {
+  const handlePublishSkill = useCallback(async () => {
     if (!selectedSkill) return;
     try {
       setError(null);
@@ -267,9 +282,9 @@ function App() {
     } catch {
       setError('Failed to publish skill.');
     }
-  };
+  }, [selectedSkill, editor.name, editor.description, editor.category, editor.tags, editor.markdown]);
 
-  const handleAuth = async (e: React.FormEvent) => {
+  const handleAuth = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthLoading(true);
     setAuthError('');
@@ -289,12 +304,12 @@ function App() {
     } finally {
       setAuthLoading(false);
     }
-  };
+  }, [authMode, authEmail, authPassword, authName, authHandle]);
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     clearAuthToken();
     setUser(null);
-  };
+  }, []);
 
   useEffect(() => {
     if (!showRegistry) return;
@@ -318,7 +333,7 @@ function App() {
     return () => { clearTimeout(timer); abort.abort(); };
   }, [showRegistry, searchQuery, searchCategory]);
 
-  const handleExecuteSkill = async () => {
+  const handleExecuteSkill = useCallback(async () => {
     if (!selectedSkill || !assistantInput.trim() || isLoading) return;
 
     const userMessage: AgentMessage = { role: 'user', text: assistantInput.trim() };
@@ -336,9 +351,9 @@ function App() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [selectedSkill, assistantInput, isLoading]);
 
-  const handleLoadSkill = (skill: Skill) => {
+  const handleLoadSkill = useCallback((skill: Skill) => {
     setEditor({
       name: skill.name,
       description: skill.description,
@@ -347,9 +362,9 @@ function App() {
       markdown: skill.markdown,
     });
     setSelected(skill.id);
-  };
+  }, []);
 
-  const handleForkSkill = async () => {
+  const handleForkSkill = useCallback(async () => {
     if (!selectedSkill) return;
     try {
       setError(null);
@@ -365,14 +380,14 @@ function App() {
       setSelected(forkId);
       handleLoadSkill(fork);
     }
-  };
+  }, [selectedSkill, handleLoadSkill]);
 
-  const handleApplyMarkdown = (text: string) => {
+  const handleApplyMarkdown = useCallback((text: string) => {
     const match = text.match(/```(?:markdown)?\s*([\s\S]*?)```/);
     if (match) setEditor((cur) => ({ ...cur, markdown: match[1].trim() }));
-  };
+  }, []);
 
-  const handleGoHome = () => setView('landing');
+  const handleGoHome = useCallback(() => setView('landing'), []);
 
   return (
     <div className="min-h-screen font-body text-stone-900 bg-[#f5f0eb]">
@@ -535,7 +550,7 @@ function App() {
                   <div className="space-y-1.5">
                     <span className="text-xs text-stone-400">Preview</span>
                     <div className="min-h-[450px] rounded-xl border border-stone-200 bg-white px-5 py-4 overflow-y-auto prose prose-stone max-w-none">
-                      {renderMarkdown(editor.markdown)}
+                      {markdownPreview}
                     </div>
                   </div>
                 )}
@@ -548,8 +563,8 @@ function App() {
                   <>
                     <button onClick={handleForkSkill} className="rounded-full border border-stone-200 px-5 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400">Fork</button>
                     <div className="flex items-center gap-2 rounded-full bg-stone-100 px-4 py-2 text-xs text-stone-500">
-                      <code className="truncate max-w-[200px]">{generateNpxCommand(selectedSkill)}</code>
-                      <button onClick={() => navigator.clipboard.writeText(generateNpxCommand(selectedSkill))} className="font-medium text-stone-700 hover:text-stone-900">Copy</button>
+                      <code className="truncate max-w-[200px]">{npxCommand}</code>
+                      <button onClick={() => navigator.clipboard.writeText(npxCommand)} className="font-medium text-stone-700 hover:text-stone-900">Copy</button>
                     </div>
                   </>
                 )}
@@ -559,7 +574,7 @@ function App() {
             <section className="rounded-2xl border border-stone-200 bg-white p-6 flex flex-col">
               <h2 className="text-sm font-medium text-stone-700 mb-4">Assistant</h2>
               <div className="flex-1 space-y-4 min-h-[300px] max-h-[500px] overflow-y-auto mb-4">
-                {assistantMessages.filter(m => m.role !== 'system').map((msg, i) => (
+                {visibleAssistantMessages.map((msg, i) => (
                   <div key={i} className={`rounded-xl p-4 text-sm leading-relaxed ${
                     msg.role === 'user'
                       ? 'bg-stone-100 text-stone-700'
@@ -738,7 +753,7 @@ function App() {
               </button>
               <p className="text-center text-sm text-stone-400">
                 {authMode === 'login' ? (
-                  <>Don't have an account? <button type="button" onClick={() => { setAuthMode('register'); setAuthError(''); }} className="text-amber-600 hover:underline">Register</button></>
+                  <>Don&rsquo;t have an account? <button type="button" onClick={() => { setAuthMode('register'); setAuthError(''); }} className="text-amber-600 hover:underline">Register</button></>
                 ) : (
                   <>Already have an account? <button type="button" onClick={() => { setAuthMode('login'); setAuthError(''); }} className="text-amber-600 hover:underline">Sign in</button></>
                 )}

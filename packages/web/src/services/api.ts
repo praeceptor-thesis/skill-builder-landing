@@ -92,10 +92,10 @@ export class ApiError extends Error {
 }
 
 async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
+  const { headers: extraHeaders, ...rest } = options ?? {};
   const response = await fetch(url, {
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    signal: options?.signal,
-    ...options,
+    ...rest,
+    headers: { 'Content-Type': 'application/json', ...extraHeaders },
   });
   const body = await response.json().catch(() => ({ ok: false, error: { code: 'PARSE_ERROR', message: response.statusText } }));
   if (!body.ok) {

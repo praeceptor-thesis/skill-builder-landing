@@ -232,10 +232,10 @@ async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
     .json()
     .catch(() => ({ ok: false, error: { code: 'PARSE_ERROR', message: response.statusText } }));
 
-  if (!response.ok || body.ok !== true) {
+  if (!response.ok || !body.ok) {
     throw new ApiError(
-      body.error?.message || response.statusText || 'Request failed',
-      body.error?.code || 'UNKNOWN',
+      body.error?.message || 'Request failed',
+      body.error?.code || (response.status === 401 ? 'AUTH_REQUIRED' : 'UNKNOWN'),
       response.status,
     );
   }
@@ -374,4 +374,15 @@ export function getAuthToken(): string | null {
 export function generateNpxCommand(skill: { id: string; authorHandle?: string }): string {
   const prefix = skill.authorHandle ? `@${skill.authorHandle}/` : '';
   return `npx skill-builder install ${prefix}${skill.id}`;
+}
+
+export function isUnauthorizedError(error: unknown): error is ApiError {
+  return (
+    error instanceof ApiError &&
+    (
+      error.status === 401 ||
+      error.code === 'AUTH_REQUIRED' ||
+      error.code === 'AUTH_INVALID_TOKEN'
+    )
+  );
 }

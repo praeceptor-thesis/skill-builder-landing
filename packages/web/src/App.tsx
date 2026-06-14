@@ -1,6 +1,6 @@
 import React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { listSkills, saveSkill, forkSkill, createSkillBuilderSession, sendSkillBuilderTurn, executeSkill, login, register, getCurrentUser, setAuthToken, clearAuthToken, getAuthToken, type Skill, type AgentMessage, type User, generateNpxCommand } from './services/api';
+import { listSkills, saveSkill, forkSkill, createSkillBuilderSession, sendSkillBuilderTurn, executeSkill, login, register, getCurrentUser, setAuthToken, clearAuthToken, getAuthToken, type Skill, type AgentMessage, type User, generateNpxCommand, isUnauthorizedError } from './services/api';
 import { renderMarkdown } from './renderMarkdown';
 
 const sampleSkills: Skill[] = [
@@ -591,6 +591,12 @@ function App() {
   const [authHandle, setAuthHandle] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState('');
+  const [authNotice, setAuthNotice] = useState('');
+  const userRef = useRef<User | null>(null);
+  const pendingProtectedActionRef = useRef<null | {
+    message: string;
+    action: () => Promise<void>;
+  }>(null);
   const [registrySkills, setRegistrySkills] = useState<Skill[]>([]);
   const [registryLoading, setRegistryLoading] = useState(false);
 
@@ -633,6 +639,43 @@ function App() {
     }
   }, []);
 
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+
+  const openAuthGate = useCallback((message: string) => {
+    setAuthNotice(message);
+    setAuthError('');
+    setAuthMode('login');
+    setShowAuth(true);
+  }, []);
+
+  const runProtectedAction = useCallback(async (
+    action: () => Promise<void>,
+    message: string,
+  ) => {
+    if (!userRef.current) {
+      pendingProtectedActionRef.current = { action, message };
+      openAuthGate(message);
+      return;
+    }
+
+    try {
+      await action();
+    } catch (err) {
+      if (isUnauthorizedError(err)) {
+        clearAuthToken();
+        setUser(null);
+        userRef.current = null;
+        pendingProtectedActionRef.current = { action, message };
+        openAuthGate(message);
+        return;
+      }
+
+      throw err;
+    }
+  }, [openAuthGate]);
+
   const commitSkillSpec = useCallback((nextSpec: SkillSpec) => {
     setSkillSpec(nextSpec);
     setEditor(editorFromSpec(nextSpec));
@@ -656,47 +699,53 @@ function App() {
     setAgentActivity(createInitialActivityLog());
   }, []);
 
-  const handleCreate = useCallback(async () => {
-    if (!editor.name || !editor.description || !editor.markdown) return;
-    const tags = editor.tags.split(',').map(t => t.trim()).filter(Boolean);
-    const specForSave = normalizeSkillSpec({
-      ...skillSpec,
-      name: editor.name,
-      description: editor.description,
-      category: editor.category,
-      tags,
-    }, skillSpec);
-    const markdownForSave = specToMarkdown(specForSave);
-    const baseId = specForSave.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'untitled';
-    const id = skills.some(s => s.id === baseId) ? `${baseId}-${Date.now()}` : baseId;
-    const now = new Date().toISOString();
-    const newSkill: Skill = {
-      id,
-      name: specForSave.name,
-      description: specForSave.description,
-      category: specForSave.category,
-      tags: specForSave.tags,
-      spec: specForSave,
-      markdown: markdownForSave,
-      author: user ? { id: user.id, name: user.name } : { id: 'local', name: 'Local User' },
-      authorHandle: user?.handle,
-      createdAt: now,
-      updatedAt: now,
-      version: 1,
-      downloads: 0,
-    };
-    try {
-      setError(null);
-      await saveSkill(newSkill);
-      setSkills((prev) => [...prev, newSkill]);
-      setSelected(id);
-      setAgentActivity((prev) => [...prev, { id: `save-${Date.now()}`, label: 'Saved skill draft', status: 'done', detail: newSkill.name }]);
-    } catch {
-      setSkills((prev) => [...prev, newSkill]);
-      setSelected(id);
-      setAgentActivity((prev) => [...prev, { id: `save-local-${Date.now()}`, label: 'Saved local skill draft', status: 'done', detail: newSkill.name }]);
-    }
-  }, [editor.name, editor.description, editor.markdown, editor.category, editor.tags, skillSpec, skills, user]);
+  const handleCreate = useCallback(() => {
+    void runProtectedAction(async () => {
+      if (!editor.name || !editor.description || !editor.markdown) return;
+
+      const currentUser = userRef.current;
+      if (!currentUser) throw new Error('Authentication required');
+
+      const tags = editor.tags.split(',').map(t => t.trim()).filter(Boolean);
+      const specForSave = normalizeSkillSpec({
+        ...skillSpec,
+        name: editor.name,
+        description: editor.description,
+        category: editor.category,
+        tags,
+      }, skillSpec);
+      const markdownForSave = specToMarkdown(specForSave);
+      const baseId = specForSave.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'untitled';
+      const id = skills.some(s => s.id === baseId) ? `${baseId}-${Date.now()}` : baseId;
+      const now = new Date().toISOString();
+      const newSkill: Skill = {
+        id,
+        name: specForSave.name,
+        description: specForSave.description,
+        category: specForSave.category,
+        tags: specForSave.tags,
+        spec: specForSave,
+        markdown: markdownForSave,
+        author: { id: currentUser.id, name: currentUser.name },
+        authorHandle: currentUser.handle,
+        createdAt: now,
+        updatedAt: now,
+        version: 1,
+        downloads: 0,
+      };
+
+      try {
+        setError(null);
+        await saveSkill(newSkill);
+        setSkills((prev) => [...prev, newSkill]);
+        setSelected(id);
+        setAgentActivity((prev) => [...prev, { id: `save-${Date.now()}`, label: 'Saved skill draft', status: 'done', detail: newSkill.name }]);
+      } catch (err) {
+        if (isUnauthorizedError(err)) throw err;
+        setError(err instanceof Error ? err.message : 'Failed to save skill.');
+      }
+    }, 'Sign in or create an account to save this skill.');
+  }, [editor, skillSpec, skills, runProtectedAction]);
 
   const handleOpenRegistry = useCallback(() => {
     setView('workspace');
@@ -793,61 +842,82 @@ function App() {
     }
   }, [assistantInput, isLoading, builderSessionId, selectedSkill, skillSpec]);
 
-  const handlePublishSkill = useCallback(async () => {
-    if (!selectedSkill) return;
-    try {
-      setError(null);
-      const tags = editor.tags ? editor.tags.split(',').map(t => t.trim()).filter(Boolean) : selectedSkill.tags;
-      const specForSave = normalizeSkillSpec({
-        ...skillSpec,
-        name: editor.name || selectedSkill.name,
-        description: editor.description || selectedSkill.description,
-        category: editor.category || selectedSkill.category,
-        tags,
-      }, selectedSkill.spec);
-      const skillToPublish: Skill = {
-        ...selectedSkill,
-        name: specForSave.name,
-        description: specForSave.description,
-        category: specForSave.category,
-        tags: specForSave.tags,
-        spec: specForSave,
-        markdown: specToMarkdown(specForSave),
-        updatedAt: new Date().toISOString(),
-      };
-      await saveSkill(skillToPublish);
-      alert(`Published "${skillToPublish.name}"
+  const handlePublishSkill = useCallback(() => {
+    void runProtectedAction(async () => {
+      if (!selectedSkill) return;
+
+      try {
+        setError(null);
+        const tags = editor.tags ? editor.tags.split(',').map(t => t.trim()).filter(Boolean) : selectedSkill.tags;
+        const specForSave = normalizeSkillSpec({
+          ...skillSpec,
+          name: editor.name || selectedSkill.name,
+          description: editor.description || selectedSkill.description,
+          category: editor.category || selectedSkill.category,
+          tags,
+        }, selectedSkill.spec);
+        const skillToPublish: Skill = {
+          ...selectedSkill,
+          name: specForSave.name,
+          description: specForSave.description,
+          category: specForSave.category,
+          tags: specForSave.tags,
+          spec: specForSave,
+          markdown: specToMarkdown(specForSave),
+          updatedAt: new Date().toISOString(),
+        };
+        await saveSkill(skillToPublish);
+        alert(`Published "${skillToPublish.name}"
 
 Install with: ${generateNpxCommand(skillToPublish)}`);
-    } catch {
-      setError('Failed to publish skill.');
-    }
-  }, [selectedSkill, editor.name, editor.description, editor.category, editor.tags, skillSpec]);
+      } catch (err) {
+        if (isUnauthorizedError(err)) throw err;
+        setError('Failed to publish skill.');
+      }
+    }, 'Sign in or create an account to publish this skill.');
+  }, [selectedSkill, editor, skillSpec, runProtectedAction]);
 
   const handleAuth = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthLoading(true);
     setAuthError('');
+
     try {
       const result = authMode === 'login'
         ? await login(authEmail, authPassword)
         : await register(authName, authEmail, authPassword, authHandle);
+
       setAuthToken(result.token);
+      userRef.current = result.user;
       setUser(result.user);
+
       setShowAuth(false);
+      setAuthNotice('');
       setAuthEmail('');
       setAuthPassword('');
       setAuthName('');
       setAuthHandle('');
+
+      const pending = pendingProtectedActionRef.current;
+      pendingProtectedActionRef.current = null;
+
+      if (pending) {
+        queueMicrotask(() => {
+          void runProtectedAction(pending.action, pending.message);
+        });
+      }
     } catch (err) {
       setAuthError(err instanceof Error ? err.message : 'Auth failed');
     } finally {
       setAuthLoading(false);
     }
-  }, [authMode, authEmail, authPassword, authName, authHandle]);
+  }, [authMode, authEmail, authPassword, authName, authHandle, runProtectedAction]);
 
   const handleLogout = useCallback(() => {
     clearAuthToken();
+    userRef.current = null;
+    pendingProtectedActionRef.current = null;
+    setAuthNotice('');
     setUser(null);
   }, []);
 
@@ -909,23 +979,22 @@ Install with: ${generateNpxCommand(skillToPublish)}`);
     ]);
   }, [commitSkillSpec]);
 
-  const handleForkSkill = useCallback(async () => {
-    if (!selectedSkill) return;
-    try {
-      setError(null);
-      const result = await forkSkill(selectedSkill.id);
-      setSkills((prev) => [...prev, result.skill]);
-      setSelected(result.skill.id);
-      handleLoadSkill(result.skill);
-    } catch {
-      setError('Fork failed. Creating local copy.');
-      const forkId = `${selectedSkill.id}-fork-${Date.now()}`;
-      const fork = { ...selectedSkill, id: forkId, name: `${selectedSkill.name} (fork)`, forkedFrom: selectedSkill.id, author: { id: 'local', name: 'Local User' }, authorHandle: undefined, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), version: 1, downloads: 0 };
-      setSkills((prev) => [...prev, fork]);
-      setSelected(forkId);
-      handleLoadSkill(fork);
-    }
-  }, [selectedSkill, handleLoadSkill]);
+  const handleForkSkill = useCallback(() => {
+    void runProtectedAction(async () => {
+      if (!selectedSkill) return;
+
+      try {
+        setError(null);
+        const result = await forkSkill(selectedSkill.id);
+        setSkills((prev) => [...prev, result.skill]);
+        setSelected(result.skill.id);
+        handleLoadSkill(result.skill);
+      } catch (err) {
+        if (isUnauthorizedError(err)) throw err;
+        setError('Fork failed.');
+      }
+    }, 'Sign in or create an account to fork this skill.');
+  }, [selectedSkill, handleLoadSkill, runProtectedAction]);
 
   const handleGoHome = useCallback(() => setView('landing'), []);
 
@@ -941,7 +1010,7 @@ Install with: ${generateNpxCommand(skillToPublish)}`);
                 <button onClick={handleLogout} className="text-sm text-stone-400 hover:text-stone-700">Sign out</button>
               </div>
             ) : (
-              <button onClick={() => setShowAuth(true)} className="text-sm font-medium text-stone-700 hover:text-stone-900">Sign in</button>
+              <button onClick={() => { setAuthNotice(''); setShowAuth(true); }} className="text-sm font-medium text-stone-700 hover:text-stone-900">Sign in</button>
             )}
           </header>
 
@@ -1055,7 +1124,7 @@ Install with: ${generateNpxCommand(skillToPublish)}`);
                   <button onClick={handleLogout} className="text-xs text-stone-400 hover:text-stone-700">Sign out</button>
                 </div>
               ) : (
-                <button onClick={() => setShowAuth(true)} className="rounded-full bg-stone-900 px-4 py-1.5 text-sm font-medium text-white transition hover:bg-amber-600">Sign in</button>
+                <button onClick={() => { setAuthNotice(''); setShowAuth(true); }} className="rounded-full bg-stone-900 px-4 py-1.5 text-sm font-medium text-white transition hover:bg-amber-600">Sign in</button>
               )}
             </div>
           </header>
@@ -1443,6 +1512,9 @@ Install with: ${generateNpxCommand(skillToPublish)}`);
               <button onClick={() => setShowAuth(false)} className="rounded-full bg-stone-100 px-3 py-1 text-sm text-stone-500 transition hover:bg-stone-200">Close</button>
             </div>
             <form onSubmit={handleAuth} className="space-y-4 px-8 py-6">
+              {authNotice && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">{authNotice}</div>
+              )}
               {authError && (
                 <div className="rounded-xl bg-red-50 border border-red-200 p-3 text-sm text-red-700">{authError}</div>
               )}

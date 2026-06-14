@@ -752,8 +752,8 @@ function App() {
         <div className="mx-auto max-w-6xl px-6 py-8 sm:py-10 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-xs text-stone-400">skill builder &mdash; open-source skill registry &amp; editor</p>
           <nav className="flex items-center gap-6">
-            <a href="https://github.com/anomalyco/skill-builder" target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-stone-500 hover:text-amber-600 transition">GitHub</a>
-            <a href="https://github.com/anomalyco/skill-builder?tab=readme-ov-file#readme" target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-stone-500 hover:text-amber-600 transition">Docs</a>
+            <a href="https://github.com/praeceptor-thesis/skill-builder-landing" target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-stone-500 hover:text-amber-600 transition">GitHub</a>
+            <a href="https://github.com/praeceptor-thesis/skill-builder-landing?tab=readme-ov-file#readme" target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-stone-500 hover:text-amber-600 transition">Docs</a>
             <a href="https://www.npmjs.com/package/skill-builder" target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-stone-500 hover:text-amber-600 transition">npm</a>
           </nav>
         </div>

@@ -1,42 +1,52 @@
 #!/usr/bin/env node
 import cac from 'cac';
+import * as fs from 'fs';
+import * as path from 'path';
+import { pathToFileURL } from 'url';
+import { createApiClient, type Skill, type SkillPayload } from './api/client.js';
 
 const cli = cac('skill-builder');
 
-type SkillConfig = {
-  name: string;
-  version: string;
-  registryUrl: string;
-  description?: string;
-};
-
-const suggest = (text: string) => `skill-builder ${text}`;
-
 cli
   .command('install <skill>', 'Install a skill package from the registry')
-  .option('-r, --registry <url>', 'Registry URL', {
-    default: 'https://registry.example.com',
+  .option('-r, --registry <url>', 'Registry URL (Worker API)', {
+    default: 'https://skills.eastern-shore-solutions.com/api',
   })
-  .option('-v, --version <version>', 'Skill version', {
-    default: 'latest',
+  .option('-o, --output <dir>', 'Output directory for skill files', {
+    default: '.',
   })
   .action(async (skill, options) => {
     const registry = options.registry as string;
-    const version = options.version as string;
+    const outputDir = options.output as string;
+    const client = createApiClient(registry);
+    const skillId = skill.startsWith('@') ? skill.slice(skill.indexOf('/') + 1) : skill;
 
-    console.log(`Installing skill ${skill}@${version} from ${registry}`);
-    console.log('Fetching metadata...');
+    console.log(`Installing skill ${skill} from ${registry}`);
 
     try {
-      const response = await fetch(`${registry}/skills/${skill}/${version}`);
-      if (!response.ok) {
-        throw new Error(`Registry returned ${response.status}`);
-      }
-      const metadata = await response.json();
+      const response = await client.getSkill(skillId);
+      const metadata = response.skill;
       console.log('Skill metadata:');
       console.log(JSON.stringify(metadata, null, 2));
-      console.log('Simulating installation into Frontier model configuration...');
-      console.log(`Added skill ${metadata.name}@${metadata.version} to frontier.config.json`);
+
+      const outPath = path.resolve(outputDir, `${metadata.id}.md`);
+      fs.writeFileSync(outPath, metadata.markdown, 'utf-8');
+      console.log(`Skill markdown written to: ${outPath}`);
+
+      const configPath = path.resolve(outputDir, `${metadata.id}.json`);
+      const config = {
+        id: metadata.id,
+        name: metadata.name,
+        description: metadata.description,
+        category: metadata.category,
+        tags: metadata.tags,
+        version: metadata.version,
+        author: metadata.author,
+      };
+      fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
+      console.log(`Skill config written to: ${configPath}`);
+
+      console.log('Skill installed successfully.');
     } catch (error) {
       console.error('Install failed:', error instanceof Error ? error.message : String(error));
       process.exit(1);
@@ -45,15 +55,266 @@ cli
 
 cli
   .command('publish <path>', 'Publish a local skill to the registry')
-  .option('-r, --registry <url>', 'Registry URL', {
-    default: 'https://registry.example.com',
+  .option('-r, --registry <url>', 'Registry URL (Worker API)', {
+    default: 'https://skills.eastern-shore-solutions.com/api',
   })
-  .action(async (path, options) => {
+  .option('-t, --token <token>', 'Auth token for registry')
+  .action(async (skillPath, options) => {
     const registry = options.registry as string;
-    console.log(`Publishing skill from ${path} to ${registry}`);
-    console.log('Packaging skill manifest...');
-    console.log('Published successfully (simulation).');
+    const client = createApiClient(registry);
+    if (options.token) client.setToken(options.token as string);
+
+    console.log(`Publishing skill from ${skillPath} to ${registry}`);
+
+    try {
+      const fullPath = path.resolve(skillPath);
+
+      let skill: SkillPayload;
+
+      if (fullPath.endsWith('.json')) {
+        const raw = JSON.parse(fs.readFileSync(fullPath, 'utf-8'));
+        let markdown = '';
+        const mdPath = fullPath.replace(/\.json$/, '.md');
+        if (fs.existsSync(mdPath)) {
+          markdown = fs.readFileSync(mdPath, 'utf-8');
+        }
+        skill = { ...raw, markdown: raw.markdown || markdown };
+      } else if (fullPath.endsWith('.md') || fullPath.endsWith('.mjs') || fullPath.endsWith('.js')) {
+        if (fullPath.endsWith('.md')) {
+          const name = path.basename(fullPath, '.md');
+          skill = {
+            id: name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+            name: name.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+            description: '',
+            category: 'Utilities',
+            tags: [],
+            markdown: fs.readFileSync(fullPath, 'utf-8'),
+          };
+        } else {
+          const skillModule = await import(pathToFileURL(fullPath).href);
+          skill = skillModule.default || skillModule;
+          if (!skill.markdown) {
+            const mdPath = fullPath.replace(/\.(mjs|js)$/, '.md');
+            if (fs.existsSync(mdPath)) {
+              skill.markdown = fs.readFileSync(mdPath, 'utf-8');
+            }
+          }
+        }
+      } else {
+        throw new Error('Path must be a .json, .md, or .js/.mjs file');
+      }
+
+      if (!skill.id || !skill.name) {
+        throw new Error('Skill must have id and name');
+      }
+
+      console.log('Packaging skill manifest...');
+      const response = await client.saveSkill(skill);
+
+      console.log('Published successfully!');
+      const displayId = response.skill.authorHandle ? `@${response.skill.authorHandle}/${response.skill.id}` : response.skill.id;
+      console.log(`Skill ID: ${displayId}`);
+      console.log(`Skill Name: ${response.skill.name}`);
+      console.log(`Install with: npx skill-builder install ${displayId}`);
+    } catch (error) {
+      console.error('Publish failed:', error instanceof Error ? error.message : String(error));
+      process.exit(1);
+    }
   });
+
+cli
+  .command('list', 'List all skills from the registry')
+  .option('-r, --registry <url>', 'Registry URL (Worker API)', {
+    default: 'https://skills.eastern-shore-solutions.com/api',
+  })
+  .option('-q, --query <query>', 'Search query')
+  .option('-c, --category <category>', 'Filter by category')
+  .option('--tag <tag...>', 'Filter by tag (can be repeated)')
+  .option('--sort <sort>', 'Sort order: recent, popular, downloads')
+  .action(async (options) => {
+    const registry = options.registry as string;
+    const client = createApiClient(registry);
+
+    try {
+      const response = await client.listSkills({
+        query: options.query as string | undefined,
+        category: options.category as string | undefined,
+        tags: options.tag as string[] | undefined,
+        sort: options.sort as 'recent' | 'popular' | 'downloads' | undefined,
+      });
+
+      if (response.skills.length === 0) {
+        console.log('No skills found.');
+        return;
+      }
+
+      console.log(`Found ${response.total || response.skills.length} skills:`);
+      console.log('');
+      response.skills.forEach((skill) => {
+        const tags = skill.tags?.length ? ` [${skill.tags.join(', ')}]` : '';
+        const downloads = skill.downloads != null ? ` ⬇ ${skill.downloads}` : '';
+        const displayId = skill.authorHandle ? `@${skill.authorHandle}/${skill.id}` : skill.id;
+        console.log(`  ${displayId.padEnd(35)} ${skill.name.padEnd(25)} ${skill.category.padEnd(16)} v${skill.version || 1}${downloads}${tags}`);
+      });
+    } catch (error) {
+      console.error('List failed:', error instanceof Error ? error.message : String(error));
+      process.exit(1);
+    }
+  });
+
+cli
+  .command('search <query>', 'Search skills in the registry')
+  .option('-r, --registry <url>', 'Registry URL (Worker API)', {
+    default: 'https://skills.eastern-shore-solutions.com/api',
+  })
+  .option('-c, --category <category>', 'Filter by category')
+  .option('--tag <tag...>', 'Filter by tag (can be repeated)')
+  .option('--sort <sort>', 'Sort order: recent, popular, downloads')
+  .action(async (query, options) => {
+    const registry = options.registry as string;
+    const client = createApiClient(registry);
+
+    try {
+      const response = await client.listSkills({
+        query,
+        category: options.category as string | undefined,
+        tags: options.tag as string[] | undefined,
+        sort: options.sort as 'recent' | 'popular' | 'downloads' | undefined,
+      });
+
+      if (response.skills.length === 0) {
+        console.log(`No skills found matching "${query}".`);
+        return;
+      }
+
+      console.log(`Found ${response.total || response.skills.length} skills matching "${query}":`);
+      console.log('');
+      response.skills.forEach((skill) => {
+        const displayId = skill.authorHandle ? `@${skill.authorHandle}/${skill.id}` : skill.id;
+        console.log(`  ${displayId}`);
+        console.log(`    Name:        ${skill.name}`);
+        console.log(`    Category:    ${skill.category}`);
+        console.log(`    Downloads:   ${skill.downloads || 0}`);
+        console.log(`    Version:     v${skill.version || 1}`);
+        if (skill.tags?.length) console.log(`    Tags:        ${skill.tags.join(', ')}`);
+        if (skill.description) console.log(`    Description: ${skill.description}`);
+        console.log('');
+      });
+    } catch (error) {
+      console.error('Search failed:', error instanceof Error ? error.message : String(error));
+      process.exit(1);
+    }
+  });
+
+cli
+  .command('fork <skill-id>', 'Fork an existing skill')
+  .option('-r, --registry <url>', 'Registry URL (Worker API)', {
+    default: 'https://skills.eastern-shore-solutions.com/api',
+  })
+  .option('-n, --name <name>', 'New name for the forked skill')
+  .option('-t, --token <token>', 'Auth token for registry')
+  .action(async (rawSkillId, options) => {
+    const registry = options.registry as string;
+    const client = createApiClient(registry);
+    if (options.token) client.setToken(options.token as string);
+    const skillId = rawSkillId.startsWith('@') ? rawSkillId.slice(rawSkillId.indexOf('/') + 1) : rawSkillId;
+
+    console.log(`Forking skill ${rawSkillId} from ${registry}`);
+
+    try {
+      const response = await client.forkSkill(skillId, {
+        name: options.name as string | undefined,
+      });
+
+      console.log('Forked successfully!');
+      const displayId = response.skill.authorHandle ? `@${response.skill.authorHandle}/${response.skill.id}` : response.skill.id;
+      console.log(`New skill ID: ${displayId}`);
+      console.log(`New skill Name: ${response.skill.name}`);
+      console.log(`Forked from: ${rawSkillId}`);
+    } catch (error) {
+      console.error('Fork failed:', error instanceof Error ? error.message : String(error));
+      process.exit(1);
+    }
+  });
+
+cli
+  .command('login <email>', 'Login to the registry')
+  .option('-r, --registry <url>', 'Registry URL (Worker API)', {
+    default: 'https://skills.eastern-shore-solutions.com/api',
+  })
+  .action(async (email, options) => {
+    const registry = options.registry as string;
+    const client = createApiClient(registry);
+
+    const password = process.env.SKILL_PASSWORD || (await promptPassword());
+
+    try {
+      const response = await client.login(email, password);
+      console.log('Login successful!');
+      console.log(`Handle: @${response.user.handle}`);
+      console.log(`User: ${response.user.name} (${response.user.email})`);
+      console.log(`Token: ${response.token}`);
+      console.log('');
+      console.log('Set this token via --token flag or SKILL_TOKEN env var');
+    } catch (error) {
+      console.error('Login failed:', error instanceof Error ? error.message : String(error));
+      process.exit(1);
+    }
+  });
+
+cli
+  .command('register <handle> <name> <email>', 'Register a new account')
+  .option('-r, --registry <url>', 'Registry URL (Worker API)', {
+    default: 'https://skills.eastern-shore-solutions.com/api',
+  })
+  .action(async (handle, name, email, options) => {
+    const registry = options.registry as string;
+    const client = createApiClient(registry);
+
+    const password = process.env.SKILL_PASSWORD || (await promptPassword());
+
+    try {
+      const response = await client.register(name, email, password, handle);
+      console.log('Registration successful!');
+      console.log(`Handle: @${response.user.handle}`);
+      console.log(`User: ${response.user.name} (${response.user.email})`);
+      console.log(`Token: ${response.token}`);
+      console.log('');
+      console.log('Set this token via --token flag or SKILL_TOKEN env var');
+    } catch (error) {
+      console.error('Registration failed:', error instanceof Error ? error.message : String(error));
+      process.exit(1);
+    }
+  });
+
+async function promptPassword(): Promise<string> {
+  const write = (s: string) => process.stdout.write(s);
+  return new Promise((resolve) => {
+    const stdin = process.stdin;
+    if (stdin.isTTY) stdin.setRawMode?.(true);
+    let password = '';
+    write('Password: ');
+    const onData = (key: Buffer) => {
+      const char = key.toString();
+      if (char === '\n' || char === '\r' || char === '\r\n') {
+        stdin.removeListener('data', onData);
+        if (stdin.isTTY) stdin.setRawMode?.(false);
+        resolve(password);
+      } else if (char === '\u0003') {
+        stdin.removeListener('data', onData);
+        if (stdin.isTTY) stdin.setRawMode?.(false);
+        process.exit(1);
+      } else if (char === '\u007f' || char === '\b') {
+        password = password.slice(0, -1);
+        write('\b \b');
+      } else {
+        password += char;
+        write('*');
+      }
+    };
+    stdin.on('data', onData);
+  });
+}
 
 cli.help();
 cli.version('0.1.0');

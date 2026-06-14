@@ -1,16 +1,33 @@
 {
-  "name": "skill-builder-cli",
+  "name": "@concordex-ai/skill-builder",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
   "bin": {
     "skill-builder": "dist/index.js"
   },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc",
+    "prepublishOnly": "tsc",
     "lint": "eslint . --ext .ts",
     "start": "node dist/index.js"
   },
+  "description": "Install and publish AI skill prompts from the command line",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/praeceptor-thesis/skill-builder-landing.git"
+  },
+  "homepage": "https://skills.eastern-shore-solutions.com",
+  "keywords": [
+    "ai",
+    "skills",
+    "prompts",
+    "cli",
+    "llm"
+  ],
+  "license": "MIT",
   "dependencies": {
     "cac": "^7.0.0",
     "node-fetch": "^3.3.2"
@@ -21,5 +38,8 @@
     "@typescript-eslint/parser": "^7.11.0",
     "eslint": "^8.57.0",
     "typescript": "^5.5.4"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }

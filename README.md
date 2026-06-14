@@ -6,62 +6,102 @@ Publish and install AI skill prompts from the command line — or author them in
 npx skill-builder install @author/skill-id
 ```
 
-## CLI
+---
 
-### Install
+## Getting started: installing skills
+
+### Browse the registry
+
+```bash
+npx skill-builder list
+```
+
+Filter by category, tag, and sort order:
+
+```bash
+npx skill-builder list --category Conversational
+npx skill-builder list --sort popular
+npx skill-builder list --tag prompt --sort downloads
+```
+
+### Search for something specific
+
+```bash
+npx skill-builder search "data pipeline"
+npx skill-builder search dialogue --sort popular
+```
+
+### Install a skill
 
 ```bash
 npx skill-builder install dialogue-flow
 npx skill-builder install @skillauthor/dialogue-flow
 ```
 
-Downloads the skill markdown and config to `./<skill-id>.md` and `./<skill-id>.json`. Pass `--output <dir>` to change the target.
+Downloads `dialogue-flow.md` and `dialogue-flow.json` to the current directory. Use `--output ./my-skills` to change where files land.
 
-### Publish
+---
 
-```bash
-npx skill-builder publish ./my-skill.md --token $SKILL_TOKEN
-npx skill-builder publish ./my-skill.json --token $SKILL_TOKEN
-```
+## Getting started: publishing skills
 
-Publishes a skill to the registry. Requires an auth token (get one via `login`).
-
-### List & Search
+### 1. Create an account
 
 ```bash
-npx skill-builder list
-npx skill-builder list --sort popular --category Conversational
-npx skill-builder search "data pipeline" --sort downloads
-```
-
-### Fork
-
-```bash
-npx skill-builder fork @skillauthor/dialogue-flow --name my-dialogue --token $SKILL_TOKEN
-```
-
-Creates a derivative of an existing skill under your own account.
-
-### Auth
-
-```bash
-# Register (you'll be prompted for a password)
 npx skill-builder register myhandle "My Name" me@email.com
+```
 
-# Login (you'll be prompted for your password)
+You'll be prompted for a password. Or set `SKILL_PASSWORD` to skip the prompt:
+
+```bash
+SKILL_PASSWORD=hunter2 npx skill-builder register myhandle "My Name" me@email.com
+```
+
+### 2. Log in
+
+```bash
 npx skill-builder login me@email.com
 ```
 
-Set `SKILL_PASSWORD` to skip the password prompt in scripts. After login, set `SKILL_TOKEN` for authenticated commands.
+Your auth token is printed on success. Set it as `SKILL_TOKEN` so subsequent commands can use it:
+
+```bash
+export SKILL_TOKEN=<token-from-login>
+```
+
+(Or pass `--token $SKILL_TOKEN` to each command.)
+
+### 3. Publish a skill
+
+From a markdown file:
+
+```bash
+npx skill-builder publish ./my-skill.md
+```
+
+The CLI reads the filename as the skill id and the first heading as the name. You can also use a JSON manifest:
+
+```bash
+npx skill-builder publish ./my-skill.json
+```
+
+### 4. Fork an existing skill (optional)
+
+```bash
+npx skill-builder fork @skillauthor/dialogue-flow --name my-dialogue
+```
+
+Creates a copy under your account that you can republish.
+
+---
 
 ## Web App
 
-The web editor at `https://skills.eastern-shore-solutions.com` provides:
+Visit the web editor at `https://skills.eastern-shore-solutions.com` to:
 
-- **Markdown editor** with split edit/preview mode
-- **AI assistant** — describe the skill you want, get a markdown draft
-- **Public registry** — browse, search, and filter skills
-- **Fork → refine → republish** workflow
+- Browse the registry visually
+- Write skills with a split edit/preview markdown editor
+- Draft skills with the AI assistant
+- Fork, refine, and republish in one workflow
 
 ## Install from source
 

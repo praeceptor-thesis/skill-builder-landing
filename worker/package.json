@@ -9,7 +9,7 @@
     "deploy": "wrangler deploy skill-persistence-worker.js --name skill-builder-landing-api --env production"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20240529.0",
+    "@cloudflare/workers-types": "^4.20260613.1",
     "typescript": "^5.5.4",
     "wrangler": "^3.60.0"
   }

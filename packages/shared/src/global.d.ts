@@ -1,9 +1,6 @@
 /// <reference types="vite/client" />
 
 interface ImportMetaEnv {
-  readonly VITE_SKILL_API_URL: string;
-}
-
-interface ImportMeta {
-  readonly env: ImportMetaEnv;
+  readonly DEV?: boolean;
+  readonly VITE_SKILL_API_URL?: string;
 }

@@ -6,11 +6,34 @@ function ok(data, status = 200) {
   return new Response(JSON.stringify({ ok: true, data }), { status, headers: jsonHeaders });
 }
 
-function err(code, message, status = 400) {
-  return new Response(JSON.stringify({ ok: false, error: { code, message } }), { status, headers: jsonHeaders });
+function err(code, message, status = 400, detail) {
+  const payload = { ok: false, error: { code, message } };
+  if (detail !== undefined) payload.error.detail = detail;
+  return new Response(JSON.stringify(payload), { status, headers: jsonHeaders });
 }
 
 const MODEL = '@cf/meta/llama-3.1-8b-instruct-fp8';
+
+const SKILL_OPERATION_TYPES = new Set([
+  'replace_spec',
+  'set_spec',
+  'set_skill_spec',
+  'set_metadata',
+  'set_name',
+  'set_description',
+  'set_category',
+  'set_tags',
+  'set_purpose',
+  'set_instructions',
+  'append_instruction',
+  'set_prompt',
+  'set_prompt_template',
+  'set_examples',
+  'append_example',
+  'set_tests',
+  'append_test',
+  'set_markdown_artifact',
+]);
 
 async function hashPassword(password, saltBytes) {
   const encoder = new TextEncoder();
@@ -37,8 +60,9 @@ function generateToken() {
 }
 
 function parseSkillId(raw) {
+  if (!raw) return raw;
   if (raw.startsWith('@')) return raw.slice(raw.indexOf('/') + 1);
-  return raw;
+  return decodeURIComponent(raw);
 }
 
 async function getUserFromToken(token, SKILL_STORE) {
@@ -49,39 +73,453 @@ async function getUserFromToken(token, SKILL_STORE) {
 }
 
 async function runInference(ai, messages, options = {}) {
-  const response = await ai.run(MODEL, {
+  return ai.run(MODEL, {
     messages,
     ...options,
   });
-  return response;
 }
 
-function buildSkillExecutionPrompt(skill, userInput, taskOutline) {
-  return `Execute the following skill with the given input.
+function isRecord(value) {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
 
-Skill: ${skill.name}
-Category: ${skill.category}
-Tags: ${skill.tags?.join(', ') || 'none'}
+function asString(value) {
+  if (typeof value === 'string') return value.trim();
+  if (value === null || value === undefined) return '';
+  return String(value).trim();
+}
 
-Skill Markdown:
-${skill.markdown}
+function normalizeStringArray(value) {
+  if (Array.isArray(value)) return value.map(asString).filter(Boolean);
+  if (typeof value === 'string') {
+    return value
+      .split(/\n|,/)
+      .map(item => item.replace(/^[-*\d.)\s]+/, '').trim())
+      .filter(Boolean);
+  }
+  return [];
+}
+
+function normalizeTags(value) {
+  return normalizeStringArray(value).map(tag => tag.toLowerCase().replace(/^#/, '')).filter(Boolean);
+}
+
+function normalizeExamples(value) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => {
+      if (typeof item === 'string') return { input: item, output: '' };
+      if (!isRecord(item)) return null;
+      return {
+        title: asString(item.title) || undefined,
+        input: asString(item.input),
+        output: typeof item.output === 'string' ? item.output : JSON.stringify(item.output ?? ''),
+      };
+    })
+    .filter(item => item && (item.input || item.output));
+}
+
+function normalizeTests(value) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item, index) => {
+      if (typeof item === 'string') return { name: `Test ${index + 1}`, input: item, expected: '' };
+      if (!isRecord(item)) return null;
+      return {
+        name: asString(item.name) || `Test ${index + 1}`,
+        input: asString(item.input),
+        expected: typeof item.expected === 'string' ? item.expected : JSON.stringify(item.expected ?? ''),
+      };
+    })
+    .filter(item => item && (item.input || item.expected));
+}
+
+function createEmptySkillSpec(overrides = {}) {
+  return {
+    name: '',
+    description: '',
+    category: 'Conversational',
+    tags: [],
+    purpose: '',
+    instructions: [],
+    promptTemplate: '',
+    examples: [],
+    tests: [],
+    ...overrides,
+  };
+}
+
+function normalizeSkillSpec(value, fallback = createEmptySkillSpec()) {
+  const source = isRecord(value) ? value : {};
+  return {
+    name: asString(source.name) || fallback.name || '',
+    description: asString(source.description) || fallback.description || '',
+    category: asString(source.category) || fallback.category || 'Conversational',
+    tags: source.tags !== undefined ? normalizeTags(source.tags) : normalizeTags(fallback.tags),
+    purpose: asString(source.purpose) || fallback.purpose || '',
+    instructions: source.instructions !== undefined ? normalizeStringArray(source.instructions) : normalizeStringArray(fallback.instructions),
+    promptTemplate: asString(source.promptTemplate ?? source.prompt ?? source.prompt_template) || fallback.promptTemplate || '',
+    examples: source.examples !== undefined ? normalizeExamples(source.examples) : normalizeExamples(fallback.examples),
+    tests: source.tests !== undefined ? normalizeTests(source.tests) : normalizeTests(fallback.tests),
+  };
+}
+
+function specToMarkdown(spec) {
+  const normalized = normalizeSkillSpec(spec);
+  const lines = [
+    `# ${normalized.name || 'Untitled Skill'}`,
+    '',
+    '## Purpose',
+    normalized.purpose || normalized.description || 'Describe the skill purpose.',
+    '',
+    '## Instructions',
+    ...(normalized.instructions.length > 0
+      ? normalized.instructions.map((instruction, index) => `${index + 1}. ${instruction}`)
+      : ['1. Define how this skill should behave.']),
+    '',
+    '## Prompt Template',
+    '```',
+    normalized.promptTemplate || 'Use the provided input to complete the task.',
+    '```',
+  ];
+
+  if (normalized.examples.length > 0) {
+    lines.push('', '## Examples');
+    normalized.examples.forEach((example, index) => {
+      lines.push(
+        '',
+        `### Example ${index + 1}${example.title ? `: ${example.title}` : ''}`,
+        `**Input**: ${example.input}`,
+        '',
+        `**Output**: ${example.output}`,
+      );
+    });
+  }
+
+  if (normalized.tests.length > 0) {
+    lines.push('', '## Tests');
+    normalized.tests.forEach((test, index) => {
+      lines.push(
+        '',
+        `### ${test.name || `Test ${index + 1}`}`,
+        `**Input**: ${test.input}`,
+        '',
+        `**Expected**: ${test.expected}`,
+      );
+    });
+  }
+
+  return lines.join('\n').trim() + '\n';
+}
+
+function buildArtifacts(spec) {
+  const normalized = normalizeSkillSpec(spec);
+  return {
+    metadata: {
+      name: normalized.name,
+      description: normalized.description,
+      category: normalized.category,
+      tags: normalized.tags,
+    },
+    purpose: normalized.purpose,
+    instructions: normalized.instructions,
+    promptTemplate: normalized.promptTemplate,
+    examples: normalized.examples,
+    tests: normalized.tests,
+    markdown: specToMarkdown(normalized),
+  };
+}
+
+function validateSkillSpec(spec) {
+  const errors = [];
+  if (!spec.name?.trim()) errors.push('Skill name is required');
+  if (!spec.description?.trim()) errors.push('Description is required');
+  if (!spec.category?.trim()) errors.push('Category is required');
+  if (!spec.purpose?.trim()) errors.push('Purpose is required');
+  if (!Array.isArray(spec.tags)) errors.push('Tags must be an array');
+  if (!Array.isArray(spec.instructions) || spec.instructions.length === 0) errors.push('At least one instruction is required');
+  if (!spec.promptTemplate?.trim()) errors.push('Prompt template is required');
+  if (!Array.isArray(spec.examples)) errors.push('Examples must be an array');
+  if (!Array.isArray(spec.tests)) errors.push('Tests must be an array');
+  return errors;
+}
+
+function applySkillOperation(spec, operation) {
+  const current = normalizeSkillSpec(spec);
+  if (!isRecord(operation) || typeof operation.type !== 'string') return current;
+
+  const value = operation.value;
+  switch (operation.type) {
+    case 'replace_spec':
+    case 'set_spec':
+    case 'set_skill_spec':
+      return normalizeSkillSpec(value, current);
+    case 'set_metadata':
+      return normalizeSkillSpec({ ...current, ...(isRecord(value) ? value : {}) }, current);
+    case 'set_name':
+      return { ...current, name: asString(value) };
+    case 'set_description':
+      return { ...current, description: asString(value) };
+    case 'set_category':
+      return { ...current, category: asString(value) || current.category };
+    case 'set_tags':
+      return { ...current, tags: normalizeTags(value) };
+    case 'set_purpose':
+      return { ...current, purpose: asString(value) };
+    case 'set_instructions':
+      return { ...current, instructions: normalizeStringArray(value) };
+    case 'append_instruction':
+      return { ...current, instructions: [...current.instructions, asString(value)].filter(Boolean) };
+    case 'set_prompt':
+    case 'set_prompt_template':
+      return { ...current, promptTemplate: asString(value) };
+    case 'set_examples':
+      return { ...current, examples: normalizeExamples(value) };
+    case 'append_example':
+      return { ...current, examples: [...current.examples, ...normalizeExamples([value])] };
+    case 'set_tests':
+      return { ...current, tests: normalizeTests(value) };
+    case 'append_test':
+      return { ...current, tests: [...current.tests, ...normalizeTests([value])] };
+    case 'set_markdown_artifact':
+      return current;
+    default:
+      return current;
+  }
+}
+
+function applySkillOperations(spec, operations) {
+  return operations.reduce((draft, operation) => applySkillOperation(draft, operation), normalizeSkillSpec(spec));
+}
+
+function normalizeOperation(raw) {
+  if (!isRecord(raw) || typeof raw.type !== 'string') return null;
+  if (!SKILL_OPERATION_TYPES.has(raw.type)) return null;
+  return {
+    type: raw.type,
+    value: raw.value,
+    reason: typeof raw.reason === 'string' ? raw.reason : undefined,
+  };
+}
+
+function extractJsonObject(text) {
+  const raw = asString(text).replace(/^```(?:json)?/i, '').replace(/```$/i, '').trim();
+  if (!raw) return null;
+
+  try {
+    return JSON.parse(raw);
+  } catch {
+    // Fall through and try to extract the first balanced JSON object.
+  }
+
+  const start = raw.indexOf('{');
+  if (start === -1) return null;
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = start; i < raw.length; i += 1) {
+    const char = raw[i];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (char === '\\') {
+      escaped = true;
+      continue;
+    }
+    if (char === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (inString) continue;
+    if (char === '{') depth += 1;
+    if (char === '}') depth -= 1;
+    if (depth === 0) {
+      const candidate = raw.slice(start, i + 1);
+      try {
+        return JSON.parse(candidate);
+      } catch {
+        return null;
+      }
+    }
+  }
+
+  return null;
+}
+
+function parseBuilderModelOutput(outputText) {
+  const payload = extractJsonObject(outputText);
+  if (!payload) return { operations: [], activity: [], assistantText: '' };
+
+  if (Array.isArray(payload)) {
+    return {
+      operations: payload.map(normalizeOperation).filter(Boolean),
+      activity: [],
+      assistantText: '',
+    };
+  }
+
+  const operations = Array.isArray(payload.operations)
+    ? payload.operations.map(normalizeOperation).filter(Boolean)
+    : [];
+
+  const looksLikeSpec = ['name', 'description', 'category', 'purpose', 'instructions', 'promptTemplate'].some(key => key in payload);
+  const spec = isRecord(payload.spec) ? payload.spec : looksLikeSpec ? payload : undefined;
+
+  return {
+    operations,
+    spec,
+    activity: Array.isArray(payload.activity) ? payload.activity.map(normalizeActivity).filter(Boolean) : [],
+    assistantText: asString(payload.message || payload.summary || payload.assistantText),
+  };
+}
+
+function operationLabel(operation) {
+  switch (operation.type) {
+    case 'replace_spec':
+    case 'set_spec':
+    case 'set_skill_spec':
+      return 'Generated complete SkillSpec';
+    case 'set_metadata':
+      return 'Generated metadata';
+    case 'set_name':
+      return 'Determined skill name';
+    case 'set_description':
+      return 'Generated description';
+    case 'set_category':
+      return 'Determined category';
+    case 'set_tags':
+      return 'Generated tags';
+    case 'set_purpose':
+      return 'Generated purpose';
+    case 'set_instructions':
+    case 'append_instruction':
+      return 'Generated instructions';
+    case 'set_prompt':
+    case 'set_prompt_template':
+      return 'Generated prompt template';
+    case 'set_examples':
+    case 'append_example':
+      return 'Generated examples';
+    case 'set_tests':
+    case 'append_test':
+      return 'Generated tests';
+    case 'set_markdown_artifact':
+      return 'Generated markdown artifact';
+    default:
+      return 'Applied state operation';
+  }
+}
+
+function operationDetail(operation) {
+  if (typeof operation.reason === 'string' && operation.reason.trim()) return operation.reason.trim();
+  if (typeof operation.value === 'string') return operation.value.slice(0, 180);
+  if (Array.isArray(operation.value)) return `${operation.value.length} item${operation.value.length === 1 ? '' : 's'}`;
+  if (isRecord(operation.value)) return Object.keys(operation.value).join(', ');
+  return undefined;
+}
+
+function normalizeActivity(raw, index = 0) {
+  if (!isRecord(raw)) return null;
+  const status = ['pending', 'running', 'done', 'error'].includes(raw.status) ? raw.status : 'done';
+  return {
+    id: asString(raw.id) || `activity-${Date.now()}-${index}`,
+    label: asString(raw.label) || 'Applied state operation',
+    status,
+    detail: asString(raw.detail) || undefined,
+    operationType: SKILL_OPERATION_TYPES.has(raw.operationType) ? raw.operationType : undefined,
+  };
+}
+
+function activityFromOperations(operations, runId) {
+  return operations.map((operation, index) => ({
+    id: `${runId}-op-${index}`,
+    label: operationLabel(operation),
+    status: 'done',
+    detail: operationDetail(operation),
+    operationType: operation.type,
+  }));
+}
+
+function buildSkillArchitectMessages(intent, currentSpec, messages = []) {
+  const recentConversation = Array.isArray(messages)
+    ? messages.slice(-8).map(message => ({
+        role: message.role === 'assistant' ? 'assistant' : 'user',
+        content: asString(message.text),
+      })).filter(message => message.content)
+    : [];
+
+  return [
+    {
+      role: 'system',
+      content: `You are Skill Architect, an agent that builds reusable AI skills by producing structured state mutations.
+
+Do not write markdown. Do not write prose outside JSON. Return one valid JSON object only.
+
+Your JSON response must match this shape:
+{
+  "operations": [
+    { "type": "set_name", "value": "...", "reason": "..." },
+    { "type": "set_category", "value": "...", "reason": "..." },
+    { "type": "set_description", "value": "...", "reason": "..." },
+    { "type": "set_tags", "value": ["tag"], "reason": "..." },
+    { "type": "set_purpose", "value": "...", "reason": "..." },
+    { "type": "set_instructions", "value": ["instruction"], "reason": "..." },
+    { "type": "set_prompt_template", "value": "...", "reason": "..." },
+    { "type": "set_examples", "value": [{ "title": "...", "input": "...", "output": "..." }], "reason": "..." },
+    { "type": "set_tests", "value": [{ "name": "...", "input": "...", "expected": "..." }], "reason": "..." }
+  ],
+  "activity": [
+    { "id": "activity-name", "label": "Determined category", "status": "done", "detail": "...", "operationType": "set_category" }
+  ],
+  "message": "Applied structured updates to the skill spec."
+}
+
+Allowed operation types: ${Array.from(SKILL_OPERATION_TYPES).join(', ')}.
+
+Rules:
+- Prefer several granular operations over a single markdown document.
+- Preserve existing useful fields unless the user asks to replace them.
+- Create production-ready prompt templates with {{input}} and other obvious placeholders.
+- Examples must have input and output.
+- Tests must have name, input, and expected.
+- Category should be concise, such as Healthcare, Compliance, Developer Tools, Data, Automation, Utilities, Sales, Support, Education, Finance, Legal, Security, Research, or Productivity.`,
+    },
+    {
+      role: 'user',
+      content: `Current SkillSpec JSON:\n${JSON.stringify(normalizeSkillSpec(currentSpec), null, 2)}\n\nUser intent:\n${intent}`,
+    },
+    ...recentConversation,
+  ];
+}
+
+function buildSkillExecutionPrompt(skill, userInput, taskOutline, requestSpec) {
+  const spec = normalizeSkillSpec(requestSpec || skill.spec);
+  return `Execute the following skill using its canonical SkillSpec.
+
+SkillSpec:
+${JSON.stringify(spec, null, 2)}
+
+Generated Markdown Artifact:
+${skill.markdown || specToMarkdown(spec)}
 
 Task Context: ${taskOutline || 'No specific task outline provided.'}
 
 User Input: ${userInput}
 
-Execute this skill by following its markdown instructions precisely.`;
+Follow the SkillSpec instructions and prompt template precisely. Return only the execution result.`;
 }
 
-async function executeSkill(ai, skill, userInput, taskOutline) {
-  const prompt = buildSkillExecutionPrompt(skill, userInput, taskOutline);
-  
+async function executeSkill(AI, skill, userInput, taskOutline, requestSpec) {
+  const prompt = buildSkillExecutionPrompt(skill, userInput, taskOutline, requestSpec);
+
   const messages = [
-    { role: 'system', content: "You are executing a specific skill. Follow the skill's markdown instructions precisely." },
+    { role: 'system', content: 'You execute a specific reusable AI skill. Follow the canonical SkillSpec precisely.' },
     { role: 'user', content: prompt },
   ];
 
-  const response = await runInference(ai, messages, {
+  const response = await runInference(AI, messages, {
     temperature: 0.5,
     max_tokens: 2048,
   });
@@ -94,12 +532,26 @@ async function handleRequest(request, env) {
   const key = url.pathname.replace(/^\/api\//, '');
   const { SKILL_STORE, AI } = env;
 
+  if (request.method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: jsonHeaders });
+  }
+
   if (url.pathname === '/api/skills' && request.method === 'GET') {
     return listSkills(SKILL_STORE, url);
   }
 
   if (url.pathname === '/api/skills' && request.method === 'POST') {
     return saveSkill(request, SKILL_STORE);
+  }
+
+  if (url.pathname === '/api/skill-builder/session' && request.method === 'POST') {
+    return createSkillBuilderSession(request, SKILL_STORE);
+  }
+
+  if (url.pathname.startsWith('/api/skill-builder/session/')) {
+    const sessionId = url.pathname.replace('/api/skill-builder/session/', '');
+    if (request.method === 'GET') return getSkillBuilderSession(sessionId, SKILL_STORE);
+    if (request.method === 'POST') return handleSkillBuilderTurn(request, sessionId, SKILL_STORE, AI);
   }
 
   if (request.method === 'GET' && key.startsWith('skills/')) {
@@ -111,12 +563,17 @@ async function handleRequest(request, env) {
     return forkSkill(request, skillId, SKILL_STORE);
   }
 
-  if (url.pathname.startsWith('/api/skills/') && request.method === 'PATCH' && !url.pathname.slice(12).includes('/')) {
+  if (url.pathname.startsWith('/api/skills/') && url.pathname.endsWith('/execute') && request.method === 'POST') {
+    const skillId = url.pathname.replace('/api/skills/', '').replace('/execute', '');
+    return handleSkillExecute(request, skillId, SKILL_STORE, AI);
+  }
+
+  if (url.pathname.startsWith('/api/skills/') && request.method === 'PATCH' && !url.pathname.replace('/api/skills/', '').includes('/')) {
     const skillId = url.pathname.replace('/api/skills/', '');
     return updateSkill(request, skillId, SKILL_STORE);
   }
 
-  if (url.pathname.startsWith('/api/skills/') && request.method === 'DELETE' && !url.pathname.slice(12).includes('/')) {
+  if (url.pathname.startsWith('/api/skills/') && request.method === 'DELETE' && !url.pathname.replace('/api/skills/', '').includes('/')) {
     const skillId = url.pathname.replace('/api/skills/', '');
     return deleteSkill(request, skillId, SKILL_STORE);
   }
@@ -131,15 +588,6 @@ async function handleRequest(request, env) {
 
   if (url.pathname === '/api/auth/me' && request.method === 'GET') {
     return handleAuthMe(request, SKILL_STORE);
-  }
-
-  if (url.pathname === '/api/agent/chat' && request.method === 'POST') {
-    return handleAgentChat(request, SKILL_STORE, AI);
-  }
-
-  if (url.pathname.startsWith('/api/skills/') && url.pathname.endsWith('/execute') && request.method === 'POST') {
-    const skillId = url.pathname.replace('/api/skills/', '').replace('/execute', '');
-    return handleSkillExecute(request, skillId, SKILL_STORE, AI);
   }
 
   return err('NOT_FOUND', 'Not found', 404);
@@ -164,6 +612,7 @@ async function handleAuthRegister(request, SKILL_STORE) {
     await SKILL_STORE.put(`tokens/${token}`, email, { expirationTtl: 604800 });
     return ok({ user, token }, 201);
   } catch (error) {
+    console.error('Registration error:', error);
     return err('AUTH_REGISTRATION_FAILED', 'Registration failed', 500);
   }
 }
@@ -180,9 +629,10 @@ async function handleAuthLogin(request, SKILL_STORE) {
     if (hashed !== record.passwordHash) return err('AUTH_INVALID_CREDENTIALS', 'Invalid email or password', 401);
     const token = generateToken();
     await SKILL_STORE.put(`tokens/${token}`, email, { expirationTtl: 604800 });
-    const { passwordHash, ...user } = record;
+    const { passwordHash, saltHex, ...user } = record;
     return ok({ user, token });
   } catch (error) {
+    console.error('Login error:', error);
     return err('AUTH_LOGIN_FAILED', 'Login failed', 500);
   }
 }
@@ -193,61 +643,137 @@ async function handleAuthMe(request, SKILL_STORE) {
   const token = authHeader.slice(7);
   const record = await getUserFromToken(token, SKILL_STORE);
   if (!record) return err('AUTH_INVALID_TOKEN', 'Invalid or expired token', 401);
-  const { passwordHash, ...user } = record;
+  const { passwordHash, saltHex, ...user } = record;
   return ok({ user });
 }
 
-async function handleAgentChat(request, SKILL_STORE, AI) {
+async function createSkillBuilderSession(request, SKILL_STORE) {
   try {
-    const { messages, skillId, taskOutline } = await request.json();
-    if (!Array.isArray(messages) || messages.length === 0) {
-      return err('AGENT_CHAT_INVALID_MESSAGES', 'messages array required');
-    }
-    
-    let skill = null;
-    if (skillId) {
-      const skillData = await SKILL_STORE.get(`skills/${parseSkillId(skillId)}`, { type: 'json' });
-      if (skillData) skill = skillData;
+    const body = await request.json().catch(() => ({}));
+    let baseSpec = createEmptySkillSpec();
+
+    if (body.skillId) {
+      const skill = await SKILL_STORE.get(`skills/${parseSkillId(body.skillId)}`, { type: 'json' });
+      if (!skill) return err('SKILL_NOT_FOUND', 'Skill not found', 404);
+      baseSpec = normalizeSkillSpec(skill.spec, baseSpec);
     }
 
-    const defaultPrompt = 'You are an AI assistant that helps users write and refine skill markdown documents. Help the user design their skill.';
-    const systemPrompt = skill 
-      ? `You are an AI assistant that helps write and refine skill markdown documents. The user is working on skill "${skill.name}". Its current content:
+    const spec = normalizeSkillSpec(body.initialSpec, baseSpec);
+    const now = new Date().toISOString();
+    const session = {
+      id: crypto.randomUUID(),
+      skillId: body.skillId ? parseSkillId(body.skillId) : undefined,
+      spec,
+      artifacts: buildArtifacts(spec),
+      messages: [],
+      activity: [{
+        id: `session-${Date.now()}`,
+        label: 'Started skill-builder session',
+        status: 'done',
+        detail: body.intent ? asString(body.intent).slice(0, 180) : undefined,
+      }],
+      createdAt: now,
+      updatedAt: now,
+    };
 
-\`\`\`markdown
-${skill.markdown}
-\`\`\`
+    await SKILL_STORE.put(`sessions/${session.id}`, JSON.stringify(session), { expirationTtl: 86400 });
+    return ok({ session }, 201);
+  } catch (error) {
+    console.error('Create session error:', error);
+    return err('SKILL_BUILDER_SESSION_CREATE_FAILED', 'Could not create skill-builder session', 500);
+  }
+}
 
-When the user asks you to write or update the skill, respond with a complete markdown document inside a triple-backtick markdown code block. The skill markdown should follow this structure:
-- # Skill Name
-- ## Purpose
-- ## Instructions (numbered steps)
-- ## Prompt Template (code block with placeholders like {{variable}})
-- ## Examples (numbered with input/output)
+async function getSkillBuilderSession(rawSessionId, SKILL_STORE) {
+  try {
+    const sessionId = decodeURIComponent(rawSessionId);
+    const session = await SKILL_STORE.get(`sessions/${sessionId}`, { type: 'json' });
+    if (!session) return err('SKILL_BUILDER_SESSION_NOT_FOUND', 'Skill-builder session not found', 404);
+    return ok({ session });
+  } catch (error) {
+    console.error('Get session error:', error);
+    return err('SKILL_BUILDER_SESSION_FETCH_FAILED', 'Could not load skill-builder session', 500);
+  }
+}
 
-Keep the response concise and include only the full markdown block when providing the skill content. If the user asks for changes, explain briefly then output the updated markdown.`
-      : defaultPrompt;
+async function handleSkillBuilderTurn(request, rawSessionId, SKILL_STORE, AI) {
+  try {
+    const sessionId = decodeURIComponent(rawSessionId);
+    const session = await SKILL_STORE.get(`sessions/${sessionId}`, { type: 'json' });
+    if (!session) return err('SKILL_BUILDER_SESSION_NOT_FOUND', 'Skill-builder session not found', 404);
 
-    const formattedMessages = [
-      { role: 'system', content: systemPrompt },
-      ...messages.filter(m => m.role !== 'system').map(m => ({ role: m.role, content: m.text })),
-    ];
+    const body = await request.json();
+    const intent = asString(body.intent);
+    if (!intent) return err('SKILL_BUILDER_INVALID_INTENT', 'intent string required');
 
-    const response = await runInference(AI, formattedMessages, {
-      temperature: 0.7,
-      max_tokens: 1024,
+    const currentSpec = normalizeSkillSpec(body.currentSpec, session.spec);
+    const runId = asString(body.clientMessageId) || `builder-${Date.now()}`;
+    const userMessage = { role: 'user', text: intent, createdAt: new Date().toISOString() };
+
+    const inferenceMessages = buildSkillArchitectMessages(intent, currentSpec, body.messages);
+    const aiResponse = await runInference(AI, inferenceMessages, {
+      temperature: 0.2,
+      max_tokens: 4096,
     });
 
-    return ok({ response: response.response ?? response });
+    const responseText = typeof aiResponse.response === 'string'
+      ? aiResponse.response
+      : aiResponse.response?.response || JSON.stringify(aiResponse.response ?? aiResponse);
+
+    const parsed = parseBuilderModelOutput(responseText);
+    let operations = parsed.operations;
+
+    if (operations.length === 0 && parsed.spec) {
+      operations = [{ type: 'replace_spec', value: parsed.spec, reason: 'Generated a complete SkillSpec from the user intent.' }];
+    }
+
+    if (operations.length === 0) {
+      return err(
+        'SKILL_BUILDER_INVALID_MODEL_OUTPUT',
+        'Skill architect returned no valid operations',
+        502,
+        responseText.slice(0, 1000),
+      );
+    }
+
+    const nextSpec = applySkillOperations(currentSpec, operations);
+    const artifacts = buildArtifacts(nextSpec);
+    const activity = parsed.activity.length > 0 ? parsed.activity : activityFromOperations(operations, runId);
+    const assistantMessage = {
+      role: 'assistant',
+      text: parsed.assistantText || `Applied ${operations.length} state operation${operations.length === 1 ? '' : 's'} to the SkillSpec.`,
+      createdAt: new Date().toISOString(),
+    };
+
+    const updatedSession = {
+      ...session,
+      skillId: body.selectedSkillId ? parseSkillId(body.selectedSkillId) : session.skillId,
+      spec: nextSpec,
+      artifacts,
+      messages: [...(Array.isArray(session.messages) ? session.messages : []), userMessage, assistantMessage],
+      activity: [...(Array.isArray(session.activity) ? session.activity : []), ...activity],
+      updatedAt: new Date().toISOString(),
+    };
+
+    await SKILL_STORE.put(`sessions/${sessionId}`, JSON.stringify(updatedSession), { expirationTtl: 86400 });
+
+    return ok({
+      sessionId,
+      operations,
+      spec: nextSpec,
+      artifacts,
+      activity,
+      message: assistantMessage,
+    });
   } catch (error) {
-    console.error('Agent chat error:', error);
-    return err('AGENT_CHAT_FAILED', 'Agent chat failed', 500);
+    console.error('Skill-builder turn error:', error);
+    return err('SKILL_BUILDER_TURN_FAILED', 'Skill-builder turn failed', 500);
   }
 }
 
 async function handleSkillExecute(request, rawSkillId, SKILL_STORE, AI) {
   try {
-    const { input, taskOutline } = await request.json();
+    const { input, taskOutline, spec } = await request.json();
     if (!input || typeof input !== 'string') {
       return err('SKILL_EXECUTION_INVALID_INPUT', 'input string required');
     }
@@ -256,10 +782,13 @@ async function handleSkillExecute(request, rawSkillId, SKILL_STORE, AI) {
     if (!skill) {
       return err('SKILL_NOT_FOUND', 'Skill not found', 404);
     }
+    if (!skill.spec && !spec) {
+      return err('SKILL_SPEC_REQUIRED', 'SkillSpec required to execute skill', 400);
+    }
 
-    const response = await executeSkill(AI, skill, input, taskOutline);
+    const response = await executeSkill(AI, skill, input, taskOutline, spec);
 
-    return ok({ response });
+    return ok({ response, trace: [{ id: `execute-${Date.now()}`, label: 'Executed skill from SkillSpec', status: 'done', detail: skill.name }] });
   } catch (error) {
     console.error('Skill execution error:', error);
     return err('SKILL_EXECUTION_FAILED', 'Skill execution failed', 500);
@@ -282,6 +811,7 @@ async function listSkills(SKILL_STORE, url) {
     allKeys.push(...result.keys);
     cursor = result.list_complete ? undefined : result.cursor;
   } while (cursor);
+
   let skills = await Promise.all(
     allKeys.map(async (item) => {
       const value = await SKILL_STORE.get(item.name, { type: 'json' });
@@ -292,16 +822,21 @@ async function listSkills(SKILL_STORE, url) {
   skills = skills.filter(Boolean);
 
   if (query) {
-    skills = skills.filter(s => 
-      s.name.toLowerCase().includes(query) ||
-      s.description.toLowerCase().includes(query) ||
-      s.markdown.toLowerCase().includes(query) ||
-      s.tags?.some(t => t.toLowerCase().includes(query))
-    );
+    skills = skills.filter((s) => {
+      const searchable = [
+        s.name,
+        s.description,
+        s.category,
+        s.markdown,
+        JSON.stringify(s.spec || {}),
+        ...(s.tags || []),
+      ].join(' ').toLowerCase();
+      return searchable.includes(query);
+    });
   }
 
   if (category) {
-    skills = skills.filter(s => s.category.toLowerCase() === category);
+    skills = skills.filter(s => s.category?.toLowerCase() === category || s.spec?.category?.toLowerCase() === category);
   }
 
   if (tags.length > 0) {
@@ -311,10 +846,6 @@ async function listSkills(SKILL_STORE, url) {
 
   const now = Date.now();
   switch (sort) {
-    // popular: each download adds 100 points, each day since update subtracts 1 point.
-    // A skill with 10 downloads updated today scores ~1000.
-    // A skill with 5 downloads updated 30 days ago scores ~470.
-    // Downloads dominate recency by roughly 3:1 over a 300-day window.
     case 'popular':
       skills.sort((a, b) => {
         const daysA = (now - new Date(a.updatedAt).getTime()) / 86400000;
@@ -353,28 +884,39 @@ async function saveSkill(request, SKILL_STORE) {
   try {
     const { user, error } = await requireAuth(request, SKILL_STORE);
     if (error) return error;
+
     const skill = await request.json();
-    if (!skill?.id) {
-      return err('VALIDATION_REQUIRED_FIELD', 'Skill id required');
-    }
-    if (!skill?.markdown) {
-      return err('VALIDATION_REQUIRED_FIELD', 'Skill markdown required');
+    if (!skill?.id) return err('VALIDATION_REQUIRED_FIELD', 'Skill id required');
+    if (!skill?.spec) return err('VALIDATION_REQUIRED_FIELD', 'SkillSpec required');
+
+    const spec = normalizeSkillSpec(skill.spec);
+    const validationErrors = validateSkillSpec(spec);
+    if (validationErrors.length > 0) {
+      return err('VALIDATION_SKILL_SPEC_INVALID', 'SkillSpec is invalid', 400, validationErrors);
     }
 
     const now = new Date().toISOString();
+    const markdown = skill.markdown || specToMarkdown(spec);
     const skillWithMeta = {
-      ...skill,
+      id: parseSkillId(skill.id),
+      name: spec.name,
+      description: spec.description,
+      category: spec.category,
+      tags: spec.tags,
+      spec,
+      markdown,
+      author: { id: user.id, name: user.name, avatar: user.avatar },
       authorHandle: user.handle,
+      forkedFrom: skill.forkedFrom,
       createdAt: skill.createdAt || now,
       updatedAt: now,
       version: skill.version || 1,
       downloads: skill.downloads || 0,
-      tags: skill.tags || [],
     };
 
-    await SKILL_STORE.put(`skills/${skill.id}`, JSON.stringify(skillWithMeta));
+    await SKILL_STORE.put(`skills/${skillWithMeta.id}`, JSON.stringify(skillWithMeta));
 
-    return ok({ skill: skillWithMeta }, 201);
+    return ok({ success: true, skill: skillWithMeta }, 201);
   } catch (error) {
     console.error('Save error:', error);
     return err('SKILL_SAVE_FAILED', 'Save failed', 500);
@@ -385,19 +927,30 @@ async function updateSkill(request, rawSkillId, SKILL_STORE) {
   try {
     const { error } = await requireAuth(request, SKILL_STORE);
     if (error) return error;
+
     const skillId = parseSkillId(rawSkillId);
     const updates = await request.json();
     const existing = await SKILL_STORE.get(`skills/${skillId}`, { type: 'json' });
-    if (!existing) {
-      return err('SKILL_NOT_FOUND', 'Skill not found', 404);
+    if (!existing) return err('SKILL_NOT_FOUND', 'Skill not found', 404);
+
+    const spec = normalizeSkillSpec(updates.spec || existing.spec);
+    const validationErrors = validateSkillSpec(spec);
+    if (validationErrors.length > 0) {
+      return err('VALIDATION_SKILL_SPEC_INVALID', 'SkillSpec is invalid', 400, validationErrors);
     }
 
     const updated = {
       ...existing,
       ...updates,
       id: skillId,
+      name: spec.name,
+      description: spec.description,
+      category: spec.category,
+      tags: spec.tags,
+      spec,
+      markdown: updates.markdown || specToMarkdown(spec),
       updatedAt: new Date().toISOString(),
-      version: existing.version + 1,
+      version: (existing.version || 1) + 1,
     };
 
     await SKILL_STORE.put(`skills/${skillId}`, JSON.stringify(updated));
@@ -413,32 +966,34 @@ async function forkSkill(request, rawSkillId, SKILL_STORE) {
   try {
     const { user, error } = await requireAuth(request, SKILL_STORE);
     if (error) return error;
+
     const skillId = parseSkillId(rawSkillId);
     const original = await SKILL_STORE.get(`skills/${skillId}`, { type: 'json' });
-    if (!original) {
-      return err('SKILL_NOT_FOUND', 'Skill not found', 404);
-    }
+    if (!original) return err('SKILL_NOT_FOUND', 'Skill not found', 404);
+    if (!original.spec) return err('SKILL_SPEC_REQUIRED', 'SkillSpec required to fork skill', 400);
 
     const body = await request.json().catch(() => ({}));
     const newId = body.id || `${original.id}-fork-${Date.now()}`;
     const conflict = await SKILL_STORE.get(`skills/${newId}`, { type: 'json' });
-    if (conflict) {
-      return err('SKILL_ID_EXISTS', 'Skill with this ID already exists', 409);
-    }
-    const newName = body.name || `${original.name} (fork)`;
+    if (conflict) return err('SKILL_ID_EXISTS', 'Skill with this ID already exists', 409);
 
-    const originalAuthorTag = original.authorHandle
-      ? `@${original.authorHandle}/${original.id}`
-      : `\`${original.id}\``;
-    const markdownWithAttribution = `${original.markdown}\n\n---\n*Forked from ${originalAuthorTag} — original by ${original.author?.name || 'Unknown'}*`;
+    const spec = normalizeSkillSpec({
+      ...original.spec,
+      name: body.name || `${original.spec.name || original.name} (fork)`,
+      description: body.description || original.spec.description || original.description,
+    }, original.spec);
+
     const forked = {
       ...original,
       id: newId,
-      name: newName,
-      description: body.description || original.description,
-      markdown: markdownWithAttribution,
+      name: spec.name,
+      description: spec.description,
+      category: spec.category,
+      tags: spec.tags,
+      spec,
+      markdown: specToMarkdown(spec),
       forkedFrom: skillId,
-      author: body.author || { id: user.id, name: user.name },
+      author: { id: user.id, name: user.name, avatar: user.avatar },
       authorHandle: user.handle,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -448,7 +1003,7 @@ async function forkSkill(request, rawSkillId, SKILL_STORE) {
 
     await SKILL_STORE.put(`skills/${newId}`, JSON.stringify(forked));
 
-    return ok({ skill: forked }, 201);
+    return ok({ success: true, skill: forked }, 201);
   } catch (error) {
     console.error('Fork error:', error);
     return err('SKILL_FORK_FAILED', 'Fork failed', 500);
@@ -461,9 +1016,7 @@ async function deleteSkill(request, rawSkillId, SKILL_STORE) {
     if (error) return error;
     const skillId = parseSkillId(rawSkillId);
     const existing = await SKILL_STORE.get(`skills/${skillId}`, { type: 'json' });
-    if (!existing) {
-      return err('SKILL_NOT_FOUND', 'Skill not found', 404);
-    }
+    if (!existing) return err('SKILL_NOT_FOUND', 'Skill not found', 404);
 
     await SKILL_STORE.delete(`skills/${skillId}`);
 
@@ -478,10 +1031,7 @@ async function fetchSkill(rawId, SKILL_STORE) {
   try {
     const id = parseSkillId(rawId);
     const skill = await SKILL_STORE.get(`skills/${id}`, { type: 'json' });
-    if (!skill) {
-      return err('SKILL_NOT_FOUND', 'Skill not found', 404);
-    }
-
+    if (!skill) return err('SKILL_NOT_FOUND', 'Skill not found', 404);
     return ok({ skill });
   } catch (error) {
     console.error('Fetch error:', error);

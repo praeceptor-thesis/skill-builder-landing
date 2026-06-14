@@ -4,7 +4,7 @@ compatibility_date = "2024-01-01"
 
 [[kv_namespaces]]
 binding = "SKILL_STORE"
-id = "skill-store-namespace"
+id = "9fda5d2f37634014bef5e4ecc752c2ce"
 preview_id = "64912221cb6c4b699f7db4fd9ad5b3ce"
 
 [ai]

@@ -10,7 +10,7 @@ function err(code, message, status = 400) {
   return new Response(JSON.stringify({ ok: false, error: { code, message } }), { status, headers: jsonHeaders });
 }
 
-const MODEL = '@cf/meta/llama-3.1-8b-instruct';
+const MODEL = '@cf/meta/llama-3.1-8b-instruct-fp8';
 
 async function hashPassword(password, saltBytes) {
   const encoder = new TextEncoder();

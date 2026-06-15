@@ -18,7 +18,6 @@ resource "cloudflare_workers_script" "skill_api" {
   script_name = "${var.pages_project_name}-api"
   content     = file("${path.module}/../worker/skill-persistence-worker.js")
 
-  module             = true
   compatibility_date = "2024-01-01"
 
   bindings = [

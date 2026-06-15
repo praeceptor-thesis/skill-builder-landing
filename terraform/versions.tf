@@ -2,9 +2,9 @@ terraform {
   required_version = ">= 1.5.0"
 
   backend "s3" {
-    bucket                      = "anima-tfstate"
-    key                         = "skill-builder-landing/terraform.tfstate"
-    region                      = "auto"
+    bucket = "anima-tfstate"
+    key    = "skill-builder-landing/terraform.tfstate"
+    region = "auto"
     endpoints = {
       s3 = "https://008ad6687e5dd5b877928789789147e7.r2.cloudflarestorage.com"
     }

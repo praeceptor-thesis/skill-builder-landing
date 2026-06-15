@@ -12,39 +12,92 @@ cli
   .option('-r, --registry <url>', 'Registry URL (Worker API)', {
     default: 'https://skills.eastern-shore-solutions.com/api',
   })
-  .option('-o, --output <dir>', 'Output directory for skill files', {
+  .option('-o, --output <dir>', 'Output directory for skill files (only for --tool file)', {
     default: '.',
+  })
+  .option('-t, --tool <tool>', 'Target AI tool: file, claude, codex, cursor', {
+    default: 'file',
+  })
+  .option('--agents-file <path>', 'Path to AGENTS.md (for claude/codex)', {
+    default: './AGENTS.md',
   })
   .action(async (skill, options) => {
     const registry = options.registry as string;
     const outputDir = options.output as string;
+    const tool = (options.tool as string) || 'file';
+    const agentsFile = options.agentsFile as string;
     const client = createApiClient(registry);
     const skillId = skill.startsWith('@') ? skill.slice(skill.indexOf('/') + 1) : skill;
 
-    console.log(`Installing skill ${skill} from ${registry}`);
+    console.log(`Installing skill ${skill} from ${registry} [--tool ${tool}]`);
 
     try {
       const response = await client.getSkill(skillId);
       const metadata = response.skill;
-      console.log('Skill metadata:');
-      console.log(JSON.stringify(metadata, null, 2));
 
-      const outPath = path.resolve(outputDir, `${metadata.id}.md`);
-      fs.writeFileSync(outPath, metadata.markdown, 'utf-8');
-      console.log(`Skill markdown written to: ${outPath}`);
+      switch (tool) {
+        case 'claude':
+        case 'codex': {
+          const filePath = path.resolve(agentsFile);
+          const dir = path.dirname(filePath);
+          if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
-      const configPath = path.resolve(outputDir, `${metadata.id}.json`);
-      const config = {
-        id: metadata.id,
-        name: metadata.name,
-        description: metadata.description,
-        category: metadata.category,
-        tags: metadata.tags,
-        version: metadata.version,
-        author: metadata.author,
-      };
-      fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
-      console.log(`Skill config written to: ${configPath}`);
+          const heading = `## ${metadata.name}`;
+          const description = metadata.description ? `> ${metadata.description}\n` : '';
+          const preamble = `\n\n${heading}\n${description}\n<!-- skill-id: ${metadata.id} -->\n`;
+
+          if (fs.existsSync(filePath)) {
+            const existing = fs.readFileSync(filePath, 'utf-8');
+            if (existing.includes(`<!-- skill-id: ${metadata.id} -->`)) {
+              console.log(`Skill "${metadata.name}" already installed in ${filePath}.`);
+              return;
+            }
+            fs.appendFileSync(filePath, preamble + metadata.markdown, 'utf-8');
+          } else {
+            fs.writeFileSync(filePath, preamble + metadata.markdown, 'utf-8');
+          }
+          console.log(`Installed "${metadata.name}" into ${filePath}`);
+          break;
+        }
+
+        case 'cursor': {
+          const rulesDir = path.resolve('.cursor/rules');
+          if (!fs.existsSync(rulesDir)) fs.mkdirSync(rulesDir, { recursive: true });
+
+          const mdcPath = path.join(rulesDir, `${metadata.id}.mdc`);
+          const frontmatter = [
+            '---',
+            `description: ${metadata.description || metadata.name}`,
+            'globs: *',
+            '---',
+            '',
+          ].join('\n');
+
+          fs.writeFileSync(mdcPath, frontmatter + metadata.markdown, 'utf-8');
+          console.log(`Installed "${metadata.name}" into ${mdcPath}`);
+          break;
+        }
+
+        default: {
+          const outPath = path.resolve(outputDir, `${metadata.id}.md`);
+          fs.writeFileSync(outPath, metadata.markdown, 'utf-8');
+          console.log(`Skill markdown written to: ${outPath}`);
+
+          const configPath = path.resolve(outputDir, `${metadata.id}.json`);
+          const config = {
+            id: metadata.id,
+            name: metadata.name,
+            description: metadata.description,
+            category: metadata.category,
+            tags: metadata.tags,
+            version: metadata.version,
+            author: metadata.author,
+          };
+          fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
+          console.log(`Skill config written to: ${configPath}`);
+          break;
+        }
+      }
 
       console.log('Skill installed successfully.');
     } catch (error) {

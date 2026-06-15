@@ -49,6 +49,20 @@ resource "cloudflare_pages_project" "site" {
     build_command   = "npm install && npm run build --workspace packages/web"
     destination_dir = "packages/web/dist"
   }
+
+  source = {
+    type = "github"
+    config = {
+      owner                          = "praeceptor-thesis"
+      repo_name                      = "skill-builder-landing"
+      production_branch              = "main"
+      pr_comments_enabled            = true
+      preview_deployment_setting     = "all"
+      preview_branch_includes        = ["*"]
+      deployments_enabled            = true
+      production_deployments_enabled = true
+    }
+  }
 }
 
 resource "cloudflare_pages_domain" "site_domain" {

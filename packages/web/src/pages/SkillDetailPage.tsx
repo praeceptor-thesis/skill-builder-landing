@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { SEOHead } from '../seo/SEOHead';
 import { SkillJsonLd, BreadcrumbJsonLd } from '../seo/JsonLd';
 import type { Skill } from '../services/api';
-import { generateNpxCommand, getSkill } from '../services/api';
+import { generateNpxCommand, getSkill, getCurrentUser, updateSkillVisibility, deleteSkill } from '../services/api';
 
 const SITE_URL = 'https://skill-builder.ai';
 
@@ -112,6 +112,10 @@ export default function SkillDetailPage() {
   const [skill, setSkill] = useState<Skill | null>(null);
   const [loading, setLoading] = useState(true);
   const [showSource, setShowSource] = useState(false);
+  const [currentUser, setCurrentUser] = useState<{ handle: string; name: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [updatingVis, setUpdatingVis] = useState(false);
 
   useEffect(() => {
     if (!resolvedId) {
@@ -142,6 +146,10 @@ export default function SkillDetailPage() {
       })
       .finally(() => setLoading(false));
   }, [resolvedId]);
+
+  useEffect(() => {
+    getCurrentUser().then(res => setCurrentUser(res.user)).catch(() => {});
+  }, []);
 
   const spec = skill?.spec ? skill.spec : null;
 
@@ -404,6 +412,73 @@ export default function SkillDetailPage() {
                   </button>
                 </div>
               </div>
+
+              {currentUser?.handle === skill.authorHandle && (
+                <div className="rounded-2xl border border-red-200 bg-red-50 p-6">
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-red-500">Danger Zone</h3>
+                  <div className="mt-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-stone-800">Visibility</p>
+                        <p className="text-xs text-stone-500">{skill.visibility === 'draft' ? 'Only you can see this skill' : 'Anyone can find and install this skill'}</p>
+                      </div>
+                      <button
+                        onClick={async () => {
+                          setUpdatingVis(true);
+                          try {
+                            const toggled = skill.visibility === 'draft' ? 'public' : 'draft';
+                            const res = await updateSkillVisibility(skill.id, toggled);
+                            setSkill(res.skill);
+                          } catch {}
+                          setUpdatingVis(false);
+                        }}
+                        disabled={updatingVis}
+                        className="rounded-full border border-red-300 bg-white px-4 py-1.5 text-xs font-medium text-stone-700 transition hover:border-red-500 hover:text-red-600 disabled:opacity-50"
+                      >
+                        {updatingVis ? '...' : skill.visibility === 'draft' ? 'Publish' : 'Set to Draft'}
+                      </button>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-stone-800">Delete skill</p>
+                        <p className="text-xs text-stone-500">Permanently remove this skill from the registry</p>
+                      </div>
+                      {confirmDelete ? (
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={async () => {
+                              setDeleting(true);
+                              try {
+                                await deleteSkill(skill.id);
+                                navigate('/');
+                              } catch {}
+                              setDeleting(false);
+                              setConfirmDelete(false);
+                            }}
+                            disabled={deleting}
+                            className="rounded-full bg-red-600 px-4 py-1.5 text-xs font-medium text-white transition hover:bg-red-700 disabled:opacity-50"
+                          >
+                            {deleting ? '...' : 'Confirm'}
+                          </button>
+                          <button
+                            onClick={() => setConfirmDelete(false)}
+                            className="rounded-full border border-stone-300 bg-white px-4 py-1.5 text-xs font-medium text-stone-600 transition hover:border-stone-400"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setConfirmDelete(true)}
+                          className="rounded-full border border-red-300 bg-white px-4 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50"
+                        >
+                          Delete
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
             </aside>
           </div>
         </main>

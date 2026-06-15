@@ -70,6 +70,7 @@ export type Skill = {
   updatedAt: string;
   version: number;
   downloads: number;
+  visibility?: 'public' | 'draft';
 };
 
 export type SkillPayload = {
@@ -301,6 +302,14 @@ export async function deleteSkill(id: string): Promise<{ success: boolean }> {
   return fetchJson(`${apiBase}/skills/${encodeURIComponent(id)}`, {
     method: 'DELETE',
     headers: getAuthHeaders(),
+  });
+}
+
+export async function updateSkillVisibility(id: string, visibility: 'public' | 'draft'): Promise<{ skill: Skill }> {
+  return fetchJson(`${apiBase}/skills/${encodeURIComponent(id)}/visibility`, {
+    method: 'PATCH',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ visibility }),
   });
 }
 

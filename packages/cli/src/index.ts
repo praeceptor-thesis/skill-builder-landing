@@ -188,6 +188,8 @@ cli
   .option('-c, --category <category>', 'Filter by category')
   .option('--tag <tag...>', 'Filter by tag (can be repeated)')
   .option('--sort <sort>', 'Sort order: recent, popular, downloads')
+  .option('-p, --page <page>', 'Page number', { default: 1 })
+  .option('--page-size <size>', 'Results per page', { default: 20 })
   .action(async (options) => {
     const registry = options.registry as string;
     const client = createApiClient(registry);
@@ -198,6 +200,8 @@ cli
         category: options.category as string | undefined,
         tags: options.tag as string[] | undefined,
         sort: options.sort as 'recent' | 'popular' | 'downloads' | undefined,
+        page: parseInt(options.page as string) || 1,
+        pageSize: parseInt(options.pageSize as string) || 20,
       });
 
       if (response.skills.length === 0) {
@@ -205,7 +209,7 @@ cli
         return;
       }
 
-      console.log(`Found ${response.total || response.skills.length} skills:`);
+      console.log(`Found ${response.total || response.skills.length} skills (page ${response.page || 1}/${Math.ceil((response.total || 0) / (response.pageSize || 20))}):`);
       console.log('');
       response.skills.forEach((skill) => {
         const tags = skill.tags?.length ? ` [${skill.tags.join(', ')}]` : '';
@@ -227,6 +231,8 @@ cli
   .option('-c, --category <category>', 'Filter by category')
   .option('--tag <tag...>', 'Filter by tag (can be repeated)')
   .option('--sort <sort>', 'Sort order: recent, popular, downloads')
+  .option('-p, --page <page>', 'Page number', { default: 1 })
+  .option('--page-size <size>', 'Results per page', { default: 20 })
   .action(async (query, options) => {
     const registry = options.registry as string;
     const client = createApiClient(registry);
@@ -237,6 +243,8 @@ cli
         category: options.category as string | undefined,
         tags: options.tag as string[] | undefined,
         sort: options.sort as 'recent' | 'popular' | 'downloads' | undefined,
+        page: parseInt(options.page as string) || 1,
+        pageSize: parseInt(options.pageSize as string) || 20,
       });
 
       if (response.skills.length === 0) {
@@ -244,7 +252,7 @@ cli
         return;
       }
 
-      console.log(`Found ${response.total || response.skills.length} skills matching "${query}":`);
+      console.log(`Found ${response.total || response.skills.length} skills matching "${query}" (page ${response.page || 1}/${Math.ceil((response.total || 0) / (response.pageSize || 20))}):`);
       console.log('');
       response.skills.forEach((skill) => {
         const displayId = skill.id.startsWith('@') ? skill.id : skill.authorHandle ? `@${skill.authorHandle}/${skill.id}` : skill.id;

@@ -536,7 +536,7 @@ async function handleRequest(request, env) {
   }
 
   if (url.pathname === '/api/skills' && request.method === 'GET') {
-    return listSkills(SKILL_STORE, url);
+    return listSkills(request, SKILL_STORE, url);
   }
 
   if (url.pathname === '/api/skills' && request.method === 'POST') {
@@ -554,7 +554,7 @@ async function handleRequest(request, env) {
   }
 
   if (request.method === 'GET' && key.startsWith('skills/')) {
-    return fetchSkill(key.replace(/^skills\//, ''), SKILL_STORE);
+    return fetchSkill(request, key.replace(/^skills\//, ''), SKILL_STORE);
   }
 
   if (url.pathname.startsWith('/api/skills/') && url.pathname.endsWith('/fork') && request.method === 'POST') {
@@ -567,12 +567,17 @@ async function handleRequest(request, env) {
     return handleSkillExecute(request, skillId, SKILL_STORE, AI);
   }
 
-  if (url.pathname.startsWith('/api/skills/') && request.method === 'PATCH' && !url.pathname.endsWith('/fork') && !url.pathname.endsWith('/execute')) {
+  if (url.pathname.startsWith('/api/skills/') && url.pathname.endsWith('/visibility') && request.method === 'PATCH') {
+    const skillId = url.pathname.replace('/api/skills/', '').replace('/visibility', '');
+    return updateSkillVisibility(request, skillId, SKILL_STORE);
+  }
+
+  if (url.pathname.startsWith('/api/skills/') && request.method === 'PATCH' && !url.pathname.endsWith('/fork') && !url.pathname.endsWith('/execute') && !url.pathname.endsWith('/visibility')) {
     const skillId = url.pathname.replace('/api/skills/', '');
     return updateSkill(request, skillId, SKILL_STORE);
   }
 
-  if (url.pathname.startsWith('/api/skills/') && request.method === 'DELETE' && !url.pathname.endsWith('/fork') && !url.pathname.endsWith('/execute')) {
+  if (url.pathname.startsWith('/api/skills/') && request.method === 'DELETE' && !url.pathname.endsWith('/fork') && !url.pathname.endsWith('/execute') && !url.pathname.endsWith('/visibility')) {
     const skillId = url.pathname.replace('/api/skills/', '');
     return deleteSkill(request, skillId, SKILL_STORE);
   }
@@ -794,7 +799,7 @@ async function handleSkillExecute(request, rawSkillId, SKILL_STORE, AI) {
   }
 }
 
-async function listSkills(SKILL_STORE, url) {
+async function listSkills(request, SKILL_STORE, url) {
   const searchParams = url.searchParams;
   const page = Math.max(1, parseInt(searchParams.get('page') || '') || 1);
   const pageSize = Math.max(1, Math.min(100, parseInt(searchParams.get('pageSize') || '') || 20));
@@ -802,6 +807,15 @@ async function listSkills(SKILL_STORE, url) {
   const category = searchParams.get('category')?.toLowerCase() || '';
   const tags = searchParams.getAll('tags');
   const sort = searchParams.get('sort') || 'recent';
+
+  // Determine the current user for draft filtering
+  let currentUserHandle;
+  try {
+    const authResult = await requireAuth(request, SKILL_STORE);
+    if (!authResult.error) {
+      currentUserHandle = authResult.user.handle;
+    }
+  } catch {}
 
   const allKeys = [];
   let cursor;
@@ -819,6 +833,9 @@ async function listSkills(SKILL_STORE, url) {
   );
 
   skills = skills.filter(Boolean);
+
+  // Filter out draft skills not owned by the current user
+  skills = skills.filter((s) => !(s.visibility === 'draft' && s.authorHandle !== currentUserHandle));
 
   if (query) {
     skills = skills.filter((s) => {
@@ -912,6 +929,7 @@ async function saveSkill(request, SKILL_STORE) {
       updatedAt: now,
       version: skill.version || 1,
       downloads: skill.downloads || 0,
+      visibility: skill.visibility || 'public',
     };
 
     await SKILL_STORE.put(`skills/${scopedId}`, JSON.stringify(skillWithMeta));
@@ -925,18 +943,28 @@ async function saveSkill(request, SKILL_STORE) {
 
 async function updateSkill(request, rawSkillId, SKILL_STORE) {
   try {
-    const { error } = await requireAuth(request, SKILL_STORE);
+    const { user, error } = await requireAuth(request, SKILL_STORE);
     if (error) return error;
 
     const skillId = parseSkillId(rawSkillId);
     const updates = await request.json();
     const existing = await SKILL_STORE.get(`skills/${skillId}`, { type: 'json' });
     if (!existing) return err('SKILL_NOT_FOUND', 'Skill not found', 404);
+    if (existing.authorHandle !== user.handle) {
+      return err('AUTH_FORBIDDEN', 'Only the skill owner can update this skill', 403);
+    }
 
-    const spec = normalizeSkillSpec(updates.spec || existing.spec);
-    const validationErrors = validateSkillSpec(spec);
-    if (validationErrors.length > 0) {
-      return err('VALIDATION_SKILL_SPEC_INVALID', 'SkillSpec is invalid', 400, validationErrors);
+    const isVisibilityOnly = Object.keys(updates).length === 1 && 'visibility' in updates;
+
+    let spec = existing.spec;
+    let markdown = updates.markdown;
+    if (!isVisibilityOnly) {
+      spec = normalizeSkillSpec(updates.spec || existing.spec);
+      const validationErrors = validateSkillSpec(spec);
+      if (validationErrors.length > 0) {
+        return err('VALIDATION_SKILL_SPEC_INVALID', 'SkillSpec is invalid', 400, validationErrors);
+      }
+      markdown = updates.markdown || specToMarkdown(spec);
     }
 
     const updated = {
@@ -948,9 +976,9 @@ async function updateSkill(request, rawSkillId, SKILL_STORE) {
       category: spec.category,
       tags: spec.tags,
       spec,
-      markdown: updates.markdown || specToMarkdown(spec),
+      markdown,
       updatedAt: new Date().toISOString(),
-      version: (existing.version || 1) + 1,
+      version: isVisibilityOnly ? existing.version : (existing.version || 1) + 1,
     };
 
     await SKILL_STORE.put(`skills/${skillId}`, JSON.stringify(updated));
@@ -959,6 +987,34 @@ async function updateSkill(request, rawSkillId, SKILL_STORE) {
   } catch (error) {
     console.error('Update error:', error);
     return err('SKILL_UPDATE_FAILED', 'Update failed', 500);
+  }
+}
+
+async function updateSkillVisibility(request, rawSkillId, SKILL_STORE) {
+  try {
+    const { user, error } = await requireAuth(request, SKILL_STORE);
+    if (error) return error;
+
+    const skillId = parseSkillId(rawSkillId);
+    const { visibility } = await request.json();
+    if (!visibility || !['public', 'draft'].includes(visibility)) {
+      return err('VALIDATION_INVALID_VISIBILITY', 'Visibility must be "public" or "draft"', 400);
+    }
+
+    const existing = await SKILL_STORE.get(`skills/${skillId}`, { type: 'json' });
+    if (!existing) return err('SKILL_NOT_FOUND', 'Skill not found', 404);
+    if (existing.authorHandle !== user.handle) {
+      return err('AUTH_FORBIDDEN', 'Only the skill owner can change visibility', 403);
+    }
+
+    existing.visibility = visibility;
+    existing.updatedAt = new Date().toISOString();
+    await SKILL_STORE.put(`skills/${skillId}`, JSON.stringify(existing));
+
+    return ok({ skill: existing });
+  } catch (error) {
+    console.error('Visibility update error:', error);
+    return err('SKILL_VISIBILITY_UPDATE_FAILED', 'Visibility update failed', 500);
   }
 }
 
@@ -1012,11 +1068,14 @@ async function forkSkill(request, rawSkillId, SKILL_STORE) {
 
 async function deleteSkill(request, rawSkillId, SKILL_STORE) {
   try {
-    const { error } = await requireAuth(request, SKILL_STORE);
+    const { user, error } = await requireAuth(request, SKILL_STORE);
     if (error) return error;
     const skillId = parseSkillId(rawSkillId);
     const existing = await SKILL_STORE.get(`skills/${skillId}`, { type: 'json' });
     if (!existing) return err('SKILL_NOT_FOUND', 'Skill not found', 404);
+    if (existing.authorHandle !== user.handle) {
+      return err('AUTH_FORBIDDEN', 'Only the skill owner can delete this skill', 403);
+    }
 
     await SKILL_STORE.delete(`skills/${skillId}`);
 
@@ -1027,11 +1086,23 @@ async function deleteSkill(request, rawSkillId, SKILL_STORE) {
   }
 }
 
-async function fetchSkill(rawId, SKILL_STORE) {
+async function fetchSkill(request, rawId, SKILL_STORE) {
   try {
     const id = parseSkillId(rawId);
     const skill = await SKILL_STORE.get(`skills/${id}`, { type: 'json' });
     if (!skill) return err('SKILL_NOT_FOUND', 'Skill not found', 404);
+
+    if (skill.visibility === 'draft') {
+      let currentUserHandle;
+      try {
+        const authResult = await requireAuth(request, SKILL_STORE);
+        if (!authResult.error) currentUserHandle = authResult.user.handle;
+      } catch {}
+      if (skill.authorHandle !== currentUserHandle) {
+        return err('SKILL_NOT_FOUND', 'Skill not found', 404);
+      }
+    }
+
     skill.downloads = (skill.downloads || 0) + 1;
     skill.updatedAt = new Date().toISOString();
     await SKILL_STORE.put(`skills/${id}`, JSON.stringify(skill));

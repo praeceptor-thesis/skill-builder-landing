@@ -1,5 +1,5 @@
 {
-  "id": "frontend-component-library",
+  "id": "@kmd_ai/frontend-component-library",
   "name": "Frontend Component Library",
   "description": "Build domain specific, psychologically (behavior + cognitively) aligned components that enhance accessibility and useability of components hand tailored for the industries that they are being created for.",
   "category": "Developer Tools",

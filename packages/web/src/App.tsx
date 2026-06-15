@@ -1421,7 +1421,7 @@ Install with: ${generateNpxCommand(skillToPublish)}`);
                 {editorMode !== 'edit' && (
                   <div className="space-y-1.5">
                     <span className="text-xs text-stone-400">Preview</span>
-                    <div className="max-h-[360px] min-h-[280px] overflow-y-auto rounded-xl border border-stone-200 bg-white px-4 py-3 prose prose-stone prose-sm max-w-none">
+                    <div className="min-h-[360px] max-h-[480px] overflow-y-auto rounded-xl border border-stone-200 bg-white px-5 py-4">
                       {markdownPreview}
                     </div>
                   </div>

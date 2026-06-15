@@ -1,8 +1,16 @@
 terraform {
   required_version = ">= 1.5.0"
 
-  backend "local" {
-    path = "terraform.tfstate"
+  backend "s3" {
+    bucket                      = "anima-tfstate"
+    key                         = "skill-builder-landing/terraform.tfstate"
+    region                      = "auto"
+    endpoints = {
+      s3 = "https://008ad6687e5dd5b877928789789147e7.r2.cloudflarestorage.com"
+    }
+    skip_credentials_validation = true
+    skip_region_validation      = true
+    skip_requesting_account_id  = true
   }
 
   required_providers {

@@ -111,6 +111,7 @@ export default function SkillDetailPage() {
   const [copied, setCopied] = useState(false);
   const [skill, setSkill] = useState<Skill | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showSource, setShowSource] = useState(false);
 
   useEffect(() => {
     if (!resolvedId) {
@@ -272,7 +273,7 @@ export default function SkillDetailPage() {
                   Use in Architect
                 </button>
                 <button
-                  onClick={() => window.open('https://github.com/praeceptor-thesis/skill-builder-landing', '_blank')}
+                  onClick={() => setShowSource(true)}
                   className="rounded-full border border-stone-300 bg-white px-6 py-3 text-sm font-medium text-stone-700 transition hover:border-amber-500 hover:text-amber-700"
                 >
                   View Source
@@ -418,6 +419,22 @@ export default function SkillDetailPage() {
           </div>
         </footer>
       </div>
+
+      {showSource && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-stone-900/60 pt-12 backdrop-blur-sm" onClick={() => setShowSource(false)}>
+          <div className="mx-4 w-full max-w-3xl max-h-[80vh] overflow-y-auto rounded-2xl border border-stone-200 bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-stone-200 px-6 py-4">
+              <h2 className="font-display text-lg font-medium text-stone-900">Raw Markdown</h2>
+              <button onClick={() => setShowSource(false)} className="rounded-full p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-700 transition">
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <pre className="overflow-x-auto p-6 text-sm leading-relaxed text-stone-800 whitespace-pre-wrap font-mono">{skill.markdown}</pre>
+          </div>
+        </div>
+      )}
     </>
   );
 }

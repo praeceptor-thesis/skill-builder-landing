@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /workspace
+
+Sitemap: https://skills.eastern-shore-solutions.com/sitemap.xml
+
+# Crawl delay for polite crawling
+Crawl-delay: 10

@@ -1,0 +1,7 @@
+# SPA fallback for client-side routing
+/skill/*  /index.html  200
+/browse  /index.html  200
+/workspace  /index.html  200
+
+# Permanent redirects
+/registry  /  301

@@ -1,7 +1,9 @@
 import React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Routes, Route, useNavigate } from 'react-router-dom';
 import { listSkills, saveSkill, forkSkill, createSkillBuilderSession, sendSkillBuilderTurn, executeSkill, login, register, getCurrentUser, setAuthToken, clearAuthToken, getAuthToken, type Skill, type AgentMessage, type User, generateNpxCommand, isUnauthorizedError } from './services/api';
 import { renderMarkdown } from './renderMarkdown';
+import SkillDetailPage from './pages/SkillDetailPage';
 
 const sampleSkills: Skill[] = [
   {
@@ -565,6 +567,12 @@ const initialAssistantMessages: AgentMessage[] = [
 ];
 
 function App() {
+  const navigate = useNavigate();
+  const navigateToSkill = useCallback((skill: Skill) => {
+    sessionStorage.setItem(`skill-${skill.id}`, JSON.stringify(skill));
+    navigate(`/skill/${skill.id}`);
+  }, [navigate]);
+
   const [view, setView] = useState<'landing' | 'workspace'>('landing');
   const [skills, setSkills] = useState<Skill[]>(sampleSkills);
   const [selected, setSelected] = useState<string | null>(null);
@@ -999,6 +1007,9 @@ Install with: ${generateNpxCommand(skillToPublish)}`);
   const handleGoHome = useCallback(() => setView('landing'), []);
 
   return (
+    <Routes>
+      <Route path="/skill/:skillId" element={<SkillDetailPage />} />
+      <Route path="*" element={
     <div className="min-h-screen font-body text-stone-900 bg-[#f5f0eb]">
       {view === 'landing' ? (
         <div className="mx-auto max-w-6xl px-6 py-12">
@@ -1468,11 +1479,7 @@ Install with: ${generateNpxCommand(skillToPublish)}`);
                   {registrySkills.map((skill) => (
                     <button
                       key={skill.id}
-                      onClick={() => {
-                        setSkills(prev => prev.some(s => s.id === skill.id) ? prev : [...prev, skill]);
-                        handleLoadSkill(skill);
-                        setShowRegistry(false);
-                      }}
+                      onClick={() => navigateToSkill(skill)}
                       className="group rounded-xl border border-stone-200 bg-stone-50 p-5 text-left transition hover:border-amber-500/40 hover:bg-white hover:shadow-sm"
                     >
                       <div className="flex items-start justify-between gap-3">
@@ -1574,6 +1581,8 @@ Install with: ${generateNpxCommand(skillToPublish)}`);
         </div>
       </footer>
     </div>
+      } />
+    </Routes>
   );
 }
 

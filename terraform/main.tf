@@ -18,13 +18,13 @@ resource "cloudflare_workers_script" "skill_api" {
   script_name = "${var.pages_project_name}-api"
   content     = file("${path.module}/../worker/skill-persistence-worker.js")
 
-  module = true
+  module             = true
   compatibility_date = "2024-01-01"
 
   bindings = [
     {
-      name = "SKILL_STORE"
-      type = "kv_namespace"
+      name         = "SKILL_STORE"
+      type         = "kv_namespace"
       namespace_id = cloudflare_workers_kv_namespace.skills.id
     },
     {

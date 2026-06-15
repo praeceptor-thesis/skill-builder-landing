@@ -373,7 +373,7 @@ export function getAuthToken(): string | null {
 
 export function generateNpxCommand(skill: { id: string; authorHandle?: string }): string {
   const prefix = skill.authorHandle ? `@${skill.authorHandle}/` : '';
-  return `npx skill-builder install ${prefix}${skill.id}`;
+  return `npx @concordex-ai/skill-builder install ${prefix}${skill.id}`;
 }
 
 export function isUnauthorizedError(error: unknown): error is ApiError {

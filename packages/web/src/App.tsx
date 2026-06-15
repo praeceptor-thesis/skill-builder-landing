@@ -1068,7 +1068,7 @@ Install with: ${generateNpxCommand(skillToPublish)}`);
   "tests": ["routes billing escalations"]
 }`}</pre>
                 <div className="mt-4 rounded-xl bg-stone-900 px-4 py-3 font-mono text-xs text-amber-200">
-                  npx skill-builder install email-classifier
+                  npx @concordex-ai/skill-builder install email-classifier
                 </div>
               </div>
             </section>

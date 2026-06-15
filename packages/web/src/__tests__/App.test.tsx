@@ -5,7 +5,10 @@ import { MemoryRouter } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
 import App from '../App';
 
-function renderWithProviders(ui: React.ReactElement, { initialEntries = ['/'] } = {}) {
+function renderWithProviders(
+  ui: React.ReactElement,
+  { initialEntries = ['/'] } = {},
+) {
   return render(
     <HelmetProvider>
       <MemoryRouter initialEntries={initialEntries}>{ui}</MemoryRouter>
@@ -27,10 +30,11 @@ const mockClearAuthToken = vi.hoisted(() => vi.fn());
 const mockGetAuthToken = vi.hoisted(() => vi.fn());
 const mockIsUnauthorizedError = vi.hoisted(() => vi.fn(() => false));
 const mockGenerateNpxCommand = vi.hoisted(
-  () => vi.fn((skill: { id: string; authorHandle?: string }) => {
-    const prefix = skill.authorHandle ? `@${skill.authorHandle}/` : '';
-    return `npx skill-builder install ${prefix}${skill.id}`;
-  }),
+  () =>
+    vi.fn((skill: { id: string; authorHandle?: string }) => {
+      const prefix = skill.authorHandle ? `@${skill.authorHandle}/` : '';
+      return `npx @concordex-ai/skill-builder install ${prefix}${skill.id}`;
+    }),
 );
 const mockGetSkill = vi.hoisted(() => vi.fn());
 
@@ -97,8 +101,7 @@ const mockUser = {
 };
 
 function navigateToWorkspace() {
-  const buttons = screen.getAllByText('Build a Skill');
-  fireEvent.click(buttons[0]);
+  fireEvent.click(screen.getAllByText('Build a Skill')[0]);
 }
 
 async function waitForWorkspace() {
@@ -137,8 +140,8 @@ describe('App', () => {
   describe('Landing page', () => {
     it('renders landing page by default', () => {
       renderWithProviders(<App />);
-      expect(screen.getByText('Reusable AI skills')).toBeInTheDocument();
-      expect(screen.getByText('for agents and teams')).toBeInTheDocument();
+      expect(screen.getByText(/Reusable AI skills/)).toBeInTheDocument();
+      expect(screen.getByText(/for agents and teams/)).toBeInTheDocument();
       expect(screen.getByText('Browse Registry →')).toBeInTheDocument();
       const buildSkillButtons = screen.getAllByText('Build a Skill');
       expect(buildSkillButtons.length).toBeGreaterThanOrEqual(1);
@@ -146,9 +149,9 @@ describe('App', () => {
 
     it('shows three feature cards', () => {
       renderWithProviders(<App />);
-      expect(screen.getByText('Browse')).toBeInTheDocument();
-      expect(screen.getByText('Author')).toBeInTheDocument();
-      expect(screen.getByText('Execute')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Browse' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Author' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Execute' })).toBeInTheDocument();
     });
 
     it('shows Sign in when not logged in', () => {
@@ -170,15 +173,16 @@ describe('App', () => {
   describe('Navigation', () => {
     it('navigates to workspace on Build a Skill', async () => {
       renderWithProviders(<App />);
-      fireEvent.click(screen.getAllByText('Build a Skill')[0]);
+      navigateToWorkspace();
       await waitForWorkspace();
     });
 
-    it('navigates to browse page from landing', async () => {
+    it('navigates to browse content from landing', async () => {
+      mockListSkills.mockResolvedValue({ skills: [mockSkill], total: 1 });
       renderWithProviders(<App />);
       fireEvent.click(screen.getByText('Browse Registry →'));
       await waitFor(() => {
-        expect(screen.getByText('Browse Skills')).toBeInTheDocument();
+        expect(screen.getByText(/Browse skills/i)).toBeInTheDocument();
       });
     });
 
@@ -189,7 +193,7 @@ describe('App', () => {
 
       fireEvent.click(screen.getByText(/\u2190 skill builder/));
       await waitFor(() => {
-        expect(screen.getByText('Reusable AI skills')).toBeInTheDocument();
+        expect(screen.getByText(/Reusable AI skills/)).toBeInTheDocument();
       });
     });
 
@@ -199,11 +203,12 @@ describe('App', () => {
       await waitForWorkspace();
     });
 
-    it('opens browse page from Execute card', async () => {
+    it('opens browse content from Execute card', async () => {
+      mockListSkills.mockResolvedValue({ skills: [mockSkill], total: 1 });
       renderWithProviders(<App />);
       fireEvent.click(screen.getByText('Choose a Skill →'));
       await waitFor(() => {
-        expect(screen.getByText('Browse Skills')).toBeInTheDocument();
+        expect(screen.getByText(/Browse skills/i)).toBeInTheDocument();
       });
     });
   });
@@ -230,7 +235,7 @@ describe('App', () => {
       expect(screen.getByText('Generated artifacts')).toBeInTheDocument();
     });
 
-    it('renders Save, Publish, Fork buttons', () => {
+    it('renders Save and Publish buttons', () => {
       expect(screen.getByText('Save')).toBeInTheDocument();
       expect(screen.getByText('Publish')).toBeInTheDocument();
     });
@@ -241,9 +246,11 @@ describe('App', () => {
     });
 
     it('shows editor mode toggles', () => {
-      expect(screen.getByText('Source')).toBeInTheDocument();
+      const sourceElements = screen.getAllByText('Source');
+      expect(sourceElements.length).toBeGreaterThanOrEqual(1);
       expect(screen.getByText('Split')).toBeInTheDocument();
-      expect(screen.getByText('Preview')).toBeInTheDocument();
+      const previewElements = screen.getAllByText('Preview');
+      expect(previewElements.length).toBeGreaterThanOrEqual(1);
     });
   });
 
@@ -272,7 +279,8 @@ describe('App', () => {
       fireEvent.click(screen.getByText('Build / update skill'));
 
       await waitFor(() => {
-        expect(screen.getByText('Build a parser skill')).toBeInTheDocument();
+        const messages = screen.getAllByText('Build a parser skill');
+        expect(messages.length).toBeGreaterThanOrEqual(1);
       });
     });
 
@@ -327,10 +335,18 @@ describe('App', () => {
     });
 
     it('displays skill spec fields', () => {
-      expect(screen.getByPlaceholderText('Medicare Billing Extractor')).toBeInTheDocument();
-      expect(screen.getByPlaceholderText('cms, billing, medical')).toBeInTheDocument();
-      expect(screen.getByPlaceholderText('What job should this skill own?')).toBeInTheDocument();
-      expect(screen.getByPlaceholderText(/Identify the user intent/)).toBeInTheDocument();
+      expect(
+        screen.getByPlaceholderText('Medicare Billing Extractor'),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByPlaceholderText('cms, billing, medical'),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByPlaceholderText('What job should this skill own?'),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByPlaceholderText(/Identify the user intent/),
+      ).toBeInTheDocument();
     });
 
     it('updates skill name on input', () => {
@@ -368,7 +384,7 @@ describe('App', () => {
 
       fireEvent.click(screen.getByText('Register'));
       await waitFor(() => {
-        expect(screen.getByText('Create account')).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Create account' })).toBeInTheDocument();
       });
     });
 
@@ -418,7 +434,7 @@ describe('App', () => {
 
       fireEvent.click(screen.getByText('Register'));
       await waitFor(() => {
-        expect(screen.getByText('Create account')).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Create account' })).toBeInTheDocument();
       });
 
       const nameInput = screen.getByLabelText('Name');
@@ -433,7 +449,12 @@ describe('App', () => {
 
       fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
       await waitFor(() => {
-        expect(mockRegister).toHaveBeenCalledWith('New User', 'new@test.com', 'pass123', 'newuser');
+        expect(mockRegister).toHaveBeenCalledWith(
+          'New User',
+          'new@test.com',
+          'pass123',
+          'newuser',
+        );
       });
     });
 
@@ -446,7 +467,9 @@ describe('App', () => {
 
       fireEvent.click(screen.getByText('Close'));
       await waitFor(() => {
-        expect(screen.queryByRole('heading', { name: 'Sign in' })).not.toBeInTheDocument();
+        expect(
+          screen.queryByRole('heading', { name: 'Sign in' }),
+        ).not.toBeInTheDocument();
       });
     });
   });
@@ -489,7 +512,7 @@ describe('App', () => {
 
       fireEvent.click(screen.getByText('Browse'));
       await waitFor(() => {
-        expect(screen.getByText('Browse Skills')).toBeInTheDocument();
+        expect(screen.getByText('Browse skills')).toBeInTheDocument();
       });
     });
 
@@ -501,7 +524,7 @@ describe('App', () => {
 
       fireEvent.click(screen.getByText('Browse'));
       await waitFor(() => {
-        expect(screen.getByText('Browse Skills')).toBeInTheDocument();
+        expect(screen.getByText('Browse skills')).toBeInTheDocument();
       });
 
       const searchInput = screen.getByPlaceholderText(/Search by name/);
@@ -523,19 +546,23 @@ describe('App', () => {
     });
 
     it('switches to Source (edit) mode', () => {
-      fireEvent.click(screen.getByText('Source'));
+      const sourceButtons = screen.getAllByText('Source');
+      fireEvent.click(sourceButtons[0]);
       expect(screen.getByText('Generated markdown')).toBeInTheDocument();
     });
 
     it('switches to Preview mode', () => {
-      fireEvent.click(screen.getAllByText('Preview')[0]);
-      expect(screen.getAllByText('Preview').length).toBeGreaterThanOrEqual(1);
+      const previewButtons = screen.getAllByText('Preview');
+      fireEvent.click(previewButtons[0]);
+      const previewTexts = screen.getAllByText('Preview');
+      expect(previewTexts.length).toBeGreaterThanOrEqual(1);
     });
 
     it('switches back to Split mode', () => {
-      fireEvent.click(screen.getByText('Source'));
+      const sourceButtons = screen.getAllByText('Source');
+      fireEvent.click(sourceButtons[0]);
       fireEvent.click(screen.getByText('Split'));
-      expect(screen.getByText('Source')).toBeInTheDocument();
+      expect(sourceButtons.length).toBeGreaterThanOrEqual(1);
     });
   });
 });

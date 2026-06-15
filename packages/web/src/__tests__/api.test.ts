@@ -127,12 +127,12 @@ describe('API client', () => {
   it('generateNpxCommand returns correct command', async () => {
     const { generateNpxCommand } = await import('../services/api');
     const cmd = generateNpxCommand({ id: 'my-skill', authorHandle: undefined });
-    expect(cmd).toBe('npx skill-builder install my-skill');
+    expect(cmd).toBe('npx @concordex-ai/skill-builder install my-skill');
   });
 
   it('generateNpxCommand includes @handle prefix', async () => {
     const { generateNpxCommand } = await import('../services/api');
     const cmd = generateNpxCommand({ id: 'my-skill', authorHandle: 'skillauthor' });
-    expect(cmd).toBe('npx skill-builder install @skillauthor/my-skill');
+    expect(cmd).toBe('npx @concordex-ai/skill-builder install @skillauthor/my-skill');
   });
 });

@@ -79,11 +79,14 @@ cli
         }
 
         default: {
-          const outPath = path.resolve(outputDir, `${metadata.id}.md`);
+          const outDir = path.resolve(outputDir);
+          if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
+
+          const outPath = path.join(outDir, `${metadata.id}.md`);
           fs.writeFileSync(outPath, metadata.markdown, 'utf-8');
           console.log(`Skill markdown written to: ${outPath}`);
 
-          const configPath = path.resolve(outputDir, `${metadata.id}.json`);
+          const configPath = path.join(outDir, `${metadata.id}.json`);
           const config = {
             id: metadata.id,
             name: metadata.name,

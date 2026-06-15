@@ -1,6 +1,6 @@
 {
   "name": "@concordex-ai/skill-builder",
-  "version": "0.1.0",
+  "version": "0.1.4",
   "type": "module",
   "bin": {
     "skill-builder": "dist/index.js"

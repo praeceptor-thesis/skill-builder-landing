@@ -1,6 +1,6 @@
 name = "skill-builder-landing-api"
 main = "skill-persistence-worker.js"
-compatibility_date = "2024-01-01"
+compatibility_date = "2024-12-01"
 
 [[kv_namespaces]]
 binding = "SKILL_STORE"

@@ -1032,6 +1032,9 @@ async function fetchSkill(rawId, SKILL_STORE) {
     const id = parseSkillId(rawId);
     const skill = await SKILL_STORE.get(`skills/${id}`, { type: 'json' });
     if (!skill) return err('SKILL_NOT_FOUND', 'Skill not found', 404);
+    skill.downloads = (skill.downloads || 0) + 1;
+    skill.updatedAt = new Date().toISOString();
+    await SKILL_STORE.put(`skills/${id}`, JSON.stringify(skill));
     return ok({ skill });
   } catch (error) {
     console.error('Fetch error:', error);

@@ -607,6 +607,9 @@ function App() {
   }>(null);
   const [registrySkills, setRegistrySkills] = useState<Skill[]>([]);
   const [registryLoading, setRegistryLoading] = useState(false);
+  const [registryPage, setRegistryPage] = useState(1);
+  const [registryTotal, setRegistryTotal] = useState(0);
+  const [registryHasMore, setRegistryHasMore] = useState(false);
 
   const selectedSkill = useMemo(
     () => skills.find((skill) => skill.id === selected) ?? null,
@@ -934,14 +937,21 @@ Install with: ${generateNpxCommand(skillToPublish)}`);
     const abort = new AbortController();
     const timer = setTimeout(async () => {
       setRegistryLoading(true);
+      setRegistryPage(1);
       try {
         const result = await listSkills({
           query: searchQuery || undefined,
           category: searchCategory || undefined,
           sort: 'popular',
+          page: 1,
+          pageSize: 50,
           signal: abort.signal,
         });
-        if (!abort.signal.aborted) setRegistrySkills(result.skills);
+        if (!abort.signal.aborted) {
+          setRegistrySkills(result.skills);
+          setRegistryTotal(result.total || result.skills.length);
+          setRegistryHasMore((result.total || 0) > 50);
+        }
       } catch (err) {
         if (!abort.signal.aborted) setError('Failed to load registry.');
       } finally {
@@ -950,6 +960,24 @@ Install with: ${generateNpxCommand(skillToPublish)}`);
     }, 300);
     return () => { clearTimeout(timer); abort.abort(); };
   }, [showRegistry, searchQuery, searchCategory]);
+
+  const handleLoadMore = useCallback(async () => {
+    const nextPage = registryPage + 1;
+    try {
+      const result = await listSkills({
+        query: searchQuery || undefined,
+        category: searchCategory || undefined,
+        sort: 'popular',
+        page: nextPage,
+        pageSize: 50,
+      });
+      setRegistrySkills((prev) => [...prev, ...result.skills]);
+      setRegistryPage(nextPage);
+      setRegistryHasMore((result.total || 0) > nextPage * 50);
+    } catch {
+      setError('Failed to load more skills.');
+    }
+  }, [registryPage, searchQuery, searchCategory]);
 
   const handleExecuteSkill = useCallback(async () => {
     if (!selectedSkill || !assistantInput.trim() || isLoading) return;
@@ -1505,6 +1533,16 @@ Install with: ${generateNpxCommand(skillToPublish)}`);
                       </div>
                     </button>
                   ))}
+                </div>
+              )}
+              {registryHasMore && !registryLoading && (
+                <div className="flex justify-center pb-6">
+                  <button
+                    onClick={handleLoadMore}
+                    className="rounded-full border border-stone-300 bg-white px-6 py-2.5 text-sm font-medium text-stone-600 transition hover:border-amber-500 hover:text-amber-700"
+                  >
+                    Load More
+                  </button>
                 </div>
               )}
             </div>

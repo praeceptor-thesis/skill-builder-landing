@@ -807,6 +807,8 @@ async function listSkills(request, SKILL_STORE, url) {
   const category = searchParams.get('category')?.toLowerCase() || '';
   const tags = searchParams.getAll('tags');
   const sort = searchParams.get('sort') || 'recent';
+  const hasFilters = query || category || tags.length > 0;
+  const needsAllValues = hasFilters || sort !== 'recent';
 
   // Determine the current user for draft filtering
   let currentUserHandle;
@@ -817,6 +819,7 @@ async function listSkills(request, SKILL_STORE, url) {
     }
   } catch {}
 
+  // Collect all skill key names (cheap — only metadata, no value fetches)
   const allKeys = [];
   let cursor;
   do {
@@ -825,63 +828,67 @@ async function listSkills(request, SKILL_STORE, url) {
     cursor = result.list_complete ? undefined : result.cursor;
   } while (cursor);
 
-  let skills = await Promise.all(
-    allKeys.map(async (item) => {
+  if (needsAllValues) {
+    // Filters or non-recent sort require scanning all values
+    let skills = (await Promise.all(
+      allKeys.map(async (item) => {
+        const value = await SKILL_STORE.get(item.name, { type: 'json' });
+        return value || null;
+      }),
+    )).filter(Boolean).filter((s) => !(s.visibility === 'draft' && s.authorHandle !== currentUserHandle));
+
+    if (query) {
+      skills = skills.filter((s) => {
+        const searchable = [s.name, s.description, s.category, s.markdown, JSON.stringify(s.spec || {}), ...(s.tags || [])].join(' ').toLowerCase();
+        return searchable.includes(query);
+      });
+    }
+    if (category) {
+      skills = skills.filter(s => s.category?.toLowerCase() === category || s.spec?.category?.toLowerCase() === category);
+    }
+    if (tags.length > 0) {
+      const lowerTags = tags.map(t => t.toLowerCase());
+      skills = skills.filter(s => lowerTags.some(t => s.tags?.some(st => st.toLowerCase() === t)));
+    }
+
+    const now = Date.now();
+    switch (sort) {
+      case 'popular':
+        skills.sort((a, b) => {
+          const daysA = (now - new Date(a.updatedAt).getTime()) / 86400000;
+          const daysB = (now - new Date(b.updatedAt).getTime()) / 86400000;
+          return (b.downloads * 100 - daysB) - (a.downloads * 100 - daysA);
+        });
+        break;
+      case 'downloads':
+        skills.sort((a, b) => b.downloads - a.downloads);
+        break;
+      case 'recent':
+      default:
+        skills.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+    }
+
+    const total = skills.length;
+    const start = (page - 1) * pageSize;
+    return ok({ skills: skills.slice(start, start + pageSize), total, page, pageSize });
+  }
+
+  // No filters, sort=recent: fetch values only for the requested page
+  const total = allKeys.length;
+  const start = (page - 1) * pageSize;
+  const end = start + pageSize;
+  const pageKeys = allKeys.slice(start, end);
+
+  let skills = (await Promise.all(
+    pageKeys.map(async (item) => {
       const value = await SKILL_STORE.get(item.name, { type: 'json' });
       return value || null;
     }),
-  );
+  )).filter(Boolean).filter((s) => !(s.visibility === 'draft' && s.authorHandle !== currentUserHandle));
 
-  skills = skills.filter(Boolean);
+  skills.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 
-  // Filter out draft skills not owned by the current user
-  skills = skills.filter((s) => !(s.visibility === 'draft' && s.authorHandle !== currentUserHandle));
-
-  if (query) {
-    skills = skills.filter((s) => {
-      const searchable = [
-        s.name,
-        s.description,
-        s.category,
-        s.markdown,
-        JSON.stringify(s.spec || {}),
-        ...(s.tags || []),
-      ].join(' ').toLowerCase();
-      return searchable.includes(query);
-    });
-  }
-
-  if (category) {
-    skills = skills.filter(s => s.category?.toLowerCase() === category || s.spec?.category?.toLowerCase() === category);
-  }
-
-  if (tags.length > 0) {
-    const lowerTags = tags.map(t => t.toLowerCase());
-    skills = skills.filter(s => lowerTags.some(t => s.tags?.some(st => st.toLowerCase() === t)));
-  }
-
-  const now = Date.now();
-  switch (sort) {
-    case 'popular':
-      skills.sort((a, b) => {
-        const daysA = (now - new Date(a.updatedAt).getTime()) / 86400000;
-        const daysB = (now - new Date(b.updatedAt).getTime()) / 86400000;
-        return (b.downloads * 100 - daysB) - (a.downloads * 100 - daysA);
-      });
-      break;
-    case 'downloads':
-      skills.sort((a, b) => b.downloads - a.downloads);
-      break;
-    case 'recent':
-    default:
-      skills.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-  }
-
-  const total = skills.length;
-  const start = (page - 1) * pageSize;
-  const paginatedSkills = skills.slice(start, start + pageSize);
-
-  return ok({ skills: paginatedSkills, total, page, pageSize });
+  return ok({ skills, total, page, pageSize });
 }
 
 async function requireAuth(request, SKILL_STORE) {

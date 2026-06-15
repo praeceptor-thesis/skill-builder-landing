@@ -2,6 +2,7 @@
 import cac from 'cac';
 import * as fs from 'fs';
 import * as path from 'path';
+import { execSync } from 'child_process';
 import { pathToFileURL } from 'url';
 import { createApiClient, type Skill, type SkillPayload } from './api/client.js';
 
@@ -181,8 +182,8 @@ cli
 
 cli
   .command('list', 'List all skills from the registry')
-  .option('-r, --registry <url>', 'Registry URL (Worker API)', {
-    default: 'https://skills.eastern-shore-solutions.com/api',
+  .option('-r, --registry <url>', 'Registry URL', {
+    default: 'https://skills.eastern-shore-solutions.com',
   })
   .option('-q, --query <query>', 'Search query')
   .option('-c, --category <category>', 'Filter by category')
@@ -191,42 +192,24 @@ cli
   .option('-p, --page <page>', 'Page number', { default: 1 })
   .option('--page-size <size>', 'Results per page', { default: 20 })
   .action(async (options) => {
-    const registry = options.registry as string;
-    const client = createApiClient(registry);
-
-    try {
-      const response = await client.listSkills({
-        query: options.query as string | undefined,
-        category: options.category as string | undefined,
-        tags: options.tag as string[] | undefined,
-        sort: options.sort as 'recent' | 'popular' | 'downloads' | undefined,
-        page: parseInt(options.page as string) || 1,
-        pageSize: parseInt(options.pageSize as string) || 20,
-      });
-
-      if (response.skills.length === 0) {
-        console.log('No skills found.');
-        return;
-      }
-
-      console.log(`Found ${response.total || response.skills.length} skills (page ${response.page || 1}/${Math.ceil((response.total || 0) / (response.pageSize || 20))}):`);
-      console.log('');
-      response.skills.forEach((skill) => {
-        const tags = skill.tags?.length ? ` [${skill.tags.join(', ')}]` : '';
-        const downloads = skill.downloads != null ? ` ⬇ ${skill.downloads}` : '';
-        const displayId = skill.id.startsWith('@') ? skill.id : skill.authorHandle ? `@${skill.authorHandle}/${skill.id}` : skill.id;
-        console.log(`  ${displayId.padEnd(35)} ${skill.name.padEnd(25)} ${skill.category.padEnd(16)} v${skill.version || 1}${downloads}${tags}`);
-      });
-    } catch (error) {
-      console.error('List failed:', error instanceof Error ? error.message : String(error));
-      process.exit(1);
-    }
+    const registry = (options.registry as string).replace(/\/api\/?$/, '');
+    const params = new URLSearchParams();
+    if (options.query) params.set('q', options.query as string);
+    if (options.category) params.set('category', options.category as string);
+    if (options.sort) params.set('sort', options.sort as string);
+    if (options.page) params.set('page', String(options.page));
+    if (options.pageSize) params.set('pageSize', String(options.pageSize));
+    const qs = params.toString();
+    const url = `${registry}/browse${qs ? `?${qs}` : ''}`;
+    console.log(`Opening ${url}`);
+    const cmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open';
+    execSync(`${cmd} "${url}"`);
   });
 
 cli
   .command('search <query>', 'Search skills in the registry')
-  .option('-r, --registry <url>', 'Registry URL (Worker API)', {
-    default: 'https://skills.eastern-shore-solutions.com/api',
+  .option('-r, --registry <url>', 'Registry URL', {
+    default: 'https://skills.eastern-shore-solutions.com',
   })
   .option('-c, --category <category>', 'Filter by category')
   .option('--tag <tag...>', 'Filter by tag (can be repeated)')
@@ -234,41 +217,18 @@ cli
   .option('-p, --page <page>', 'Page number', { default: 1 })
   .option('--page-size <size>', 'Results per page', { default: 20 })
   .action(async (query, options) => {
-    const registry = options.registry as string;
-    const client = createApiClient(registry);
-
-    try {
-      const response = await client.listSkills({
-        query,
-        category: options.category as string | undefined,
-        tags: options.tag as string[] | undefined,
-        sort: options.sort as 'recent' | 'popular' | 'downloads' | undefined,
-        page: parseInt(options.page as string) || 1,
-        pageSize: parseInt(options.pageSize as string) || 20,
-      });
-
-      if (response.skills.length === 0) {
-        console.log(`No skills found matching "${query}".`);
-        return;
-      }
-
-      console.log(`Found ${response.total || response.skills.length} skills matching "${query}" (page ${response.page || 1}/${Math.ceil((response.total || 0) / (response.pageSize || 20))}):`);
-      console.log('');
-      response.skills.forEach((skill) => {
-        const displayId = skill.id.startsWith('@') ? skill.id : skill.authorHandle ? `@${skill.authorHandle}/${skill.id}` : skill.id;
-        console.log(`  ${displayId}`);
-        console.log(`    Name:        ${skill.name}`);
-        console.log(`    Category:    ${skill.category}`);
-        console.log(`    Downloads:   ${skill.downloads || 0}`);
-        console.log(`    Version:     v${skill.version || 1}`);
-        if (skill.tags?.length) console.log(`    Tags:        ${skill.tags.join(', ')}`);
-        if (skill.description) console.log(`    Description: ${skill.description}`);
-        console.log('');
-      });
-    } catch (error) {
-      console.error('Search failed:', error instanceof Error ? error.message : String(error));
-      process.exit(1);
-    }
+    const registry = (options.registry as string).replace(/\/api\/?$/, '');
+    const params = new URLSearchParams();
+    params.set('q', query);
+    if (options.category) params.set('category', options.category as string);
+    if (options.sort) params.set('sort', options.sort as string);
+    if (options.page) params.set('page', String(options.page));
+    if (options.pageSize) params.set('pageSize', String(options.pageSize));
+    const qs = params.toString();
+    const url = `${registry}/browse${qs ? `?${qs}` : ''}`;
+    console.log(`Opening ${url}`);
+    const cmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open';
+    execSync(`${cmd} "${url}"`);
   });
 
 cli

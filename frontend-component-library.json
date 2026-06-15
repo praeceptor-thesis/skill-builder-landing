@@ -1,0 +1,21 @@
+{
+  "id": "frontend-component-library",
+  "name": "Frontend Component Library",
+  "description": "Build domain specific, psychologically (behavior + cognitively) aligned components that enhance accessibility and useability of components hand tailored for the industries that they are being created for.",
+  "category": "Developer Tools",
+  "tags": [
+    "frontend",
+    "component",
+    "library",
+    "accessibility",
+    "usability",
+    "color theory",
+    "ux",
+    "behavioral standards"
+  ],
+  "version": 1,
+  "author": {
+    "id": "41f7dba1-2f39-4158-94dd-910894c48ccd",
+    "name": "Matt Blackmon"
+  }
+}

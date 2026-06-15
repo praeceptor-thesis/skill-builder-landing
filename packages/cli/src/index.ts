@@ -27,13 +27,14 @@ cli
     const tool = (options.tool as string) || 'file';
     const agentsFile = options.agentsFile as string;
     const client = createApiClient(registry);
-    const skillId = skill.startsWith('@') ? skill.slice(skill.indexOf('/') + 1) : skill;
+    const skillId = skill;
 
     console.log(`Installing skill ${skill} from ${registry} [--tool ${tool}]`);
 
     try {
       const response = await client.getSkill(skillId);
       const metadata = response.skill;
+      const fileName = metadata.id.startsWith('@') ? metadata.id.slice(metadata.id.indexOf('/') + 1) : metadata.id;
 
       switch (tool) {
         case 'claude':
@@ -64,7 +65,7 @@ cli
           const rulesDir = path.resolve('.cursor/rules');
           if (!fs.existsSync(rulesDir)) fs.mkdirSync(rulesDir, { recursive: true });
 
-          const mdcPath = path.join(rulesDir, `${metadata.id}.mdc`);
+          const mdcPath = path.join(rulesDir, `${fileName}.mdc`);
           const frontmatter = [
             '---',
             `description: ${metadata.description || metadata.name}`,
@@ -82,11 +83,11 @@ cli
           const outDir = path.resolve(outputDir);
           if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
 
-          const outPath = path.join(outDir, `${metadata.id}.md`);
+          const outPath = path.join(outDir, `${fileName}.md`);
           fs.writeFileSync(outPath, metadata.markdown, 'utf-8');
           console.log(`Skill markdown written to: ${outPath}`);
 
-          const configPath = path.join(outDir, `${metadata.id}.json`);
+          const configPath = path.join(outDir, `${fileName}.json`);
           const config = {
             id: metadata.id,
             name: metadata.name,
@@ -168,7 +169,7 @@ cli
       const response = await client.saveSkill(skill);
 
       console.log('Published successfully!');
-      const displayId = response.skill.authorHandle ? `@${response.skill.authorHandle}/${response.skill.id}` : response.skill.id;
+      const displayId = response.skill.id.startsWith('@') ? response.skill.id : response.skill.authorHandle ? `@${response.skill.authorHandle}/${response.skill.id}` : response.skill.id;
       console.log(`Skill ID: ${displayId}`);
       console.log(`Skill Name: ${response.skill.name}`);
       console.log(`Install with: npx skill-builder install ${displayId}`);
@@ -209,7 +210,7 @@ cli
       response.skills.forEach((skill) => {
         const tags = skill.tags?.length ? ` [${skill.tags.join(', ')}]` : '';
         const downloads = skill.downloads != null ? ` ⬇ ${skill.downloads}` : '';
-        const displayId = skill.authorHandle ? `@${skill.authorHandle}/${skill.id}` : skill.id;
+        const displayId = skill.id.startsWith('@') ? skill.id : skill.authorHandle ? `@${skill.authorHandle}/${skill.id}` : skill.id;
         console.log(`  ${displayId.padEnd(35)} ${skill.name.padEnd(25)} ${skill.category.padEnd(16)} v${skill.version || 1}${downloads}${tags}`);
       });
     } catch (error) {
@@ -246,7 +247,7 @@ cli
       console.log(`Found ${response.total || response.skills.length} skills matching "${query}":`);
       console.log('');
       response.skills.forEach((skill) => {
-        const displayId = skill.authorHandle ? `@${skill.authorHandle}/${skill.id}` : skill.id;
+        const displayId = skill.id.startsWith('@') ? skill.id : skill.authorHandle ? `@${skill.authorHandle}/${skill.id}` : skill.id;
         console.log(`  ${displayId}`);
         console.log(`    Name:        ${skill.name}`);
         console.log(`    Category:    ${skill.category}`);
@@ -273,7 +274,7 @@ cli
     const registry = options.registry as string;
     const client = createApiClient(registry);
     if (options.token) client.setToken(options.token as string);
-    const skillId = rawSkillId.startsWith('@') ? rawSkillId.slice(rawSkillId.indexOf('/') + 1) : rawSkillId;
+    const skillId = rawSkillId;
 
     console.log(`Forking skill ${rawSkillId} from ${registry}`);
 

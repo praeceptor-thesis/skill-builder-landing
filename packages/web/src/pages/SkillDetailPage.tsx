@@ -105,19 +105,20 @@ function formatDate(dateString: string) {
 }
 
 export default function SkillDetailPage() {
-  const { skillId } = useParams<{ skillId: string }>();
+  const { scope, skillSlug, skillId } = useParams();
+  const resolvedId = scope ? `${scope}/${skillSlug}` : skillId;
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
   const [skill, setSkill] = useState<Skill | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!skillId) {
+    if (!resolvedId) {
       setLoading(false);
       return;
     }
 
-    const fromStorage = sessionStorage.getItem(`skill-${skillId}`);
+    const fromStorage = sessionStorage.getItem(`skill-${resolvedId}`);
     if (fromStorage) {
       try {
         setSkill(JSON.parse(fromStorage) as Skill);
@@ -126,20 +127,20 @@ export default function SkillDetailPage() {
       } catch { /* ignore */ }
     }
 
-    const localSkill = sampleSkills.find((s) => s.id === skillId);
+    const localSkill = sampleSkills.find((s) => s.id === resolvedId);
     if (localSkill) {
       setSkill(localSkill);
       setLoading(false);
       return;
     }
 
-    getSkill(skillId)
+    getSkill(resolvedId)
       .then((res) => setSkill(res.skill))
       .catch(() => {
         setSkill(null);
       })
       .finally(() => setLoading(false));
-  }, [skillId]);
+  }, [resolvedId]);
 
   const spec = skill?.spec ? skill.spec : null;
 

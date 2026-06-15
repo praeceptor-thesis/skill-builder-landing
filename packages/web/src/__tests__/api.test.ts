@@ -135,4 +135,10 @@ describe('API client', () => {
     const cmd = generateNpxCommand({ id: 'my-skill', authorHandle: 'skillauthor' });
     expect(cmd).toBe('npx @concordex-ai/skill-builder install @skillauthor/my-skill');
   });
+
+  it('generateNpxCommand uses scoped id as-is', async () => {
+    const { generateNpxCommand } = await import('../services/api');
+    const cmd = generateNpxCommand({ id: '@skillauthor/my-skill', authorHandle: 'skillauthor' });
+    expect(cmd).toBe('npx @concordex-ai/skill-builder install @skillauthor/my-skill');
+  });
 });

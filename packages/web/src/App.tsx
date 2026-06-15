@@ -1008,6 +1008,7 @@ Install with: ${generateNpxCommand(skillToPublish)}`);
 
   return (
     <Routes>
+      <Route path="/skill/:scope/:skillSlug" element={<SkillDetailPage />} />
       <Route path="/skill/:skillId" element={<SkillDetailPage />} />
       <Route path="*" element={
     <div className="min-h-screen font-body text-stone-900 bg-[#f5f0eb]">

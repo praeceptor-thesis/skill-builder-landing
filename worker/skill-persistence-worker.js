@@ -61,7 +61,6 @@ function generateToken() {
 
 function parseSkillId(raw) {
   if (!raw) return raw;
-  if (raw.startsWith('@')) return raw.slice(raw.indexOf('/') + 1);
   return decodeURIComponent(raw);
 }
 
@@ -568,12 +567,12 @@ async function handleRequest(request, env) {
     return handleSkillExecute(request, skillId, SKILL_STORE, AI);
   }
 
-  if (url.pathname.startsWith('/api/skills/') && request.method === 'PATCH' && !url.pathname.replace('/api/skills/', '').includes('/')) {
+  if (url.pathname.startsWith('/api/skills/') && request.method === 'PATCH' && !url.pathname.endsWith('/fork') && !url.pathname.endsWith('/execute')) {
     const skillId = url.pathname.replace('/api/skills/', '');
     return updateSkill(request, skillId, SKILL_STORE);
   }
 
-  if (url.pathname.startsWith('/api/skills/') && request.method === 'DELETE' && !url.pathname.replace('/api/skills/', '').includes('/')) {
+  if (url.pathname.startsWith('/api/skills/') && request.method === 'DELETE' && !url.pathname.endsWith('/fork') && !url.pathname.endsWith('/execute')) {
     const skillId = url.pathname.replace('/api/skills/', '');
     return deleteSkill(request, skillId, SKILL_STORE);
   }
@@ -897,8 +896,9 @@ async function saveSkill(request, SKILL_STORE) {
 
     const now = new Date().toISOString();
     const markdown = skill.markdown || specToMarkdown(spec);
+    const scopedId = `@${user.handle}/${skill.id}`;
     const skillWithMeta = {
-      id: parseSkillId(skill.id),
+      id: scopedId,
       name: spec.name,
       description: spec.description,
       category: spec.category,
@@ -914,7 +914,7 @@ async function saveSkill(request, SKILL_STORE) {
       downloads: skill.downloads || 0,
     };
 
-    await SKILL_STORE.put(`skills/${skillWithMeta.id}`, JSON.stringify(skillWithMeta));
+    await SKILL_STORE.put(`skills/${scopedId}`, JSON.stringify(skillWithMeta));
 
     return ok({ success: true, skill: skillWithMeta }, 201);
   } catch (error) {
@@ -973,7 +973,7 @@ async function forkSkill(request, rawSkillId, SKILL_STORE) {
     if (!original.spec) return err('SKILL_SPEC_REQUIRED', 'SkillSpec required to fork skill', 400);
 
     const body = await request.json().catch(() => ({}));
-    const newId = body.id || `${original.id}-fork-${Date.now()}`;
+    const newId = `@${user.handle}/${body.id || `${original.id.replace(/^@[^/]+\//, '')}-fork-${Date.now()}`}`;
     const conflict = await SKILL_STORE.get(`skills/${newId}`, { type: 'json' });
     if (conflict) return err('SKILL_ID_EXISTS', 'Skill with this ID already exists', 409);
 

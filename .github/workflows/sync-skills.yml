@@ -31,6 +31,8 @@ env:
   # Fraction of invented skills that should be meta (bundling existing skills).
   # Automatically falls back to basic until at least two skills exist.
   META_RATIO: '0.3'
+  # Claude reasoning effort for generation: low | medium | high | xhigh | max.
+  EFFORT: 'high'
 
 jobs:
   imagine:
@@ -57,11 +59,16 @@ jobs:
         run: node packages/cli/dist/index.js generate --count "$COUNT" --dry-run --registry "$SKILL_API_URL"
         env:
           SKILL_API_URL: ${{ vars.SKILL_API_URL || 'https://skills.eastern-shore-solutions.com/api' }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
       # --- Real run: invent -> write manifests -> commit -> publish ---
-      - name: Check auth token
+      - name: Check required secrets
         if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.dry_run) }}
         run: |
+          if [ -z "${{ secrets.ANTHROPIC_API_KEY }}" ]; then
+            echo "::error::ANTHROPIC_API_KEY secret is not set (generation uses Claude Opus 4.8). Add it under Settings → Secrets and variables → Actions."
+            exit 1
+          fi
           if [ -z "${{ secrets.SKILL_TOKEN }}" ]; then
             echo "::error::SKILL_TOKEN secret is not set. Add it under Settings → Secrets and variables → Actions."
             exit 1
@@ -73,11 +80,13 @@ jobs:
           node packages/cli/dist/index.js generate \
             --count "$COUNT" \
             --meta-ratio "$META_RATIO" \
+            --effort "$EFFORT" \
             --no-publish \
             --out ./skills \
             --registry "$SKILL_API_URL"
         env:
           SKILL_API_URL: ${{ vars.SKILL_API_URL || 'https://skills.eastern-shore-solutions.com/api' }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
       - name: Commit invented skills
         if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.dry_run) }}

@@ -64,6 +64,21 @@ function generateToken() {
   return crypto.randomUUID();
 }
 
+// Long-lived API tokens for automation (CI, the scheduled "claw", etc.).
+// Same `tokens/<token>` -> email mapping as session tokens, but stored WITHOUT
+// an expirationTtl so getUserFromToken keeps resolving them indefinitely.
+function generateApiToken() {
+  return `skb_${crypto.randomUUID().replace(/-/g, '')}`;
+}
+function generateApiTokenId() {
+  return crypto.randomUUID().replace(/-/g, '').slice(0, 10);
+}
+function maskToken(token) {
+  return typeof token === 'string' && token.length > 12
+    ? `${token.slice(0, 8)}…${token.slice(-4)}`
+    : undefined;
+}
+
 function parseSkillId(raw) {
   if (!raw) return raw;
   return decodeURIComponent(raw);
@@ -700,6 +715,18 @@ async function handleRequest(request, env) {
     return handleAuthMe(request, SKILL_STORE);
   }
 
+  if (url.pathname === '/api/auth/tokens' && request.method === 'POST') {
+    return createApiToken(request, SKILL_STORE);
+  }
+
+  if (url.pathname === '/api/auth/tokens' && request.method === 'GET') {
+    return listApiTokens(request, SKILL_STORE);
+  }
+
+  if (url.pathname.startsWith('/api/auth/tokens/') && request.method === 'DELETE') {
+    return revokeApiToken(request, url.pathname.replace('/api/auth/tokens/', ''), SKILL_STORE);
+  }
+
   return err('NOT_FOUND', 'Not found', 404);
 }
 
@@ -755,6 +782,87 @@ async function handleAuthMe(request, SKILL_STORE) {
   if (!record) return err('AUTH_INVALID_TOKEN', 'Invalid or expired token', 401);
   const { passwordHash, saltHex, ...user } = record;
   return ok({ user });
+}
+
+// Mint a long-lived (non-expiring) API token for automation. Authenticated with
+// any currently-valid token. The full token is returned once, at creation.
+async function createApiToken(request, SKILL_STORE) {
+  try {
+    const { user, error } = await requireAuth(request, SKILL_STORE);
+    if (error) return error;
+
+    let label = 'automation';
+    try {
+      const body = await request.json();
+      if (body && typeof body.label === 'string' && body.label.trim()) {
+        label = body.label.trim().slice(0, 80);
+      }
+    } catch {
+      // no body / not JSON — keep the default label
+    }
+
+    const token = generateApiToken();
+    const id = generateApiTokenId();
+    const createdAt = new Date().toISOString();
+
+    // No expirationTtl => never expires.
+    await SKILL_STORE.put(`tokens/${token}`, user.email);
+    await SKILL_STORE.put(
+      `apitokens/${user.email}/${id}`,
+      JSON.stringify({ id, token, label, createdAt }),
+    );
+
+    return ok({ id, token, label, createdAt, preview: maskToken(token) }, 201);
+  } catch (error) {
+    console.error('Create API token error:', error);
+    return err('API_TOKEN_CREATE_FAILED', 'Could not create API token', 500);
+  }
+}
+
+// List the caller's API tokens (masked — the raw value is only shown at creation).
+async function listApiTokens(request, SKILL_STORE) {
+  try {
+    const { user, error } = await requireAuth(request, SKILL_STORE);
+    if (error) return error;
+
+    const prefix = `apitokens/${user.email}/`;
+    const tokens = [];
+    let cursor;
+    do {
+      const res = await SKILL_STORE.list({ prefix, cursor });
+      for (const k of res.keys) {
+        const rec = await SKILL_STORE.get(k.name, { type: 'json' });
+        if (rec) tokens.push({ id: rec.id, label: rec.label, createdAt: rec.createdAt, preview: maskToken(rec.token) });
+      }
+      cursor = res.list_complete ? undefined : res.cursor;
+    } while (cursor);
+
+    tokens.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return ok({ tokens });
+  } catch (error) {
+    console.error('List API tokens error:', error);
+    return err('API_TOKEN_LIST_FAILED', 'Could not list API tokens', 500);
+  }
+}
+
+// Revoke one of the caller's API tokens by its id.
+async function revokeApiToken(request, rawId, SKILL_STORE) {
+  try {
+    const { user, error } = await requireAuth(request, SKILL_STORE);
+    if (error) return error;
+
+    const id = decodeURIComponent(rawId);
+    const recKey = `apitokens/${user.email}/${id}`;
+    const rec = await SKILL_STORE.get(recKey, { type: 'json' });
+    if (!rec) return err('API_TOKEN_NOT_FOUND', 'API token not found', 404);
+
+    if (rec.token) await SKILL_STORE.delete(`tokens/${rec.token}`);
+    await SKILL_STORE.delete(recKey);
+    return ok({ success: true, id });
+  } catch (error) {
+    console.error('Revoke API token error:', error);
+    return err('API_TOKEN_REVOKE_FAILED', 'Could not revoke API token', 500);
+  }
 }
 
 async function createSkillBuilderSession(request, SKILL_STORE) {

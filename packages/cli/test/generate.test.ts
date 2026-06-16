@@ -26,7 +26,7 @@ const INVENTED_SPEC = {
 
 function stubFetch(existing: typeof EXISTING) {
   const json = (data: unknown) => ({ ok: true, json: async () => ({ ok: true, data }) });
-  (globalThis as { fetch: unknown }).fetch = async (url: string, opts: { method?: string } = {}) => {
+  (globalThis as { fetch: unknown }).fetch = async (url: string) => {
     const u = String(url);
     if (u.includes('/skill-builder/session/')) return json({ sessionId: 'sess1', spec: INVENTED_SPEC, artifacts: { markdown: '# Orchestrator X' } });
     if (u.includes('/skill-builder/session')) return json({ session: { id: 'sess1', spec: {} } });
@@ -54,7 +54,7 @@ function readManifest(): Record<string, unknown> {
 describe('runGenerate meta mode', () => {
   it('invents a meta skill whose dependencies are 2-4 real, fully-qualified existing skills', async () => {
     stubFetch(EXISTING);
-    const result = await runGenerate({ registry: 'https://x/api', count: 1, publish: false, outDir: tmp, metaRatio: 1, log: () => {} });
+    const result = await runGenerate({ registry: 'https://x/api', count: 1, publish: false, outDir: tmp, metaRatio: 1, backend: 'registry', log: () => {} });
 
     expect(result.saved).toBe(1);
     const manifest = readManifest();
@@ -77,7 +77,7 @@ describe('runGenerate meta mode', () => {
 
   it('falls back to a basic skill when fewer than two skills exist to bundle', async () => {
     stubFetch([EXISTING[0]]);
-    const result = await runGenerate({ registry: 'https://x/api', count: 1, publish: false, outDir: tmp, metaRatio: 1, log: () => {} });
+    const result = await runGenerate({ registry: 'https://x/api', count: 1, publish: false, outDir: tmp, metaRatio: 1, backend: 'registry', log: () => {} });
 
     expect(result.saved).toBe(1);
     const manifest = readManifest();
@@ -87,8 +87,63 @@ describe('runGenerate meta mode', () => {
 
   it('metaRatio 0 never produces a meta skill even with skills available', async () => {
     stubFetch(EXISTING);
-    await runGenerate({ registry: 'https://x/api', count: 1, publish: false, outDir: tmp, metaRatio: 0, log: () => {} });
+    await runGenerate({ registry: 'https://x/api', count: 1, publish: false, outDir: tmp, metaRatio: 0, backend: 'registry', log: () => {} });
     expect(readManifest().type).toBe('basic');
+  });
+});
+
+type Captured = { body?: Record<string, unknown> };
+
+function stubAnthropic(existing: typeof EXISTING, cap: Captured, mode: 'tool' | 'text' = 'tool') {
+  (globalThis as { fetch: unknown }).fetch = async (url: string, opts: { body?: string } = {}) => {
+    const u = String(url);
+    if (u.includes('api.anthropic.com')) {
+      cap.body = JSON.parse(opts.body || '{}');
+      const content = mode === 'tool'
+        ? [{ type: 'tool_use', name: 'submit_skill', input: INVENTED_SPEC }]
+        : [{ type: 'text', text: 'Here is the skill:\n' + JSON.stringify(INVENTED_SPEC) + '\nDone.' }];
+      return { ok: true, status: 200, json: async () => ({ content }) };
+    }
+    // Registry list endpoint (used for de-duplication) keeps the {ok,data} wrapper.
+    return { ok: true, json: async () => ({ ok: true, data: { skills: existing, total: existing.length, page: 1, pageSize: 100 } }) };
+  };
+}
+
+describe('runGenerate anthropic backend (Opus 4.8, high effort)', () => {
+  it('invents via Claude Opus 4.8 at high reasoning effort and saves the spec', async () => {
+    const cap: Captured = {};
+    stubAnthropic(EXISTING, cap);
+    const result = await runGenerate({ registry: 'https://x/api', count: 1, publish: false, outDir: tmp, backend: 'anthropic', anthropicApiKey: 'sk-test', log: () => {} });
+
+    expect(result.saved).toBe(1);
+    expect(readManifest().name).toBe('Orchestrator X');
+    // The request used the requested model + reasoning effort and offered the tool.
+    expect(cap.body?.model).toBe('claude-opus-4-8');
+    expect((cap.body?.output_config as { effort?: string })?.effort).toBe('high');
+    expect((cap.body?.tool_choice as { type?: string })?.type).toBe('auto');
+    expect((cap.body?.tools as Array<{ name: string }>)[0].name).toBe('submit_skill');
+  });
+
+  it('honours an explicit model + effort override', async () => {
+    const cap: Captured = {};
+    stubAnthropic(EXISTING, cap);
+    await runGenerate({ registry: 'https://x/api', count: 1, publish: false, outDir: tmp, backend: 'anthropic', anthropicApiKey: 'sk-test', model: 'claude-opus-4-8', effort: 'xhigh', log: () => {} });
+    expect((cap.body?.output_config as { effort?: string })?.effort).toBe('xhigh');
+  });
+
+  it('falls back to parsing JSON from text when no tool call is returned', async () => {
+    const cap: Captured = {};
+    stubAnthropic(EXISTING, cap, 'text');
+    const result = await runGenerate({ registry: 'https://x/api', count: 1, publish: false, outDir: tmp, backend: 'anthropic', anthropicApiKey: 'sk-test', log: () => {} });
+    expect(result.saved).toBe(1);
+    expect(readManifest().name).toBe('Orchestrator X');
+  });
+
+  it('throws a clear error when the API key is missing', async () => {
+    stubAnthropic(EXISTING, {});
+    await expect(
+      runGenerate({ registry: 'https://x/api', count: 1, publish: false, outDir: tmp, backend: 'anthropic', log: () => {} }),
+    ).rejects.toThrow(/API key/i);
   });
 });
 

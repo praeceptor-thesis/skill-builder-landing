@@ -305,6 +305,21 @@ export class ApiClient {
   async getCurrentUser(): Promise<{ user: User }> {
     return this.request('/auth/me');
   }
+
+  async createApiToken(label?: string): Promise<{ id: string; token: string; label: string; createdAt: string; preview?: string }> {
+    return this.request('/auth/tokens', {
+      method: 'POST',
+      body: JSON.stringify(label ? { label } : {}),
+    });
+  }
+
+  async listApiTokens(): Promise<{ tokens: Array<{ id: string; label: string; createdAt: string; preview?: string }> }> {
+    return this.request('/auth/tokens');
+  }
+
+  async revokeApiToken(id: string): Promise<{ success: boolean; id: string }> {
+    return this.request(`/auth/tokens/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  }
 }
 
 export const apiClient = new ApiClient();

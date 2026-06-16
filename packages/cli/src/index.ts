@@ -158,6 +158,66 @@ cli
   });
 
 cli
+  .command('token <action> [id]', 'Manage long-lived API tokens for automation (action: create | list | revoke)')
+  .option('-r, --registry <url>', 'Registry URL (Worker API)', {
+    default: process.env.SKILL_API_URL || 'https://skills.eastern-shore-solutions.com/api',
+  })
+  .option('-t, --token <token>', 'An existing valid token to authenticate with (defaults to SKILL_TOKEN)')
+  .option('-l, --label <label>', 'Label for the new token (create only)', { default: 'automation' })
+  .action(async (action, id, options) => {
+    const registry = options.registry as string;
+    const authToken = (options.token as string) || process.env.SKILL_TOKEN || '';
+    const client = createApiClient(registry);
+
+    if (!authToken) {
+      console.error('Authenticate first: pass --token or set SKILL_TOKEN (run `skill-builder login <email>`).');
+      process.exit(1);
+    }
+    client.setToken(authToken);
+
+    try {
+      switch (action) {
+        case 'create': {
+          const res = await client.createApiToken(options.label as string);
+          console.log('Long-lived API token created. Copy it now — it is not shown again:');
+          console.log('');
+          console.log(`  ${res.token}`);
+          console.log('');
+          console.log(`id: ${res.id}   label: ${res.label}`);
+          console.log('Set it as SKILL_TOKEN locally, or: gh secret set SKILL_TOKEN');
+          break;
+        }
+        case 'list': {
+          const { tokens } = await client.listApiTokens();
+          if (tokens.length === 0) {
+            console.log('No API tokens.');
+          } else {
+            for (const t of tokens) {
+              console.log(`${t.id}\t${t.preview ?? ''}\t${t.label}\t${t.createdAt}`);
+            }
+          }
+          break;
+        }
+        case 'revoke': {
+          if (!id) {
+            console.error('Usage: skill-builder token revoke <id>   (get ids from `skill-builder token list`)');
+            process.exit(1);
+          }
+          await client.revokeApiToken(id);
+          console.log(`Revoked API token ${id}.`);
+          break;
+        }
+        default:
+          console.error(`Unknown action "${action}". Use: create | list | revoke <id>.`);
+          process.exit(1);
+      }
+    } catch (error) {
+      console.error('Token command failed:', error instanceof Error ? error.message : String(error));
+      process.exit(1);
+    }
+  });
+
+cli
   .command('generate', 'Invent brand-new skills with the registry AI, then save and/or publish them')
   .option('-r, --registry <url>', 'Registry URL (Worker API)', {
     default: process.env.SKILL_API_URL || 'https://skills.eastern-shore-solutions.com/api',

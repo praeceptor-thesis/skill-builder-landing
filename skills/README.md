@@ -3,12 +3,13 @@
 This folder holds skills published to the registry. There are two ways skills land here:
 
 1. **Invented automatically (the claw).** The scheduled workflow
-   (`.github/workflows/imagine-skills` in `sync-skills.yml`) uses the registry's
-   own Skill Architect AI to *imagine* brand-new skills each day, commits them
-   here as `.json` manifests, and publishes them. Invent some on demand:
+   (`sync-skills.yml`) uses **Claude Opus 4.8 at high reasoning effort** to
+   *imagine* brand-new skills each day, commits them here as `.json` manifests,
+   and publishes them. Invent some on demand:
 
    ```bash
-   export SKILL_TOKEN=<your-token>
+   export ANTHROPIC_API_KEY=<your-key>   # generation runs on Claude Opus 4.8
+   export SKILL_TOKEN=<your-token>       # publishing to the registry
 
    npm run imagine            # invent 1 new skill, save to skills/, publish
    npm run imagine:dry        # invent 1 and just print it — saves/publishes nothing
@@ -20,11 +21,18 @@ This folder holds skills published to the registry. There are two ways skills la
    # Meta skills (bundle existing skills as dependencies):
    node packages/cli/dist/index.js generate --meta --out ./skills --publish        # every one is meta
    node packages/cli/dist/index.js generate --meta-ratio 0.3 --out ./skills --publish  # ~30% meta
+
+   # Tune the model / reasoning effort, or fall back to the free registry AI:
+   node packages/cli/dist/index.js generate --effort xhigh --out ./skills --publish
+   node packages/cli/dist/index.js generate --backend registry --out ./skills --publish
    ```
 
-   Meta generation picks 2-4 real, existing skills as dependencies (it never
-   invents dependency ids), sets `type: meta`, and falls back to a basic skill
-   when fewer than two skills exist to bundle. The scheduled run uses
+   Generation uses **Claude Opus 4.8** (`--model`) at **high** reasoning effort
+   (`--effort`, one of low/medium/high/xhigh/max) via `ANTHROPIC_API_KEY`. Pass
+   `--backend registry` to use the Worker's built-in Skill Architect instead (no
+   key needed). Meta generation picks 2-4 real, existing skills as dependencies
+   (it never invents dependency ids), sets `type: meta`, and falls back to a
+   basic skill when fewer than two skills exist to bundle. The scheduled run uses
    `--meta-ratio 0.3`.
 
 2. **Hand-authored.** Drop your own `.md` or `.json` files here. Anything new or
@@ -51,9 +59,27 @@ node packages/cli/dist/index.js sync ./skills --force            # republish eve
 node packages/cli/dist/index.js sync ./skills --registry <url>   # target a different registry
 ```
 
-Auth uses your registry token. Get one with `skill-builder login <email>` and set
-it as `SKILL_TOKEN` (locally) or as a GitHub Actions secret named `SKILL_TOKEN`
-(for the schedule).
+## Auth tokens
+
+`skill-builder login <email>` returns a **session token that expires after 7
+days** — fine for manual use, but it would make the scheduled claw fail weekly.
+
+For automation, mint a **long-lived (non-expiring) API token** instead:
+
+```bash
+export SKILL_TOKEN=<session-token-from-login>     # authenticate the request
+skill-builder token create --label "skill-claw"   # prints a long-lived skb_… token
+
+skill-builder token list             # id, masked preview, label, created
+skill-builder token revoke <id>      # revoke when rotating
+```
+
+Use the long-lived token as your durable `SKILL_TOKEN` — locally, or as the
+GitHub Actions secret for the schedule:
+
+```bash
+gh secret set SKILL_TOKEN     # paste the skb_… token
+```
 
 ## Basic vs. meta skills
 

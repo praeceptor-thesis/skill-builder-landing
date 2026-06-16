@@ -28,6 +28,9 @@ permissions:
 env:
   NODE_VERSION: '24'
   COUNT: ${{ github.event_name == 'workflow_dispatch' && inputs.count || '1' }}
+  # Fraction of invented skills that should be meta (bundling existing skills).
+  # Automatically falls back to basic until at least two skills exist.
+  META_RATIO: '0.3'
 
 jobs:
   imagine:
@@ -69,6 +72,7 @@ jobs:
         run: |
           node packages/cli/dist/index.js generate \
             --count "$COUNT" \
+            --meta-ratio "$META_RATIO" \
             --no-publish \
             --out ./skills \
             --registry "$SKILL_API_URL"

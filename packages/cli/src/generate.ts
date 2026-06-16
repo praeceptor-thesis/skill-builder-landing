@@ -1,17 +1,25 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { createApiClient, type Skill, type SkillSpec } from './api/client.js';
-import { slugify, validateSpec } from './sync.js';
+import { createApiClient, type Skill, type SkillSpec, type SkillType } from './api/client.js';
+import { slugify, validateSpec, qualifyDependencies } from './sync.js';
+import { anthropicInventSpec, DEFAULT_MODEL, DEFAULT_EFFORT } from './anthropic.js';
 
 /**
  * The "imagination" half of the claw.
  *
- * Uses the registry's own Skill Architect agent (POST /skill-builder/session
- * then a turn) to invent brand-new skills from a seeded prompt, de-duplicates
- * them against what already exists, then writes each as a `.json` manifest
- * and/or publishes it. No external LLM key required — it rides on the Worker's
- * Cloudflare Workers AI binding. Designed to run unattended on a schedule.
+ * Invents brand-new skills from a seeded prompt, de-duplicates them against what
+ * already exists, then writes each as a `.json` manifest and/or publishes it.
+ *
+ * Two generation backends:
+ * - 'anthropic' (default): Claude Opus 4.8 at high reasoning effort via your
+ *   ANTHROPIC_API_KEY. Highest quality.
+ * - 'registry': the Worker's built-in Skill Architect (Cloudflare Workers AI),
+ *   no external key required.
+ *
+ * Designed to run unattended on a schedule.
  */
+
+export type GenerateBackend = 'anthropic' | 'registry';
 
 // Seed domains that steer the architect toward variety. One is chosen per skill.
 export const THEMES: string[] = [
@@ -69,6 +77,20 @@ export type GenerateOptions = {
   outDir?: string;
   publish: boolean;
   dryRun?: boolean;
+  /**
+   * Probability (0..1) that a given skill is invented as a *meta* skill that
+   * bundles existing skills as dependencies. Falls back to a basic skill when
+   * fewer than two skills exist to depend on.
+   */
+  metaRatio?: number;
+  /** Which LLM invents the skills. Defaults to 'anthropic' (Opus 4.8). */
+  backend?: GenerateBackend;
+  /** Required when backend is 'anthropic'. */
+  anthropicApiKey?: string;
+  /** Anthropic model id (default claude-opus-4-8). */
+  model?: string;
+  /** Anthropic reasoning effort: low | medium | high | xhigh | max (default high). */
+  effort?: string;
   log?: (msg: string) => void;
 };
 
@@ -94,6 +116,16 @@ export type GenerateResult = {
 
 const pick = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
 
+/** Pick `n` distinct random items from an array (or fewer if the array is small). */
+function sampleN<T>(arr: T[], n: number): T[] {
+  const copy = [...arr];
+  const out: T[] = [];
+  while (copy.length > 0 && out.length < n) {
+    out.push(copy.splice(Math.floor(Math.random() * copy.length), 1)[0]);
+  }
+  return out;
+}
+
 /** Strip a leading `@handle/` so we can compare against locally-derived ids. */
 function bareIdOf(scopedId: string): string {
   return scopedId.startsWith('@') ? scopedId.slice(scopedId.indexOf('/') + 1) : scopedId;
@@ -114,15 +146,38 @@ export function buildInventionIntent(theme: string, angle: string, avoidNames: s
   ].join(' ').replace(' \n', '\n');
 }
 
+/**
+ * Intent for inventing a *meta* skill that orchestrates real, existing skills.
+ * The dependency ids themselves are set programmatically afterward (we never
+ * trust the model to copy ids verbatim) — this prompt just shapes the name,
+ * description, purpose, and the instructions that sequence the bundled skills.
+ */
+export function buildMetaIntent(theme: string, deps: { id: string; name: string }[]): string {
+  const list = deps.map((d) => `- ${d.name} (${d.id})`).join('\n');
+  return [
+    `Invent ONE original META-skill: a higher-level workflow in the domain of ${theme} that orchestrates these existing skills as building blocks:`,
+    `\n${list}\n`,
+    'Give it a distinctive name and a description that makes the end-to-end workflow clear.',
+    'Write a purpose and 4-8 instructions that explain, in order, how it uses each of the skills above to deliver a larger outcome.',
+    'Provide a prompt template using {{input}}, at least one example, and at least one test.',
+    'This is a meta-skill, so its value is in the orchestration, not in duplicating what the dependencies already do.',
+  ].join(' ').replace(' \n', '\n');
+}
+
 const EMPTY_SPEC: SkillSpec = {
   name: '', description: '', category: 'Utilities', tags: [],
   purpose: '', instructions: [], promptTemplate: '', examples: [], tests: [],
+  type: 'basic', dependencies: [],
 };
 
 function specToMarkdown(spec: SkillSpec): string {
+  const deps = spec.dependencies ?? [];
   const lines = [
     `# ${spec.name || 'Untitled Skill'}`, '',
     '## Purpose', spec.purpose || spec.description || '', '',
+    ...(deps.length
+      ? ['## Dependencies', 'Installing this skill also installs:', ...deps.map((d) => `- \`${d}\``), '']
+      : []),
     '## Instructions',
     ...(spec.instructions.length ? spec.instructions.map((s, i) => `${i + 1}. ${s}`) : ['1. Define behaviour.']),
     '', '## Prompt Template', '```', spec.promptTemplate || 'Use {{input}}.', '```',
@@ -136,6 +191,29 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRes
   if (options.token) client.setToken(options.token);
 
   const result: GenerateResult = { items: [], published: 0, saved: 0, duplicate: 0, invalid: 0, failed: 0 };
+
+  const backend: GenerateBackend = options.backend || 'anthropic';
+  const model = options.model || DEFAULT_MODEL;
+  const effort = options.effort || DEFAULT_EFFORT;
+  if (backend === 'anthropic' && !options.anthropicApiKey) {
+    throw new Error('Anthropic backend requires an API key. Set ANTHROPIC_API_KEY or use --backend registry.');
+  }
+  log(backend === 'anthropic' ? `Generation backend: Anthropic ${model} (effort ${effort}).` : 'Generation backend: registry Skill Architect.');
+
+  // Invent one raw spec (+ optional markdown artifact) from an intent.
+  const inventSpec = async (intent: string, iteration: number): Promise<{ raw: Partial<SkillSpec>; markdown: string }> => {
+    if (backend === 'registry') {
+      const session = await client.createSkillBuilderSession({ intent });
+      const turn = await client.skillBuilderTurn(session.session.id, {
+        intent,
+        currentSpec: session.session.spec || EMPTY_SPEC,
+        clientMessageId: `gen-${Date.now()}-${iteration}`,
+      });
+      return { raw: turn.spec || {}, markdown: (turn.artifacts && turn.artifacts.markdown) || '' };
+    }
+    const raw = await anthropicInventSpec({ apiKey: options.anthropicApiKey!, model, effort }, intent);
+    return { raw, markdown: '' };
+  };
 
   // Resolve identity (only needed for publishing) and snapshot existing skills.
   let handle: string | undefined;
@@ -152,6 +230,7 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRes
   }
 
   const existingNames: string[] = [];
+  const existingSkills: { id: string; name: string }[] = [];
   const takenIds = new Set<string>();
   try {
     let page = 1;
@@ -160,6 +239,7 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRes
       const list = await client.listSkills({ page, pageSize: 100 });
       for (const s of list.skills as Skill[]) {
         existingNames.push(s.name);
+        existingSkills.push({ id: s.id, name: s.name });
         takenIds.add(bareIdOf(s.id));
       }
       if (list.skills.length === 0 || existingNames.length >= list.total || page > 100) break;
@@ -168,7 +248,9 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRes
   } catch (error) {
     log(`Warning: could not read existing skills for de-duplication (${error instanceof Error ? error.message : String(error)}).`);
   }
-  log(`Registry has ${existingNames.length} existing skill(s); inventing ${options.count} new one(s).`);
+  const metaRatio = Math.max(0, Math.min(1, options.metaRatio ?? 0));
+  const canMeta = existingSkills.length >= 2;
+  log(`Registry has ${existingNames.length} existing skill(s); inventing ${options.count} new one(s)${metaRatio > 0 && canMeta ? ` (meta ratio ${metaRatio})` : ''}.`);
 
   // Also avoid colliding with manifests already sitting in the output folder.
   if (options.outDir && fs.existsSync(options.outDir)) {
@@ -180,18 +262,31 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRes
   for (let i = 0; i < options.count; i++) {
     const theme = options.theme || pick(THEMES);
     const angle = pick(ANGLES);
-    const avoid = existingNames.slice(-40);
-    const intent = buildInventionIntent(theme, angle, avoid);
+
+    // Decide whether this one is a meta skill, and pick real dependencies if so.
+    const wantMeta = canMeta && Math.random() < metaRatio;
+    const chosenDeps = wantMeta ? sampleN(existingSkills, 2 + Math.floor(Math.random() * 3)) : [];
+    const intent = wantMeta
+      ? buildMetaIntent(theme, chosenDeps)
+      : buildInventionIntent(theme, angle, existingNames.slice(-40));
 
     try {
-      const session = await client.createSkillBuilderSession({ intent });
-      const turn = await client.skillBuilderTurn(session.session.id, {
-        intent,
-        currentSpec: session.session.spec || EMPTY_SPEC,
-        clientMessageId: `gen-${Date.now()}-${i}`,
-      });
+      const invented = await inventSpec(intent, i);
 
-      const spec: SkillSpec = { ...EMPTY_SPEC, ...turn.spec };
+      const spec: SkillSpec = { ...EMPTY_SPEC, ...invented.raw };
+
+      // Set dependencies/type ourselves — never trust the model to echo real ids.
+      // Meta skills get the concrete ids we chose; basic skills get none (so a
+      // hallucinated dependency can never produce a broken, unresolvable skill).
+      if (wantMeta && chosenDeps.length >= 1) {
+        spec.dependencies = qualifyDependencies(chosenDeps.map((d) => d.id), handle || '');
+        spec.type = 'meta';
+      } else {
+        spec.dependencies = [];
+        spec.type = 'basic';
+      }
+      const skillType: SkillType = spec.type;
+
       const name = (spec.name || '').trim();
 
       // De-duplicate the id (and avoid empty/colliding ids).
@@ -218,18 +313,25 @@ export async function runGenerate(options: GenerateOptions): Promise<GenerateRes
       takenIds.add(bareId);
       existingNames.push(name);
 
-      const markdown = (turn.artifacts && turn.artifacts.markdown) ? turn.artifacts.markdown : specToMarkdown(spec);
+      // For meta skills, regenerate markdown so the dependency list is correct
+      // (the model's artifact won't carry the ids we set programmatically).
+      const markdown = (skillType === 'meta' || !invented.markdown)
+        ? specToMarkdown(spec)
+        : invented.markdown;
       const manifest = {
         id: bareId,
         name,
         description: spec.description,
         category: spec.category,
         tags: spec.tags,
+        type: skillType,
+        dependencies: spec.dependencies ?? [],
         spec,
         markdown,
       };
 
-      log(`  ✨ invented "${name}" [${spec.category}] (id: ${bareId}) — theme: ${theme}`);
+      const metaNote = skillType === 'meta' ? ` (meta → ${(spec.dependencies ?? []).join(', ')})` : '';
+      log(`  ✨ invented "${name}" [${spec.category}] (id: ${bareId})${metaNote} — theme: ${theme}`);
 
       if (options.dryRun) {
         result.items.push({ id: bareId, name, category: spec.category, outcome: 'dry-run' });

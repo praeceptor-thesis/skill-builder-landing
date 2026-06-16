@@ -16,7 +16,16 @@ This folder holds skills published to the registry. There are two ways skills la
    # Full control:
    node packages/cli/dist/index.js generate --count 3 --out ./skills --publish
    node packages/cli/dist/index.js generate --theme "personal finance" --no-publish --out ./skills
+
+   # Meta skills (bundle existing skills as dependencies):
+   node packages/cli/dist/index.js generate --meta --out ./skills --publish        # every one is meta
+   node packages/cli/dist/index.js generate --meta-ratio 0.3 --out ./skills --publish  # ~30% meta
    ```
+
+   Meta generation picks 2-4 real, existing skills as dependencies (it never
+   invents dependency ids), sets `type: meta`, and falls back to a basic skill
+   when fewer than two skills exist to bundle. The scheduled run uses
+   `--meta-ratio 0.3`.
 
 2. **Hand-authored.** Drop your own `.md` or `.json` files here. Anything new or
    changed is published by the sync.

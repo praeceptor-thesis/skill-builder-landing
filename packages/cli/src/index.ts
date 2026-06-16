@@ -165,6 +165,11 @@ cli
   .option('-t, --token <token>', 'Auth token for registry (defaults to SKILL_TOKEN)')
   .option('-n, --count <count>', 'How many skills to invent', { default: 1 })
   .option('--theme <theme>', 'Force a domain/theme (otherwise a random one is chosen per skill)')
+  .option('--meta', 'Invent meta skills that bundle existing skills as dependencies')
+  .option('--meta-ratio <ratio>', 'Fraction (0-1) of invented skills that should be meta', { default: 0 })
+  .option('--backend <name>', "Generation backend: 'anthropic' (Opus 4.8) or 'registry'", { default: 'anthropic' })
+  .option('--model <id>', 'Anthropic model id', { default: 'claude-opus-4-8' })
+  .option('--effort <level>', 'Anthropic reasoning effort: low|medium|high|xhigh|max', { default: 'high' })
   .option('-o, --out <dir>', 'Write each invented skill as a .json manifest into this folder')
   .option('--publish', 'Publish invented skills to the registry (requires a token)')
   .option('--no-publish', 'Do not publish; only generate (use with --out)')
@@ -173,7 +178,15 @@ cli
     const registry = options.registry as string;
     const token = (options.token as string) || process.env.SKILL_TOKEN || '';
     const count = Math.max(1, parseInt(String(options.count), 10) || 1);
+    const metaRatio = options.meta ? 1 : Math.max(0, Math.min(1, parseFloat(String(options.metaRatio)) || 0));
+    const backend = (options.backend === 'registry' ? 'registry' : 'anthropic') as 'anthropic' | 'registry';
+    const anthropicApiKey = process.env.ANTHROPIC_API_KEY || '';
     const outDir = options.out ? path.resolve(options.out as string) : undefined;
+
+    if (backend === 'anthropic' && !anthropicApiKey) {
+      console.error('Anthropic backend needs ANTHROPIC_API_KEY in the environment. Set it, or pass --backend registry.');
+      process.exit(1);
+    }
     // cac exposes --no-publish as publish === false; default to publishing when a token exists.
     const publish = options.publish === false ? false : (Boolean(options.publish) || (!options.out && Boolean(token)));
 
@@ -186,7 +199,8 @@ cli
       process.exit(1);
     }
 
-    console.log(`Imagining ${count} new skill(s) via ${registry}${options.dryRun ? ' (dry-run)' : ''}...`);
+    const backendLabel = backend === 'anthropic' ? `${options.model} (effort ${options.effort})` : 'registry Skill Architect';
+    console.log(`Imagining ${count} new skill(s) with ${backendLabel}${options.dryRun ? ' (dry-run)' : ''}...`);
 
     try {
       const result = await runGenerate({
@@ -197,6 +211,11 @@ cli
         outDir,
         publish,
         dryRun: Boolean(options.dryRun),
+        metaRatio,
+        backend,
+        anthropicApiKey,
+        model: options.model as string,
+        effort: options.effort as string,
         log: (msg) => console.log(msg),
       });
 

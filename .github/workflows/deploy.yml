@@ -10,17 +10,17 @@ on:
 
 env:
   NODE_VERSION: '24'
-  TERRAFORM_VERSION: '1.5.0'
+  TERRAFORM_VERSION: '1.9.8'
 
 jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v2
+        uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ${{ env.TERRAFORM_VERSION }}
 
@@ -29,7 +29,7 @@ jobs:
         working-directory: ./terraform
 
       - name: Terraform init
-        run: terraform init
+        run: terraform init -backend=false
         working-directory: ./terraform
 
       - name: Terraform validate
@@ -44,7 +44,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -53,12 +53,12 @@ jobs:
           cache: 'npm'
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v2
+        uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ${{ env.TERRAFORM_VERSION }}
 
       - name: Restore Terraform state
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: terraform/terraform.tfstate
           key: terraform-state-${{ hashFiles('terraform/*.tf') }}
@@ -150,7 +150,7 @@ jobs:
 
       - name: Save Terraform state
         if: always()
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: terraform/terraform.tfstate
           key: terraform-state-${{ hashFiles('terraform/*.tf') }}

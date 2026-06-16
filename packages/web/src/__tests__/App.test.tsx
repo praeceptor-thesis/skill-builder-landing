@@ -33,7 +33,7 @@ const mockGenerateNpxCommand = vi.hoisted(
   () =>
     vi.fn((skill: { id: string; authorHandle?: string }) => {
       const prefix = skill.authorHandle ? `@${skill.authorHandle}/` : '';
-      return `npx @concordex-ai/skill-builder install ${prefix}${skill.id}`;
+      return `npx @dmzagent/skill-builder install ${prefix}${skill.id}`;
     }),
 );
 const mockGetSkill = vi.hoisted(() => vi.fn());

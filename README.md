@@ -3,7 +3,7 @@
 Publish and install AI skill prompts from the command line — or author them in the web editor with help from an AI drafting assistant.
 
 ```bash
-npx @concordex-ai/skill-builder install @author/skill-id
+npx @dmzagent/skill-builder install @author/skill-id
 ```
 
 ---
@@ -13,29 +13,29 @@ npx @concordex-ai/skill-builder install @author/skill-id
 ### Browse the registry
 
 ```bash
-npx @concordex-ai/skill-builder list
+npx @dmzagent/skill-builder list
 ```
 
 Filter by category, tag, and sort order:
 
 ```bash
-npx @concordex-ai/skill-builder list --category Conversational
-npx @concordex-ai/skill-builder list --sort popular
-npx @concordex-ai/skill-builder list --tag prompt --sort downloads
+npx @dmzagent/skill-builder list --category Conversational
+npx @dmzagent/skill-builder list --sort popular
+npx @dmzagent/skill-builder list --tag prompt --sort downloads
 ```
 
 ### Search for something specific
 
 ```bash
-npx @concordex-ai/skill-builder search "data pipeline"
-npx @concordex-ai/skill-builder search dialogue --sort popular
+npx @dmzagent/skill-builder search "data pipeline"
+npx @dmzagent/skill-builder search dialogue --sort popular
 ```
 
 ### Install a skill
 
 ```bash
-npx @concordex-ai/skill-builder install dialogue-flow
-npx @concordex-ai/skill-builder install @skillauthor/dialogue-flow
+npx @dmzagent/skill-builder install dialogue-flow
+npx @dmzagent/skill-builder install @skillauthor/dialogue-flow
 ```
 
 Downloads `dialogue-flow.md` and `dialogue-flow.json` to the current directory. Use `--output ./my-skills` to change where files land.
@@ -47,19 +47,19 @@ Downloads `dialogue-flow.md` and `dialogue-flow.json` to the current directory. 
 ### 1. Create an account
 
 ```bash
-npx @concordex-ai/skill-builder register myhandle "My Name" me@email.com
+npx @dmzagent/skill-builder register myhandle "My Name" me@email.com
 ```
 
 You'll be prompted for a password. Or set `SKILL_PASSWORD` to skip the prompt:
 
 ```bash
-SKILL_PASSWORD=hunter2 npx @concordex-ai/skill-builder register myhandle "My Name" me@email.com
+SKILL_PASSWORD=hunter2 npx @dmzagent/skill-builder register myhandle "My Name" me@email.com
 ```
 
 ### 2. Log in
 
 ```bash
-npx @concordex-ai/skill-builder login me@email.com
+npx @dmzagent/skill-builder login me@email.com
 ```
 
 Your auth token is printed on success. Set it as `SKILL_TOKEN` so subsequent commands can use it:
@@ -75,19 +75,19 @@ export SKILL_TOKEN=<token-from-login>
 From a markdown file:
 
 ```bash
-npx @concordex-ai/skill-builder publish ./my-skill.md
+npx @dmzagent/skill-builder publish ./my-skill.md
 ```
 
 The CLI reads the filename as the skill id and the first heading as the name. You can also use a JSON manifest:
 
 ```bash
-npx @concordex-ai/skill-builder publish ./my-skill.json
+npx @dmzagent/skill-builder publish ./my-skill.json
 ```
 
 ### 4. Fork an existing skill (optional)
 
 ```bash
-npx @concordex-ai/skill-builder fork @skillauthor/dialogue-flow --name my-dialogue
+npx @dmzagent/skill-builder fork @skillauthor/dialogue-flow --name my-dialogue
 ```
 
 Creates a copy under your account that you can republish.

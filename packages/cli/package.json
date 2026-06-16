@@ -1,5 +1,5 @@
 {
-  "name": "@concordex-ai/skill-builder",
+  "name": "@dmzagent/skill-builder",
   "version": "0.1.7",
   "type": "module",
   "bin": {

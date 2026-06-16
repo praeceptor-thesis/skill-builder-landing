@@ -10,6 +10,8 @@ export interface SkillTest {
   expected: string;
 }
 
+export type SkillType = 'basic' | 'meta';
+
 export interface SkillSpec {
   name: string;
   description: string;
@@ -20,6 +22,10 @@ export interface SkillSpec {
   promptTemplate: string;
   examples: SkillExample[];
   tests: SkillTest[];
+  /** 'basic' (standalone) or 'meta' (orchestrates `dependencies`). */
+  type?: SkillType;
+  /** Full registry ids of required skills, installed alongside a meta skill. */
+  dependencies?: string[];
 }
 
 export interface SkillArtifacts {
@@ -51,6 +57,8 @@ export interface Skill {
   updatedAt: string;
   version: number;
   downloads: number;
+  type?: SkillType;
+  dependencies?: string[];
 }
 
 export type SkillPayload = {
@@ -63,13 +71,47 @@ export type SkillPayload = {
   markdown: string;
   authorHandle?: string;
   forkedFrom?: string;
+  type?: SkillType;
+  dependencies?: string[];
 };
+
+export interface TaxonomyFacet {
+  value: string;
+  label?: string;
+  count: number;
+}
+
+export interface RegistryTaxonomy {
+  total: number;
+  categories: TaxonomyFacet[];
+  authors: TaxonomyFacet[];
+  tags: TaxonomyFacet[];
+  types: TaxonomyFacet[];
+}
+
+export type SkillSuggestionKind = 'skill' | 'tag' | 'author' | 'category';
+
+export interface SkillSuggestion {
+  kind: SkillSuggestionKind;
+  value: string;
+  label: string;
+  category?: string;
+  type?: SkillType;
+  dependencies?: number;
+  downloads?: number;
+  count?: number;
+}
+
+export interface SuggestResponse {
+  suggestions: SkillSuggestion[];
+}
 
 export interface SkillListResponse {
   skills: Skill[];
   total: number;
   page: number;
   pageSize: number;
+  facets?: RegistryTaxonomy;
 }
 
 export interface SkillResponse {
@@ -189,9 +231,11 @@ export interface RegistrySearchParams {
   category?: string;
   tags?: string[];
   author?: string;
-  sort?: 'recent' | 'popular' | 'downloads';
+  type?: SkillType;
+  sort?: 'recent' | 'popular' | 'downloads' | 'relevant';
   page?: number;
   pageSize?: number;
+  facets?: boolean;
   signal?: AbortSignal;
 }
 
@@ -245,6 +289,8 @@ export function createEmptySkillSpec(overrides: Partial<SkillSpec> = {}): SkillS
     promptTemplate: '',
     examples: [],
     tests: [],
+    type: 'basic',
+    dependencies: [],
     ...overrides,
   };
 }

@@ -9,7 +9,11 @@
     "dev": "turbo run dev",
     "build": "turbo run build",
     "lint": "turbo run lint",
-    "start": "turbo run start"
+    "start": "turbo run start",
+    "sync": "turbo run build --filter=@concordex-ai/skill-builder && node packages/cli/dist/index.js sync ./skills",
+    "sync:dry": "turbo run build --filter=@concordex-ai/skill-builder && node packages/cli/dist/index.js sync ./skills --dry-run",
+    "imagine": "turbo run build --filter=@concordex-ai/skill-builder && node packages/cli/dist/index.js generate --out ./skills --publish",
+    "imagine:dry": "turbo run build --filter=@concordex-ai/skill-builder && node packages/cli/dist/index.js generate --dry-run"
   },
   "devDependencies": {
     "@types/node": "^20.14.2",

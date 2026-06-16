@@ -89,7 +89,15 @@ const categoryColors: Record<string, { bg: string; text: string; badge: string; 
   Healthcare: { bg: 'bg-rose-50', text: 'text-rose-900', badge: 'bg-rose-100 text-rose-700', border: 'border-rose-200' },
   Compliance: { bg: 'bg-orange-50', text: 'text-orange-900', badge: 'bg-orange-100 text-orange-700', border: 'border-orange-200' },
   Coding: { bg: 'bg-sky-50', text: 'text-sky-900', badge: 'bg-sky-100 text-sky-700', border: 'border-sky-200' },
+  'Developer Tools': { bg: 'bg-sky-50', text: 'text-sky-900', badge: 'bg-sky-100 text-sky-700', border: 'border-sky-200' },
   Research: { bg: 'bg-purple-50', text: 'text-purple-900', badge: 'bg-purple-100 text-purple-700', border: 'border-purple-200' },
+  Productivity: { bg: 'bg-teal-50', text: 'text-teal-900', badge: 'bg-teal-100 text-teal-700', border: 'border-teal-200' },
+  Sales: { bg: 'bg-green-50', text: 'text-green-900', badge: 'bg-green-100 text-green-700', border: 'border-green-200' },
+  Support: { bg: 'bg-cyan-50', text: 'text-cyan-900', badge: 'bg-cyan-100 text-cyan-700', border: 'border-cyan-200' },
+  Education: { bg: 'bg-indigo-50', text: 'text-indigo-900', badge: 'bg-indigo-100 text-indigo-700', border: 'border-indigo-200' },
+  Finance: { bg: 'bg-lime-50', text: 'text-lime-900', badge: 'bg-lime-100 text-lime-700', border: 'border-lime-200' },
+  Legal: { bg: 'bg-stone-50', text: 'text-stone-900', badge: 'bg-stone-200 text-stone-700', border: 'border-stone-300' },
+  Security: { bg: 'bg-red-50', text: 'text-red-900', badge: 'bg-red-100 text-red-700', border: 'border-red-200' },
 };
 
 function getCategoryColor(category: string) {
@@ -178,6 +186,8 @@ export default function SkillDetailPage() {
   const colors = getCategoryColor(skill.category);
   const canonicalUrl = `${SITE_URL}/skill/${skill.id}`;
   const npxCommand = generateNpxCommand(skill);
+  const dependencies = skill.dependencies ?? [];
+  const isMeta = skill.type === 'meta' || dependencies.length > 0;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(npxCommand);
@@ -228,6 +238,9 @@ export default function SkillDetailPage() {
                 <div className="flex flex-wrap items-center gap-3 mb-3">
                   <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wider ${colors.badge}`}>
                     {skill.category}
+                  </span>
+                  <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wider ${isMeta ? 'bg-violet-100 text-violet-700' : 'bg-stone-200 text-stone-600'}`}>
+                    {isMeta ? `Meta · ${dependencies.length} skill${dependencies.length === 1 ? '' : 's'}` : 'Basic'}
                   </span>
                   <span className="flex items-center gap-1 text-xs text-stone-400">
                     <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -292,6 +305,28 @@ export default function SkillDetailPage() {
 
           <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_360px]">
             <div className="space-y-8">
+              {isMeta && dependencies.length > 0 && (
+                <section className="rounded-2xl border border-violet-200 bg-violet-50/60 p-8">
+                  <h2 className="font-display text-2xl font-normal text-stone-900">Included skills</h2>
+                  <p className="mt-2 text-sm text-stone-600">
+                    This is a meta skill. Installing it also installs the {dependencies.length} skill{dependencies.length === 1 ? '' : 's'} below — the CLI resolves the full tree automatically.
+                  </p>
+                  <ul className="mt-4 space-y-2">
+                    {dependencies.map((dep) => (
+                      <li key={dep}>
+                        <Link
+                          to={`/skill/${dep}`}
+                          className="flex items-center justify-between gap-3 rounded-xl border border-violet-200 bg-white px-4 py-3 text-sm transition hover:border-violet-400 hover:shadow-sm"
+                        >
+                          <span className="font-mono text-stone-700">{dep}</span>
+                          <span className="text-xs text-violet-600">View →</span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+
               {spec?.purpose && (
                 <section className="rounded-2xl border border-stone-200 bg-white p-8">
                   <h2 className="font-display text-2xl font-normal text-stone-900">Purpose</h2>
@@ -374,6 +409,14 @@ export default function SkillDetailPage() {
                     <dd className="mt-0.5">
                       <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${colors.badge}`}>
                         {skill.category}
+                      </span>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-stone-400">Type</dt>
+                    <dd className="mt-0.5">
+                      <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${isMeta ? 'bg-violet-100 text-violet-700' : 'bg-stone-100 text-stone-600'}`}>
+                        {isMeta ? 'Meta skill' : 'Basic skill'}
                       </span>
                     </dd>
                   </div>

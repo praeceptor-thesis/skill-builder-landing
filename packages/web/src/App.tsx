@@ -1,7 +1,7 @@
 import React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
-import { listSkills, saveSkill, forkSkill, createSkillBuilderSession, sendSkillBuilderTurn, executeSkill, login, register, getCurrentUser, setAuthToken, clearAuthToken, getAuthToken, type Skill, type AgentMessage, type User, generateNpxCommand, isUnauthorizedError } from './services/api';
+import { listSkills, saveSkill, forkSkill, createSkillBuilderSession, sendSkillBuilderTurn, executeSkill, login, register, getCurrentUser, setAuthToken, clearAuthToken, getAuthToken, suggestSkills, type Skill, type AgentMessage, type User, type RegistryTaxonomy, type SkillSuggestion, type SkillType, generateNpxCommand, isUnauthorizedError } from './services/api';
 import { renderMarkdown } from './renderMarkdown';
 import SkillDetailPage from './pages/SkillDetailPage';
 
@@ -190,6 +190,8 @@ type SkillSpec = {
   promptTemplate: string;
   examples: SkillExample[];
   tests: SkillTest[];
+  type?: SkillType;
+  dependencies?: string[];
 };
 
 type SkillOperation = {
@@ -212,8 +214,15 @@ const categoryOptions = [
   'Utilities',
   'Healthcare',
   'Compliance',
-  'Coding',
+  'Developer Tools',
+  'Productivity',
   'Research',
+  'Sales',
+  'Support',
+  'Education',
+  'Finance',
+  'Legal',
+  'Security',
 ];
 
 const createEmptySkillSpec = (): SkillSpec => ({
@@ -226,6 +235,8 @@ const createEmptySkillSpec = (): SkillSpec => ({
   promptTemplate: '',
   examples: [],
   tests: [],
+  type: 'basic',
+  dependencies: [],
 });
 
 const createInitialActivityLog = (): AgentActivity[] => [
@@ -251,6 +262,36 @@ const parseTags = (value: unknown): string[] => {
     return value.split(',').map((tag) => tag.trim()).filter(Boolean);
   }
   return [];
+};
+
+// Dependencies are skill ids; split on commas/whitespace/newlines and dedupe.
+const parseDependencies = (value: unknown): string[] => {
+  const raw = Array.isArray(value)
+    ? value.map((v) => String(v))
+    : typeof value === 'string'
+      ? value.split(/[\s,]+/)
+      : [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const item of raw) {
+    const id = item.trim();
+    if (id && !seen.has(id)) { seen.add(id); out.push(id); }
+  }
+  return out;
+};
+
+// Fully qualify dependency ids against the owner's handle. Bare ids are scoped
+// to the owner; already-scoped ids (incl. cross-org @other/skill) are preserved.
+const qualifyDependencies = (deps: string[] | undefined, ownerHandle?: string): string[] => {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of deps ?? []) {
+    const id = String(raw).trim();
+    if (!id) continue;
+    const qualified = id.startsWith('@') ? id : (ownerHandle ? `@${ownerHandle}/${id.replace(/^\/+/, '')}` : id);
+    if (!seen.has(qualified)) { seen.add(qualified); out.push(qualified); }
+  }
+  return out;
 };
 
 const normalizeStringArray = (value: unknown): string[] => {
@@ -314,6 +355,16 @@ const normalizeSkillSpec = (value: unknown, fallback: SkillSpec = createEmptySki
     ),
     examples: normalizeExamples(value.examples).length ? normalizeExamples(value.examples) : fallback.examples,
     tests: normalizeTests(value.tests).length ? normalizeTests(value.tests) : fallback.tests,
+    ...((): { type: SkillType; dependencies: string[] } => {
+      const dependencies = parseDependencies(value.dependencies).length
+        ? parseDependencies(value.dependencies)
+        : (fallback.dependencies ?? []);
+      const explicit = asString(value.type).toLowerCase() === 'meta' ? 'meta'
+        : asString(value.type).toLowerCase() === 'basic' ? 'basic'
+        : (fallback.type ?? '');
+      const type: SkillType = dependencies.length > 0 ? 'meta' : (explicit || 'basic');
+      return { type, dependencies };
+    })(),
   };
 };
 
@@ -610,6 +661,19 @@ function App() {
   const [registryPage, setRegistryPage] = useState(1);
   const [registryTotal, setRegistryTotal] = useState(0);
   const [registryHasMore, setRegistryHasMore] = useState(false);
+  const [taxonomy, setTaxonomy] = useState<RegistryTaxonomy | null>(null);
+  const [searchAuthor, setSearchAuthor] = useState('');
+  const [searchType, setSearchType] = useState<SkillType | ''>('');
+  const [searchTags, setSearchTags] = useState<string[]>([]);
+  const [registrySort, setRegistrySort] = useState<'relevant' | 'recent' | 'popular' | 'downloads'>('popular');
+  const [denseView, setDenseView] = useState(false);
+  const [suggestions, setSuggestions] = useState<SkillSuggestion[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  const REGISTRY_PAGE_SIZE = 50;
+  const toggleSearchTag = useCallback((tag: string) => {
+    setSearchTags((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]));
+  }, []);
 
   const selectedSkill = useMemo(
     () => skills.find((skill) => skill.id === selected) ?? null,
@@ -725,6 +789,7 @@ function App() {
         category: editor.category,
         tags,
       }, skillSpec);
+      specForSave.dependencies = qualifyDependencies(specForSave.dependencies, currentUser.handle);
       const markdownForSave = specToMarkdown(specForSave);
       const baseId = specForSave.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'untitled';
       const id = skills.some(s => s.id === baseId) ? `${baseId}-${Date.now()}` : baseId;
@@ -735,6 +800,8 @@ function App() {
         description: specForSave.description,
         category: specForSave.category,
         tags: specForSave.tags,
+        type: specForSave.type,
+        dependencies: specForSave.dependencies,
         spec: specForSave,
         markdown: markdownForSave,
         author: { id: currentUser.id, name: currentUser.name },
@@ -867,12 +934,15 @@ function App() {
           category: editor.category || selectedSkill.category,
           tags,
         }, selectedSkill.spec);
+        specForSave.dependencies = qualifyDependencies(specForSave.dependencies, selectedSkill.authorHandle || userRef.current?.handle);
         const skillToPublish: Skill = {
           ...selectedSkill,
           name: specForSave.name,
           description: specForSave.description,
           category: specForSave.category,
           tags: specForSave.tags,
+          type: specForSave.type,
+          dependencies: specForSave.dependencies,
           spec: specForSave,
           markdown: specToMarkdown(specForSave),
           updatedAt: new Date().toISOString(),
@@ -935,6 +1005,7 @@ Install with: ${generateNpxCommand(skillToPublish)}`);
   useEffect(() => {
     if (!showRegistry) return;
     const abort = new AbortController();
+    const sort = searchQuery ? registrySort : (registrySort === 'relevant' ? 'popular' : registrySort);
     const timer = setTimeout(async () => {
       setRegistryLoading(true);
       setRegistryPage(1);
@@ -942,15 +1013,20 @@ Install with: ${generateNpxCommand(skillToPublish)}`);
         const result = await listSkills({
           query: searchQuery || undefined,
           category: searchCategory || undefined,
-          sort: 'popular',
+          author: searchAuthor || undefined,
+          type: searchType || undefined,
+          tags: searchTags.length > 0 ? searchTags : undefined,
+          sort,
+          facets: true,
           page: 1,
-          pageSize: 50,
+          pageSize: REGISTRY_PAGE_SIZE,
           signal: abort.signal,
         });
         if (!abort.signal.aborted) {
           setRegistrySkills(result.skills);
           setRegistryTotal(result.total || result.skills.length);
-          setRegistryHasMore((result.total || 0) > 50);
+          setRegistryHasMore((result.total || 0) > REGISTRY_PAGE_SIZE);
+          if (result.facets) setTaxonomy(result.facets);
         }
       } catch (err) {
         if (!abort.signal.aborted) setError('Failed to load registry.');
@@ -959,25 +1035,62 @@ Install with: ${generateNpxCommand(skillToPublish)}`);
       }
     }, 300);
     return () => { clearTimeout(timer); abort.abort(); };
-  }, [showRegistry, searchQuery, searchCategory]);
+  }, [showRegistry, searchQuery, searchCategory, searchAuthor, searchType, searchTags, registrySort]);
+
+  // Debounced autocomplete suggestions for the registry search box.
+  useEffect(() => {
+    if (!showRegistry || !showSuggestions) return;
+    const q = searchQuery.trim();
+    if (q.length < 2) { setSuggestions([]); return; }
+    const abort = new AbortController();
+    const timer = setTimeout(async () => {
+      try {
+        const result = await suggestSkills(q, { limit: 8, signal: abort.signal });
+        if (!abort.signal.aborted) setSuggestions(result.suggestions);
+      } catch {
+        if (!abort.signal.aborted) setSuggestions([]);
+      }
+    }, 180);
+    return () => { clearTimeout(timer); abort.abort(); };
+  }, [showRegistry, showSuggestions, searchQuery]);
+
+  const applySuggestion = useCallback((s: SkillSuggestion) => {
+    setShowSuggestions(false);
+    if (s.kind === 'skill') { setSearchQuery(s.label); return; }
+    if (s.kind === 'tag') { setSearchQuery(''); toggleSearchTag(s.value); return; }
+    if (s.kind === 'author') { setSearchQuery(''); setSearchAuthor(s.value); return; }
+    if (s.kind === 'category') { setSearchQuery(''); setSearchCategory(s.value); return; }
+  }, [toggleSearchTag]);
+
+  const clearRegistryFilters = useCallback(() => {
+    setSearchQuery('');
+    setSearchCategory('');
+    setSearchAuthor('');
+    setSearchType('');
+    setSearchTags([]);
+  }, []);
 
   const handleLoadMore = useCallback(async () => {
     const nextPage = registryPage + 1;
+    const sort = searchQuery ? registrySort : (registrySort === 'relevant' ? 'popular' : registrySort);
     try {
       const result = await listSkills({
         query: searchQuery || undefined,
         category: searchCategory || undefined,
-        sort: 'popular',
+        author: searchAuthor || undefined,
+        type: searchType || undefined,
+        tags: searchTags.length > 0 ? searchTags : undefined,
+        sort,
         page: nextPage,
-        pageSize: 50,
+        pageSize: REGISTRY_PAGE_SIZE,
       });
       setRegistrySkills((prev) => [...prev, ...result.skills]);
       setRegistryPage(nextPage);
-      setRegistryHasMore((result.total || 0) > nextPage * 50);
+      setRegistryHasMore((result.total || 0) > nextPage * REGISTRY_PAGE_SIZE);
     } catch {
       setError('Failed to load more skills.');
     }
-  }, [registryPage, searchQuery, searchCategory]);
+  }, [registryPage, searchQuery, searchCategory, searchAuthor, searchType, searchTags, registrySort]);
 
   const handleExecuteSkill = useCallback(async () => {
     if (!selectedSkill || !assistantInput.trim() || isLoading) return;
@@ -1304,6 +1417,43 @@ Install with: ${generateNpxCommand(skillToPublish)}`);
                 </label>
               </div>
 
+              <div className="mt-4 grid gap-4 md:grid-cols-[auto_1fr] md:items-start">
+                <div className="space-y-1.5 text-sm">
+                  <span className="font-medium text-stone-700">Skill type</span>
+                  <div className="inline-flex overflow-hidden rounded-xl border border-stone-200 text-sm">
+                    {(['basic', 'meta'] as const).map((t) => {
+                      const active = (skillSpec.type ?? 'basic') === t;
+                      return (
+                        <button
+                          key={t}
+                          type="button"
+                          onClick={() => updateSkillSpec({ type: t })}
+                          className={`px-4 py-2.5 font-medium capitalize transition ${active ? 'bg-stone-900 text-white' : 'bg-stone-50 text-stone-600 hover:bg-stone-100'}`}
+                        >
+                          {t}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <label className="space-y-1.5 text-sm">
+                  <span className="font-medium text-stone-700">Dependencies <span className="font-normal text-stone-400">(required skills, by id)</span></span>
+                  <input
+                    value={(skillSpec.dependencies ?? []).join(', ')}
+                    onChange={(e) => {
+                      const dependencies = parseDependencies(e.target.value);
+                      updateSkillSpec({ dependencies, type: dependencies.length > 0 ? 'meta' : (skillSpec.type ?? 'basic') });
+                    }}
+                    placeholder="@author/skill-a, @author/skill-b"
+                    disabled={(skillSpec.type ?? 'basic') !== 'meta'}
+                    className="w-full rounded-xl border border-stone-200 bg-stone-50 px-4 py-2.5 text-sm outline-none transition focus:border-amber-500 focus:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+                  />
+                  {(skillSpec.type ?? 'basic') === 'meta' && (
+                    <span className="block text-xs text-violet-600">A meta skill installs these alongside itself.</span>
+                  )}
+                </label>
+              </div>
+
               <label className="mt-4 block space-y-1.5 text-sm">
                 <span className="font-medium text-stone-700">Description</span>
                 <textarea
@@ -1462,8 +1612,8 @@ Install with: ${generateNpxCommand(skillToPublish)}`);
 
       {showRegistry && (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-stone-900/60 pt-12 backdrop-blur-sm">
-          <div className="mx-4 w-full max-w-5xl max-h-[85vh] overflow-y-auto rounded-2xl border border-stone-200 bg-white shadow-xl">
-            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-stone-200 bg-white px-8 py-5">
+          <div className="mx-4 w-full max-w-6xl max-h-[88vh] overflow-y-auto rounded-2xl border border-stone-200 bg-white shadow-xl">
+            <div className="sticky top-0 z-20 flex items-center justify-between border-b border-stone-200 bg-white px-8 py-5">
               <div>
                 <p className="text-xs font-medium text-stone-400 uppercase tracking-wider">Registry</p>
                 <h2 className="mt-0.5 font-display text-2xl font-normal text-stone-900">Browse skills</h2>
@@ -1471,29 +1621,115 @@ Install with: ${generateNpxCommand(skillToPublish)}`);
               <button onClick={() => setShowRegistry(false)} className="rounded-full bg-stone-100 px-4 py-2 text-sm text-stone-600 transition hover:bg-stone-200">Close</button>
             </div>
 
-            <div className="border-b border-stone-200 px-8 py-5">
-              <div className="flex flex-col gap-4 sm:flex-row">
-                <input
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search by name, tag, or description..."
-                  className="flex-1 rounded-xl border border-stone-200 bg-stone-50 px-5 py-2.5 text-sm outline-none transition focus:border-amber-500 focus:bg-white"
-                />
+            <div className="sticky top-[81px] z-10 space-y-3 border-b border-stone-200 bg-white px-8 py-4">
+              {/* Search with autocomplete */}
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <div className="relative flex-1">
+                  <input
+                    value={searchQuery}
+                    onChange={(e) => { setSearchQuery(e.target.value); setShowSuggestions(true); }}
+                    onFocus={() => setShowSuggestions(true)}
+                    onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                    placeholder="Search skills, tags, authors…"
+                    className="w-full rounded-xl border border-stone-200 bg-stone-50 px-5 py-2.5 text-sm outline-none transition focus:border-amber-500 focus:bg-white"
+                  />
+                  {showSuggestions && suggestions.length > 0 && (
+                    <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-72 overflow-y-auto rounded-xl border border-stone-200 bg-white py-1 shadow-lg">
+                      {suggestions.map((s) => (
+                        <button
+                          key={`${s.kind}-${s.value}`}
+                          type="button"
+                          onMouseDown={(e) => { e.preventDefault(); applySuggestion(s); }}
+                          className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm transition hover:bg-stone-50"
+                        >
+                          <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${s.kind === 'skill' ? 'bg-amber-100 text-amber-700' : s.kind === 'tag' ? 'bg-stone-100 text-stone-500' : s.kind === 'author' ? 'bg-blue-100 text-blue-700' : 'bg-violet-100 text-violet-700'}`}>{s.kind}</span>
+                          <span className="truncate text-stone-700">{s.label}</span>
+                          {s.kind === 'skill' && s.type === 'meta' && <span className="shrink-0 rounded-full bg-violet-100 px-1.5 py-0.5 text-[10px] font-medium text-violet-700">meta · {s.dependencies}</span>}
+                          {s.kind === 'tag' && s.count ? <span className="ml-auto shrink-0 text-xs text-stone-400">{s.count}</span> : null}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <select
+                  value={registrySort}
+                  onChange={(e) => setRegistrySort(e.target.value as typeof registrySort)}
+                  className="rounded-xl border border-stone-200 bg-stone-50 px-4 py-2.5 text-sm outline-none transition focus:border-amber-500 sm:w-40"
+                >
+                  {searchQuery && <option value="relevant">Most relevant</option>}
+                  <option value="popular">Popular</option>
+                  <option value="downloads">Most installed</option>
+                  <option value="recent">Recently updated</option>
+                </select>
+              </div>
+
+              {/* Facet controls */}
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Type segmented control */}
+                <div className="inline-flex overflow-hidden rounded-lg border border-stone-200 text-xs">
+                  {([['', 'All'], ['basic', 'Basic'], ['meta', 'Meta']] as const).map(([value, label]) => {
+                    const count = taxonomy?.types.find((t) => t.value === value)?.count;
+                    return (
+                      <button
+                        key={label}
+                        onClick={() => setSearchType(value)}
+                        className={`px-3 py-1.5 font-medium transition ${searchType === value ? 'bg-stone-900 text-white' : 'bg-white text-stone-600 hover:bg-stone-50'}`}
+                      >
+                        {label}{value !== '' && count != null ? ` ${count}` : ''}
+                      </button>
+                    );
+                  })}
+                </div>
+
                 <select
                   value={searchCategory}
                   onChange={(e) => setSearchCategory(e.target.value)}
-                  className="w-full rounded-xl border border-stone-200 bg-stone-50 px-5 py-2.5 text-sm outline-none transition focus:border-amber-500 sm:w-44"
+                  className="rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-xs outline-none transition focus:border-amber-500"
                 >
                   <option value="">All categories</option>
-                  <option value="Conversational">Conversational</option>
-                  <option value="Data">Data</option>
-                  <option value="Automation">Automation</option>
-                  <option value="Utilities">Utilities</option>
+                  {(taxonomy?.categories ?? []).map((c) => (
+                    <option key={c.value} value={c.value}>{c.value} ({c.count})</option>
+                  ))}
                 </select>
+
+                <select
+                  value={searchAuthor}
+                  onChange={(e) => setSearchAuthor(e.target.value)}
+                  className="rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-xs outline-none transition focus:border-amber-500"
+                >
+                  <option value="">All authors</option>
+                  {(taxonomy?.authors ?? []).slice(0, 30).map((a) => (
+                    <option key={a.value} value={a.value}>{a.label ?? a.value} ({a.count})</option>
+                  ))}
+                </select>
+
+                <div className="ml-auto inline-flex overflow-hidden rounded-lg border border-stone-200 text-xs">
+                  <button onClick={() => setDenseView(false)} className={`px-3 py-1.5 font-medium transition ${!denseView ? 'bg-stone-900 text-white' : 'bg-white text-stone-600 hover:bg-stone-50'}`}>Cards</button>
+                  <button onClick={() => setDenseView(true)} className={`px-3 py-1.5 font-medium transition ${denseView ? 'bg-stone-900 text-white' : 'bg-white text-stone-600 hover:bg-stone-50'}`}>Dense</button>
+                </div>
               </div>
+
+              {/* Discovered tags */}
+              {(taxonomy?.tags?.length ?? 0) > 0 && (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {(taxonomy?.tags ?? []).slice(0, 14).map((t) => (
+                    <button
+                      key={t.value}
+                      onClick={() => toggleSearchTag(t.value)}
+                      className={`rounded-full px-2.5 py-0.5 text-xs transition ${searchTags.includes(t.value) ? 'bg-amber-600 text-white' : 'bg-stone-100 text-stone-500 hover:bg-stone-200'}`}
+                    >
+                      {t.value} <span className="opacity-60">{t.count}</span>
+                    </button>
+                  ))}
+                  {(searchCategory || searchAuthor || searchType || searchTags.length > 0 || searchQuery) && (
+                    <button onClick={clearRegistryFilters} className="ml-1 rounded-full px-2.5 py-0.5 text-xs font-medium text-amber-700 underline-offset-2 hover:underline">Clear all</button>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="px-8 py-6">
+              <p className="mb-4 text-xs text-stone-400">{registryTotal} skill{registryTotal === 1 ? '' : 's'}{searchQuery || searchCategory || searchAuthor || searchType || searchTags.length > 0 ? ' match your filters' : ''}</p>
               {registryLoading ? (
                 <div className="flex items-center justify-center py-20">
                   <div className="h-7 w-7 animate-spin rounded-full border-2 border-amber-600 border-t-transparent" />
@@ -1501,42 +1737,69 @@ Install with: ${generateNpxCommand(skillToPublish)}`);
               ) : registrySkills.length === 0 ? (
                 <div className="py-20 text-center">
                   <p className="text-base text-stone-400">No skills found</p>
-                  <p className="mt-1 text-sm text-stone-300">Try adjusting your search.</p>
+                  <p className="mt-1 text-sm text-stone-300">Try adjusting your search or clearing filters.</p>
+                </div>
+              ) : denseView ? (
+                <div className="divide-y divide-stone-100 overflow-hidden rounded-xl border border-stone-200">
+                  {registrySkills.map((skill) => {
+                    const isMeta = skill.type === 'meta' || (skill.dependencies?.length ?? 0) > 0;
+                    return (
+                      <button
+                        key={skill.id}
+                        onClick={() => navigateToSkill(skill)}
+                        className="group flex w-full items-center gap-3 px-4 py-2.5 text-left transition hover:bg-stone-50"
+                      >
+                        <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium uppercase ${isMeta ? 'bg-violet-100 text-violet-700' : 'bg-stone-100 text-stone-500'}`}>{isMeta ? 'meta' : 'basic'}</span>
+                        <span className="w-48 shrink-0 truncate text-sm font-medium text-stone-800 group-hover:text-amber-700">{skill.name}</span>
+                        <span className="hidden flex-1 truncate text-xs text-stone-400 sm:block">{skill.description}</span>
+                        <span className="hidden shrink-0 rounded-full bg-stone-100 px-2 py-0.5 text-[11px] text-stone-500 md:inline">{skill.category}</span>
+                        {isMeta && (skill.dependencies?.length ?? 0) > 0 && <span className="shrink-0 text-[11px] text-violet-600">+{skill.dependencies!.length} deps</span>}
+                        <span className="shrink-0 text-[11px] tabular-nums text-stone-400">↓ {skill.downloads ?? 0}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                  {registrySkills.map((skill) => (
-                    <button
-                      key={skill.id}
-                      onClick={() => navigateToSkill(skill)}
-                      className="group rounded-xl border border-stone-200 bg-stone-50 p-5 text-left transition hover:border-amber-500/40 hover:bg-white hover:shadow-sm"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <h3 className="font-display text-base font-semibold text-stone-800 group-hover:text-amber-700">{skill.name}</h3>
-                        <span className="shrink-0 rounded-full bg-stone-200 px-2.5 py-0.5 text-xs text-stone-500">{skill.category}</span>
-                      </div>
-                      <p className="mt-2 text-sm leading-relaxed text-stone-500 line-clamp-2">{skill.description}</p>
-                      {skill.tags.length > 0 && (
-                        <div className="mt-3 flex flex-wrap gap-1.5">
-                          {skill.tags.map((tag) => (
-                            <span key={tag} className="rounded-full bg-stone-200/50 px-2 py-0.5 text-xs text-stone-400">{tag}</span>
-                          ))}
+                  {registrySkills.map((skill) => {
+                    const isMeta = skill.type === 'meta' || (skill.dependencies?.length ?? 0) > 0;
+                    return (
+                      <button
+                        key={skill.id}
+                        onClick={() => navigateToSkill(skill)}
+                        className="group flex flex-col rounded-xl border border-stone-200 bg-stone-50 p-5 text-left transition hover:border-amber-500/40 hover:bg-white hover:shadow-sm"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <h3 className="font-display text-base font-semibold text-stone-800 group-hover:text-amber-700">{skill.name}</h3>
+                          <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${isMeta ? 'bg-violet-100 text-violet-700' : 'bg-stone-200 text-stone-500'}`}>{isMeta ? 'meta' : 'basic'}</span>
                         </div>
-                      )}
-                      <div className="mt-3 font-mono text-xs text-stone-400">
-                        {generateNpxCommand(skill)}
-                      </div>
-                      <div className="mt-2 flex items-center gap-4 text-xs text-stone-400">
-                        <span>{skill.downloads ?? 0} downloads</span>
-                        <span>v{skill.version}</span>
-                        <span>{skill.author?.name ?? 'Unknown'}</span>
-                      </div>
-                    </button>
-                  ))}
+                        <div className="mt-1 flex items-center gap-2 text-xs text-stone-400">
+                          <span className="rounded-full bg-stone-200/70 px-2 py-0.5">{skill.category}</span>
+                          {skill.authorHandle && <span>@{skill.authorHandle}</span>}
+                        </div>
+                        <p className="mt-2 text-sm leading-relaxed text-stone-500 line-clamp-2">{skill.description}</p>
+                        {isMeta && (skill.dependencies?.length ?? 0) > 0 && (
+                          <p className="mt-2 text-xs font-medium text-violet-600">Bundles {skill.dependencies!.length} skill{skill.dependencies!.length === 1 ? '' : 's'}</p>
+                        )}
+                        {skill.tags.length > 0 && (
+                          <div className="mt-3 flex flex-wrap gap-1.5">
+                            {skill.tags.slice(0, 5).map((tag) => (
+                              <span key={tag} className="rounded-full bg-stone-200/50 px-2 py-0.5 text-xs text-stone-400">{tag}</span>
+                            ))}
+                          </div>
+                        )}
+                        <div className="mt-3 truncate font-mono text-xs text-stone-400">{generateNpxCommand(skill)}</div>
+                        <div className="mt-2 flex items-center gap-4 text-xs text-stone-400">
+                          <span>↓ {skill.downloads ?? 0}</span>
+                          <span>v{skill.version}</span>
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               )}
               {registryHasMore && !registryLoading && (
-                <div className="flex justify-center pb-6">
+                <div className="flex justify-center pt-6">
                   <button
                     onClick={handleLoadMore}
                     className="rounded-full border border-stone-300 bg-white px-6 py-2.5 text-sm font-medium text-stone-600 transition hover:border-amber-500 hover:text-amber-700"

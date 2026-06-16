@@ -21,6 +21,8 @@ export type SkillTest = {
   expected: string;
 };
 
+export type SkillType = 'basic' | 'meta';
+
 export type SkillSpec = {
   name: string;
   description: string;
@@ -31,6 +33,17 @@ export type SkillSpec = {
   promptTemplate: string;
   examples: SkillExample[];
   tests: SkillTest[];
+  /**
+   * Classification of the skill. A `meta` skill orchestrates other skills and
+   * declares them in `dependencies`; a `basic` skill stands alone.
+   */
+  type?: SkillType;
+  /**
+   * Registry ids of skills this skill requires. When a meta skill is installed
+   * the CLI resolves and installs every dependency. Always full ids, e.g.
+   * `@handle/skill-id`.
+   */
+  dependencies?: string[];
 };
 
 export type SkillArtifacts = {
@@ -71,6 +84,10 @@ export type Skill = {
   version: number;
   downloads: number;
   visibility?: 'public' | 'draft';
+  /** 'basic' (standalone) or 'meta' (orchestrates dependencies). */
+  type?: SkillType;
+  /** Full registry ids of required skills (meta skills). */
+  dependencies?: string[];
 };
 
 export type SkillPayload = {
@@ -83,6 +100,43 @@ export type SkillPayload = {
   markdown: string;
   authorHandle?: string;
   forkedFrom?: string;
+  type?: SkillType;
+  dependencies?: string[];
+};
+
+/** A single facet bucket: a value and how many skills carry it. */
+export type TaxonomyFacet = {
+  value: string;
+  label?: string;
+  count: number;
+};
+
+/** Faceted view of the whole registry, used to drive filters and counts. */
+export type RegistryTaxonomy = {
+  total: number;
+  categories: TaxonomyFacet[];
+  authors: TaxonomyFacet[];
+  tags: TaxonomyFacet[];
+  types: TaxonomyFacet[];
+};
+
+export type SkillSuggestionKind = 'skill' | 'tag' | 'author' | 'category';
+
+/** A single autocomplete suggestion returned by the suggest endpoint. */
+export type SkillSuggestion = {
+  kind: SkillSuggestionKind;
+  /** skill id, tag, author handle, or category name depending on kind. */
+  value: string;
+  label: string;
+  category?: string;
+  type?: SkillType;
+  dependencies?: number;
+  downloads?: number;
+  count?: number;
+};
+
+export type SuggestResponse = {
+  suggestions: SkillSuggestion[];
 };
 
 export type SkillListResponse = {
@@ -90,6 +144,8 @@ export type SkillListResponse = {
   total: number;
   page: number;
   pageSize: number;
+  /** Present only when the request asks for facets (`facets=1`). */
+  facets?: RegistryTaxonomy;
 };
 
 export type AgentMessage = {
@@ -202,9 +258,12 @@ export type RegistrySearchParams = {
   category?: string;
   tags?: string[];
   author?: string;
-  sort?: 'recent' | 'popular' | 'downloads';
+  type?: SkillType;
+  sort?: 'recent' | 'popular' | 'downloads' | 'relevant';
   page?: number;
   pageSize?: number;
+  /** Ask the list endpoint to also return registry-wide facet counts. */
+  facets?: boolean;
 };
 
 const apiBase = import.meta.env.DEV
@@ -257,6 +316,8 @@ function toSearchParams(params?: RegistrySearchParams): string {
     if (value === undefined) return;
     if (Array.isArray(value)) {
       value.forEach((item) => searchParams.append(key, item));
+    } else if (typeof value === 'boolean') {
+      if (value) searchParams.set(key, '1');
     } else {
       searchParams.set(key, String(value));
     }
@@ -273,6 +334,45 @@ export async function listSkills(params?: RegistrySearchParams & { signal?: Abor
 
 export async function getSkill(id: string): Promise<{ skill: Skill }> {
   return fetchJson(`${apiBase}/skills/${encodeURIComponent(id)}`);
+}
+
+export async function getTaxonomy(signal?: AbortSignal): Promise<RegistryTaxonomy> {
+  return fetchJson(`${apiBase}/taxonomy`, { signal });
+}
+
+export async function suggestSkills(
+  query: string,
+  options?: { limit?: number; signal?: AbortSignal },
+): Promise<SuggestResponse> {
+  const params = new URLSearchParams({ q: query });
+  if (options?.limit) params.set('limit', String(options.limit));
+  return fetchJson(`${apiBase}/skills/suggest?${params.toString()}`, { signal: options?.signal });
+}
+
+/**
+ * Resolve the full set of skills installed when `skill` is installed: the skill
+ * itself plus every (transitive) dependency, deduped. Used by the UI to preview
+ * a meta skill's footprint. Cycle-safe.
+ */
+export async function resolveSkillDependencies(skill: Skill): Promise<Skill[]> {
+  const resolved = new Map<string, Skill>([[skill.id, skill]]);
+  const queue = [...(skill.dependencies ?? [])];
+  while (queue.length > 0) {
+    const depId = queue.shift()!;
+    if (resolved.has(depId)) continue;
+    try {
+      const { skill: dep } = await getSkill(depId);
+      resolved.set(dep.id, dep);
+      for (const next of dep.dependencies ?? []) {
+        if (!resolved.has(next)) queue.push(next);
+      }
+    } catch {
+      // Record a placeholder so the UI can flag an unresolved dependency.
+      resolved.set(depId, { id: depId, name: depId, missing: true } as unknown as Skill);
+    }
+  }
+  resolved.delete(skill.id);
+  return [...resolved.values()];
 }
 
 export async function saveSkill(skill: SkillPayload): Promise<{ skill: Skill }> {

@@ -26,7 +26,7 @@
 
 import { classifyRegistry } from './lib/detect-meta.mjs';
 
-const DEFAULT_API = process.env.SKILL_API_URL || 'https://skills.eastern-shore-solutions.com/api';
+const DEFAULT_API = process.env.SKILL_API_URL || 'https://skills.dmzagent.com/api';
 
 function parseArgs(argv) {
   const args = { registry: DEFAULT_API, token: process.env.SKILL_TOKEN || '', apply: false, includeMedium: false, json: false };

@@ -268,7 +268,7 @@ export type RegistrySearchParams = {
 
 const apiBase = import.meta.env.DEV
   ? '/api'
-  : (import.meta.env.VITE_SKILL_API_URL as string | undefined) || 'https://skills.eastern-shore-solutions.com/api';
+  : (import.meta.env.VITE_SKILL_API_URL as string | undefined) || 'https://skills.dmzagent.com/api';
 
 export class ApiError extends Error {
   constructor(

@@ -184,7 +184,7 @@ export class ApiClient {
   private token: string | null = null;
 
   constructor(baseUrl?: string) {
-    this.baseUrl = baseUrl || process.env.SKILL_API_URL || 'https://skills.eastern-shore-solutions.com/api';
+    this.baseUrl = baseUrl || process.env.SKILL_API_URL || 'https://skills.dmzagent.com/api';
   }
 
   setToken(token: string | null) {

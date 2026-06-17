@@ -58,7 +58,7 @@ jobs:
         if: github.event_name == 'workflow_dispatch' && inputs.dry_run
         run: node packages/cli/dist/index.js generate --count "$COUNT" --dry-run --registry "$SKILL_API_URL"
         env:
-          SKILL_API_URL: ${{ vars.SKILL_API_URL || 'https://skills.eastern-shore-solutions.com/api' }}
+          SKILL_API_URL: ${{ vars.SKILL_API_URL || 'https://skills.dmzagent.com/api' }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
       # --- Real run: invent -> write manifests -> commit -> publish ---
@@ -85,7 +85,7 @@ jobs:
             --out ./skills \
             --registry "$SKILL_API_URL"
         env:
-          SKILL_API_URL: ${{ vars.SKILL_API_URL || 'https://skills.eastern-shore-solutions.com/api' }}
+          SKILL_API_URL: ${{ vars.SKILL_API_URL || 'https://skills.dmzagent.com/api' }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
       - name: Commit invented skills
@@ -106,4 +106,4 @@ jobs:
         run: node packages/cli/dist/index.js sync ./skills --registry "$SKILL_API_URL"
         env:
           SKILL_TOKEN: ${{ secrets.SKILL_TOKEN }}
-          SKILL_API_URL: ${{ vars.SKILL_API_URL || 'https://skills.eastern-shore-solutions.com/api' }}
+          SKILL_API_URL: ${{ vars.SKILL_API_URL || 'https://skills.dmzagent.com/api' }}

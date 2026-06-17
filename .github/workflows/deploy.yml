@@ -71,7 +71,7 @@ jobs:
       - name: Build packages
         run: npm run build
         env:
-          VITE_SKILL_API_URL: https://skills.eastern-shore-solutions.com/api
+          VITE_SKILL_API_URL: https://skills.dmzagent.com/api
 
       - name: Terraform init
         run: terraform init

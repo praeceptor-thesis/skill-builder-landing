@@ -10,7 +10,7 @@ import { runGenerate } from './generate.js';
 import { resolveInstallPlan, writeSkillForTool } from './install.js';
 import { renderSkillTable, renderSkillInfo, renderSuggestions, displayId, effectiveType } from './render.js';
 
-const DEFAULT_API = 'https://skills.eastern-shore-solutions.com/api';
+const DEFAULT_API = 'https://skills.dmzagent.com/api';
 
 /** Normalize a registry value to its API base, tolerating a bare site URL. */
 function apiBase(registry: string): string {
@@ -91,7 +91,7 @@ cli
 cli
   .command('publish <path>', 'Publish a local skill to the registry')
   .option('-r, --registry <url>', 'Registry URL (Worker API)', {
-    default: 'https://skills.eastern-shore-solutions.com/api',
+    default: 'https://skills.dmzagent.com/api',
   })
   .option('-t, --token <token>', 'Auth token for registry')
   .action(async (skillPath, options) => {
@@ -160,7 +160,7 @@ cli
 cli
   .command('token <action> [id]', 'Manage long-lived API tokens for automation (action: create | list | revoke)')
   .option('-r, --registry <url>', 'Registry URL (Worker API)', {
-    default: process.env.SKILL_API_URL || 'https://skills.eastern-shore-solutions.com/api',
+    default: process.env.SKILL_API_URL || 'https://skills.dmzagent.com/api',
   })
   .option('-t, --token <token>', 'An existing valid token to authenticate with (defaults to SKILL_TOKEN)')
   .option('-l, --label <label>', 'Label for the new token (create only)', { default: 'automation' })
@@ -220,7 +220,7 @@ cli
 cli
   .command('generate', 'Invent brand-new skills with the registry AI, then save and/or publish them')
   .option('-r, --registry <url>', 'Registry URL (Worker API)', {
-    default: process.env.SKILL_API_URL || 'https://skills.eastern-shore-solutions.com/api',
+    default: process.env.SKILL_API_URL || 'https://skills.dmzagent.com/api',
   })
   .option('-t, --token <token>', 'Auth token for registry (defaults to SKILL_TOKEN)')
   .option('-n, --count <count>', 'How many skills to invent', { default: 1 })
@@ -293,7 +293,7 @@ cli
 cli
   .command('sync [dir]', 'Publish all new or changed skills in a folder to the registry')
   .option('-r, --registry <url>', 'Registry URL (Worker API)', {
-    default: process.env.SKILL_API_URL || 'https://skills.eastern-shore-solutions.com/api',
+    default: process.env.SKILL_API_URL || 'https://skills.dmzagent.com/api',
   })
   .option('-t, --token <token>', 'Auth token for registry (defaults to SKILL_TOKEN)')
   .option('--dry-run', 'Show what would be published without publishing')
@@ -514,7 +514,7 @@ cli
 cli
   .command('fork <skill-id>', 'Fork an existing skill')
   .option('-r, --registry <url>', 'Registry URL (Worker API)', {
-    default: 'https://skills.eastern-shore-solutions.com/api',
+    default: 'https://skills.dmzagent.com/api',
   })
   .option('-n, --name <name>', 'New name for the forked skill')
   .option('-t, --token <token>', 'Auth token for registry')
@@ -545,7 +545,7 @@ cli
 cli
   .command('login <email>', 'Login to the registry')
   .option('-r, --registry <url>', 'Registry URL (Worker API)', {
-    default: 'https://skills.eastern-shore-solutions.com/api',
+    default: 'https://skills.dmzagent.com/api',
   })
   .action(async (email, options) => {
     const registry = options.registry as string;
@@ -570,7 +570,7 @@ cli
 cli
   .command('register <handle> <name> <email>', 'Register a new account')
   .option('-r, --registry <url>', 'Registry URL (Worker API)', {
-    default: 'https://skills.eastern-shore-solutions.com/api',
+    default: 'https://skills.dmzagent.com/api',
   })
   .action(async (handle, name, email, options) => {
     const registry = options.registry as string;

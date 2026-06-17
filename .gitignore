@@ -100,3 +100,4 @@ yarn-error.log*
 # yarn.lock
 # pnpm-lock.yaml
 .npm-private
+skills-dump.json

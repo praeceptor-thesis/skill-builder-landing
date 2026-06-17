@@ -152,7 +152,7 @@ dependency) is reported for manual review and never auto-applied.
 
 ## Web App
 
-Visit the web editor at `https://skills.eastern-shore-solutions.com` to:
+Visit the web editor at `https://skills.dmzagent.com` to:
 
 - Browse the registry visually
 - Write skills with a split edit/preview markdown editor

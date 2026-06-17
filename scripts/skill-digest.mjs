@@ -6,7 +6,7 @@
 // task runs this and drafts the output to Gmail.
 //
 // Sensible defaults (override via env):
-//   REGISTRY        registry API base   (default https://skills.eastern-shore-solutions.com/api)
+//   REGISTRY        registry API base   (default https://skills.dmzagent.com/api — the new zone)
 //   OWNER_HANDLE    "your bench" handle (default kmd_ai)
 //   NEW_WINDOW_DAYS "new this week"     (default 7)
 //   TOP_N           top-downloads count (default 5)
@@ -14,6 +14,16 @@
 //   CATEGORIES_SHOWN category bars      (default 7)
 //   OUT_DIR         output directory    (default the system temp dir)
 //   DIGEST_FIXTURE  path to a JSON array of skills (for testing/offline; skips network)
+//
+// Delivery (Resend HTTP API — https://resend.com/docs):
+//   RESEND_API_KEY  Resend API key      (required for --send to actually send)
+//   MAIL_TO         recipient           (default matt@eastern-shore-solutions.com)
+//   MAIL_FROM       sender              (default forge@skills.dmzagent.com — the
+//                                        Resend-verified domain; MUST stay on a
+//                                        domain verified in Resend or sends fail)
+//   Flags: --send     deliver via Resend (no-op + sendError if no key)
+//          --dry-run  build everything but never call the API
+//   With no flag the script only writes the two files, exactly as before.
 //
 // Fallbacks (so a run always produces something usable):
 //   - registry unreachable / fixture missing -> a short "service notice" digest
@@ -26,9 +36,19 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+import { fileURLToPath } from 'url';
+
+// Best-effort: load the repo-root .env so delivery vars (RESEND_API_KEY, MAIL_FROM,
+// MAIL_TO) are available when the scheduled task runs this script directly.
+try {
+  const envPath = fileURLToPath(new URL('../.env', import.meta.url));
+  if (typeof process.loadEnvFile === 'function' && fs.existsSync(envPath)) {
+    process.loadEnvFile(envPath);
+  }
+} catch { /* no .env, or older Node — fall back to real env vars */ }
 
 const CFG = {
-  registry: (process.env.REGISTRY || 'https://skills.eastern-shore-solutions.com/api').replace(/\/+$/, ''),
+  registry: (process.env.REGISTRY || 'https://skills.dmzagent.com/api').replace(/\/+$/, ''),
   owner: (process.env.OWNER_HANDLE || 'kmd_ai').replace(/^@/, ''),
   newWindowDays: num(process.env.NEW_WINDOW_DAYS, 7),
   topN: num(process.env.TOP_N, 5),
@@ -187,7 +207,7 @@ ${inner}
   const masthead = `<tr><td style="background:#0f172a;padding:28px 32px;">
     <div style="font-size:12px;letter-spacing:3px;text-transform:uppercase;color:#7dd3fc;font-weight:700;">The Skill Forge</div>
     <div style="font-size:26px;font-weight:800;color:#fff;margin-top:6px;line-height:1.2;">Weekly Skill Digest</div>
-    <div style="font-size:13px;color:#94a3b8;margin-top:8px;">Issue #${m.issueNo} &middot; ${esc(m.dateLabel)} &middot; skills.eastern-shore-solutions.com</div>
+    <div style="font-size:13px;color:#94a3b8;margin-top:8px;">Issue #${m.issueNo} &middot; ${esc(m.dateLabel)} &middot; skills.dmzagent.com</div>
   </td></tr>`;
 
   if (m.notice) {
@@ -245,7 +265,7 @@ ${inner}
   const cta = `<tr><td style="padding:28px 32px 30px 32px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0f172a;border-radius:12px;"><tr><td style="padding:22px 24px;" align="center">
     <div style="font-size:15px;font-weight:700;color:#fff;">Browse the full registry</div>
     <div style="font-size:13px;color:#94a3b8;margin-top:4px;">${m.total} skills and growing.</div>
-    <a href="https://skills.eastern-shore-solutions.com/browse" style="display:inline-block;margin-top:14px;background:#38bdf8;color:#0f172a;font-weight:700;font-size:14px;text-decoration:none;padding:11px 22px;border-radius:8px;">Open the registry &rarr;</a>
+    <a href="https://skills.dmzagent.com/browse" style="display:inline-block;margin-top:14px;background:#38bdf8;color:#0f172a;font-weight:700;font-size:14px;text-decoration:none;padding:11px 22px;border-radius:8px;">Open the registry &rarr;</a>
   </td></tr></table></td></tr>`;
 
   const footer = `<tr><td style="padding:0 32px 28px 32px;"><hr style="border:none;border-top:1px solid #e2e8f0;margin:0 0 14px 0;"><div style="font-size:11px;color:#94a3b8;line-height:1.6;">The Skill Forge &middot; generated automatically from your skill registry.<br>Install any skill with <span style="font-family:ui-monospace,Menlo,monospace;">npx @concordex-ai/skill-builder install &lt;id&gt;</span></div></td></tr>`;
@@ -256,7 +276,7 @@ ${inner}
 export function renderText(m) {
   if (m.notice) return `THE SKILL FORGE — Weekly Skill Digest\nIssue #${m.issueNo} · ${m.dateLabel}\n\n${m.notice}\n`;
   const lines = [];
-  lines.push(`THE SKILL FORGE — Weekly Skill Digest`, `Issue #${m.issueNo} · ${m.dateLabel} · skills.eastern-shore-solutions.com`, '');
+  lines.push(`THE SKILL FORGE — Weekly Skill Digest`, `Issue #${m.issueNo} · ${m.dateLabel} · skills.dmzagent.com`, '');
   lines.push(`${m.total} skills from ${m.authorCount} builders across ${m.categoryCount} categories. Your claw publishes under @${m.owner} on Claude Opus 4.8.`, '');
   lines.push(m.topSection.title.toUpperCase());
   if (m.topSection.note) lines.push(`(${m.topSection.note})`);
@@ -280,7 +300,7 @@ export function renderText(m) {
   m.newSection.items.forEach((s) => lines.push(`- ${s.name} (@${s.handle || 'unknown'})`));
   lines.push('');
   lines.push('BY THE NUMBERS', m.categories.map(([c, n]) => `${c} ${n}`).join(' · '), '');
-  lines.push('Browse: https://skills.eastern-shore-solutions.com/browse');
+  lines.push('Browse: https://skills.dmzagent.com/browse');
   return lines.join('\n');
 }
 
@@ -301,25 +321,89 @@ function subjectFor(m) {
   return `\u{1F6E0} The Skill Forge — Weekly Digest (${d})`;
 }
 
+// ---------------------------------------------------------------------------
+// Delivery (Resend HTTP API)
+// ---------------------------------------------------------------------------
+
+const MAIL = {
+  to: process.env.MAIL_TO || 'matt@eastern-shore-solutions.com',
+  // The From address MUST be on the domain you verified in Resend (skills.dmzagent.com).
+  from: process.env.MAIL_FROM || 'The Skill Forge <forge@skills.dmzagent.com>',
+  apiKey: process.env.RESEND_API_KEY || '',
+};
+
+// POST the rendered email to Resend; resolves to the Resend message id.
+// https://resend.com/docs/api-reference/emails/send-email
+async function sendViaResend({ subject, html, text, to, from }, apiKey, { timeoutMs = 15000 } = {}) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      signal: ctrl.signal,
+      headers: { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ from, to: Array.isArray(to) ? to : [to], subject, html, text }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body?.message || body?.error?.message || `Resend HTTP ${res.status}`);
+    return body?.id || null;
+  } finally {
+    clearTimeout(t);
+  }
+}
+
 async function main() {
+  const args = new Set(process.argv.slice(2));
+  const wantSend = args.has('--send');
+  const dryRun = args.has('--dry-run');
+
   const loaded = await loadSkills(CFG);
   const model = buildModel(loaded, CFG);
   const html = renderHtml(model);
   const text = renderText(model);
+  const subject = subjectFor(model);
+
   fs.mkdirSync(CFG.outDir, { recursive: true });
   const htmlPath = path.join(CFG.outDir, 'skill-digest.html');
   const txtPath = path.join(CFG.outDir, 'skill-digest.txt');
   fs.writeFileSync(htmlPath, html);
   fs.writeFileSync(txtPath, text);
+
+  // Delivery. No flag -> just write files (legacy behavior).
+  //   --dry-run -> never calls the API; reports what would be sent.
+  //   --send    -> delivers via Resend when RESEND_API_KEY is present;
+  //                if the key is missing it is a safe no-op (sent:false).
+  let sent = false;
+  let resendId = null;
+  let sendError = null;
+  if (dryRun) {
+    sendError = 'dry-run: not sent';
+  } else if (wantSend) {
+    if (!MAIL.apiKey) {
+      sendError = 'RESEND_API_KEY not set';
+    } else {
+      try {
+        resendId = await sendViaResend({ subject, html, text, to: MAIL.to, from: MAIL.from }, MAIL.apiKey);
+        sent = true;
+      } catch (e) {
+        sendError = e.message || String(e);
+      }
+    }
+  }
+
   const summary = {
-    subject: subjectFor(model),
+    subject,
     htmlPath,
     txtPath,
-    to: 'matt@eastern-shore-solutions.com',
+    to: MAIL.to,
+    from: MAIL.from,
     issueNo: model.issueNo,
     notice: !!model.notice,
     total: model.total ?? 0,
     fetchError: loaded.error || null,
+    sent,
+    resendId,
+    sendError,
   };
   console.log(JSON.stringify(summary));
 }

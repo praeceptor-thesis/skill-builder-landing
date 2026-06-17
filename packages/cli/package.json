@@ -1,12 +1,13 @@
 {
-  "name": "@concordex-ai/skill-builder",
-  "version": "0.1.7",
+  "name": "@dmzagent/skill-builder",
+  "version": "1.0.1",
   "type": "module",
   "bin": {
     "skill-builder": "dist/index.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md"
   ],
   "scripts": {
     "build": "tsc",

@@ -12,6 +12,7 @@
     "build": "tsc",
     "prepublishOnly": "tsc",
     "lint": "eslint . --ext .ts",
+    "test": "tsc && vitest run",
     "start": "node dist/index.js"
   },
   "description": "Install and publish AI skill prompts from the command line",

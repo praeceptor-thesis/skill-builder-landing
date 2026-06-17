@@ -1,4 +1,4 @@
 cloudflare_api_token    = "your_cloudflare_api_token"
 cloudflare_account_id  = "your_cloudflare_account_id"
-cloudflare_zone_name   = "eastern-shore-solutions.com"
+cloudflare_zone_name   = "dmzagent.com"
 pages_project_name    = "skill-builder-landing"

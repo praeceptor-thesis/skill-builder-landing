@@ -34,6 +34,11 @@ resource "cloudflare_workers_script" "skill_api" {
   ]
 }
 
+# Routes skills.<zone>/api/* to the registry Worker. Without this, the hostname
+# only serves the static Pages site and every /api request hits static hosting
+# (GET -> index.html, POST -> 405). This is the route that makes the API live on
+# the zone. The Worker + KV are account-scoped, so pointing a new zone here serves
+# the same skill data — no data copy needed.
 resource "cloudflare_workers_route" "api_route" {
   zone_id = data.cloudflare_zone.site.id
   pattern = "skills.${var.cloudflare_zone_name}/api/*"

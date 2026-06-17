@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">= 1.5.0"
+  required_version = ">= 1.6.0"
 
   backend "s3" {
     bucket = "anima-tfstate"
@@ -11,6 +11,9 @@ terraform {
     skip_credentials_validation = true
     skip_region_validation      = true
     skip_requesting_account_id  = true
+    # R2 doesn't implement the S3 object-integrity checksums that Terraform >= 1.6
+    # sends by default; without this, state writes (PutObject) fail against R2.
+    skip_s3_checksum = true
   }
 
   required_providers {

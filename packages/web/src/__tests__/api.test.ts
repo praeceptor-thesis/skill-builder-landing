@@ -65,6 +65,73 @@ describe('API client', () => {
     expect(calledUrl).toContain('category=Data');
   });
 
+  it('listSkills passes type, author, and facets params', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ ok: true, data: { skills: [], total: 0 } }),
+    });
+
+    const { listSkills } = await import('../services/api');
+    await listSkills({ type: 'meta', author: 'skillauthor', facets: true, sort: 'relevant' });
+
+    const calledUrl = mockFetch.mock.calls[0][0];
+    expect(calledUrl).toContain('type=meta');
+    expect(calledUrl).toContain('author=skillauthor');
+    expect(calledUrl).toContain('facets=1');
+    expect(calledUrl).toContain('sort=relevant');
+  });
+
+  it('getTaxonomy fetches /api/taxonomy', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ ok: true, data: { total: 0, categories: [], authors: [], tags: [], types: [] } }),
+    });
+
+    const { getTaxonomy } = await import('../services/api');
+    const result = await getTaxonomy();
+
+    expect(mockFetch.mock.calls[0][0]).toContain('/taxonomy');
+    expect(result).toMatchObject({ categories: [], types: [] });
+  });
+
+  it('suggestSkills fetches /api/skills/suggest with the query', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ ok: true, data: { suggestions: [] } }),
+    });
+
+    const { suggestSkills } = await import('../services/api');
+    await suggestSkills('dial', { limit: 5 });
+
+    const calledUrl = mockFetch.mock.calls[0][0];
+    expect(calledUrl).toContain('/skills/suggest');
+    expect(calledUrl).toContain('q=dial');
+    expect(calledUrl).toContain('limit=5');
+  });
+
+  it('resolveSkillDependencies fetches and dedupes the dependency tree', async () => {
+    // root depends on a and b; both depend on c (diamond) → c fetched once.
+    const graph: Record<string, { id: string; dependencies: string[] }> = {
+      '@me/a': { id: '@me/a', dependencies: ['@me/c'] },
+      '@me/b': { id: '@me/b', dependencies: ['@me/c'] },
+      '@me/c': { id: '@me/c', dependencies: [] },
+    };
+    mockFetch.mockImplementation((url: string) => {
+      const id = decodeURIComponent(url.split('/skills/')[1]);
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: true, data: { skill: graph[id] } }) });
+    });
+
+    const { resolveSkillDependencies } = await import('../services/api');
+    const root = { id: '@me/meta', dependencies: ['@me/a', '@me/b'] } as never;
+    const deps = await resolveSkillDependencies(root);
+
+    const ids = deps.map((d) => d.id).sort();
+    expect(ids).toEqual(['@me/a', '@me/b', '@me/c']);
+    // @me/c resolved exactly once despite two parents.
+    const cFetches = mockFetch.mock.calls.filter((c) => String(c[0]).includes('%40me%2Fc') || String(c[0]).includes('@me/c'));
+    expect(cFetches.length).toBe(1);
+  });
+
   it('saveSkill posts skill data', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,

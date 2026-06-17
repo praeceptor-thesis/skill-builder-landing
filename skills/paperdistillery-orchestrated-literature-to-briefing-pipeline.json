@@ -1,0 +1,76 @@
+{
+  "id": "paperdistillery-orchestrated-literature-to-briefing-pipeline",
+  "name": "PaperDistillery: Orchestrated Literature-to-Briefing Pipeline",
+  "description": "A meta-skill that turns a batch of scientific papers into a verified, presentation-ready research briefing by chaining four sub-skills: it logs and accumulates per-paper findings with Diary, validates that every claim maps cleanly to its source schema via InterServiceContractTester, arranges the synthesized content with LayoutCompositor, and emits the final deck/handout through Present.",
+  "category": "Research",
+  "tags": [
+    "meta-skill",
+    "summarization",
+    "research",
+    "orchestration",
+    "provenance"
+  ],
+  "type": "meta",
+  "dependencies": [
+    "@dmz_agent/diary",
+    "@design_seeder/inter-service-contract-tester",
+    "@dmz_agent/present",
+    "@design_seeder/layout-compositor"
+  ],
+  "spec": {
+    "name": "PaperDistillery: Orchestrated Literature-to-Briefing Pipeline",
+    "description": "A meta-skill that turns a batch of scientific papers into a verified, presentation-ready research briefing by chaining four sub-skills: it logs and accumulates per-paper findings with Diary, validates that every claim maps cleanly to its source schema via InterServiceContractTester, arranges the synthesized content with LayoutCompositor, and emits the final deck/handout through Present.",
+    "category": "Research",
+    "tags": [
+      "meta-skill",
+      "summarization",
+      "research",
+      "orchestration",
+      "provenance"
+    ],
+    "purpose": "Deliver a single, contract-verified, presentation-ready briefing that synthesizes multiple scientific papers — going beyond per-paper summaries by accumulating findings over a session, guaranteeing each synthesized claim is traceable to its source, and producing a polished, audience-ready artifact in one pass.",
+    "instructions": [
+      "Parse {{input}} to extract the paper set (titles, DOIs, abstracts/full text), the target audience (e.g., executives, peer researchers, students), and the desired output format (slide deck or one-page handout).",
+      "For each paper, invoke Diary (@dmz_agent/diary) to record a structured running entry capturing the paper's question, method, key findings, effect sizes/limitations, and a source citation — accumulating these entries into a persistent session log so cross-paper themes emerge as the batch is processed.",
+      "After all papers are logged, synthesize the Diary entries into a candidate briefing: group findings by theme, flag agreements/contradictions across papers, and attach each synthesized statement to the originating paper ID(s).",
+      "Invoke InterServiceContractTester (@design_seeder/inter-service-contract-tester) to validate the synthesis against a 'claim-to-source' contract schema — every claim must reference a valid logged paper ID and required fields (metric, finding, citation); reject or send back any orphaned, hallucinated, or under-cited claim before it reaches the audience.",
+      "Pass the contract-passing, structured content to LayoutCompositor (@design_seeder/layout-compositor) to arrange sections — headline takeaways, theme clusters, contradiction callouts, and a citations appendix — into a coherent visual layout sized for the chosen format and audience.",
+      "Invoke Present (@dmz_agent/present) to render the composited layout into the final deliverable (deck or handout), applying audience-appropriate tone and density.",
+      "Return the finished briefing plus a short provenance report listing which claims passed validation, any claims that were dropped, and the full source citation list.",
+      "If InterServiceContractTester reports failures, loop back to the synthesis step to repair or remove the offending claims before composing and presenting — never present unverified content."
+    ],
+    "promptTemplate": "You are PaperDistillery, a meta-workflow that produces a verified, presentation-ready research briefing from a set of scientific papers.\n\nINPUT:\n{{input}}\n\nExecute the pipeline in order:\n1. PARSE: Identify the papers, target audience, and output format (deck | handout).\n2. LOG (Diary @dmz_agent/diary): For each paper, append a structured entry — {paper_id, question, method, key_findings, effect_size, limitations, citation}. Accumulate all entries in the session log.\n3. SYNTHESIZE: Cluster findings by theme across the logged entries; mark agreements and contradictions; tag every synthesized claim with its source paper_id(s).\n4. VERIFY (InterServiceContractTester @design_seeder/inter-service-contract-tester): Validate the synthesis against the claim-to-source contract (each claim must cite a valid logged paper_id and include metric + finding + citation). Drop or repair any failing claim and re-verify until the contract passes.\n5. COMPOSE (LayoutCompositor @design_seeder/layout-compositor): Arrange headline takeaways, theme clusters, contradiction callouts, and a citations appendix into a layout sized for the chosen format and audience.\n6. PRESENT (Present @dmz_agent/present): Render the composited layout into the final {format}, with tone/density tuned to the audience.\n7. REPORT: Output the deliverable plus a provenance report (claims passed, claims dropped, full citation list).\n\nNever present a claim that did not pass the contract check.",
+    "examples": [
+      {
+        "title": "Three-paper exec briefing on RAG hallucination",
+        "input": "Papers: [1] 'Retrieval Cuts Hallucination by 41%' (DOI:10/aaa), [2] 'Context Length vs. Faithfulness' (DOI:10/bbb), [3] 'Citation-Forced Decoding' (DOI:10/ccc). Audience: ML leadership. Format: slide deck.",
+        "output": "A 6-slide deck. Slide 1 headline: 'Retrieval + forced citations reduce hallucination most; longer context alone does not.' Theme cluster slides group findings from papers 1 & 3 (agreement) and flag paper 2's contradiction. Diary logged 3 structured entries; InterServiceContractTester passed 7/8 claims and dropped 1 uncited claim about 'cost savings'; LayoutCompositor arranged takeaways + contradiction callout + citations appendix; Present rendered the deck. Provenance report lists the dropped claim and all 3 DOIs."
+      },
+      {
+        "title": "Student handout from two biology papers",
+        "input": "Papers: [A] 'CRISPR off-target rates in primates' (DOI:10/xyz), [B] 'Base editing precision benchmark' (DOI:10/qrs). Audience: undergraduates. Format: handout.",
+        "output": "A one-page handout with a plain-language headline, a side-by-side 'method vs. precision' comparison drawn from both Diary entries, a contradiction callout on differing off-target metrics, and a citations footer. Contract check passed all 5 claims; provenance report confirms zero drops and lists both DOIs."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Orphan claim is rejected before presentation",
+        "input": "Papers: [P1] 'Sleep and memory consolidation' (DOI:10/sleep). Audience: peers. Format: deck. (Synthesis attempts to include a claim 'caffeine boosts recall' with no source paper.)",
+        "expected": "InterServiceContractTester flags 'caffeine boosts recall' as an orphaned claim with no valid paper_id; the workflow drops it, re-verifies, and the final deck contains only P1-sourced claims. Provenance report lists the dropped claim."
+      },
+      {
+        "name": "End-to-end ordering and format honored",
+        "input": "Papers: [P1], [P2]. Audience: executives. Format: handout.",
+        "expected": "Workflow runs Diary (2 entries) -> synthesis -> InterServiceContractTester (pass) -> LayoutCompositor -> Present, producing a one-page handout (not a deck) plus a provenance report citing both papers."
+      }
+    ],
+    "type": "meta",
+    "dependencies": [
+      "@dmz_agent/diary",
+      "@design_seeder/inter-service-contract-tester",
+      "@dmz_agent/present",
+      "@design_seeder/layout-compositor"
+    ]
+  },
+  "markdown": "# PaperDistillery: Orchestrated Literature-to-Briefing Pipeline\n\n## Purpose\nDeliver a single, contract-verified, presentation-ready briefing that synthesizes multiple scientific papers — going beyond per-paper summaries by accumulating findings over a session, guaranteeing each synthesized claim is traceable to its source, and producing a polished, audience-ready artifact in one pass.\n\n## Dependencies\nInstalling this skill also installs:\n- `@dmz_agent/diary`\n- `@design_seeder/inter-service-contract-tester`\n- `@dmz_agent/present`\n- `@design_seeder/layout-compositor`\n\n## Instructions\n1. Parse {{input}} to extract the paper set (titles, DOIs, abstracts/full text), the target audience (e.g., executives, peer researchers, students), and the desired output format (slide deck or one-page handout).\n2. For each paper, invoke Diary (@dmz_agent/diary) to record a structured running entry capturing the paper's question, method, key findings, effect sizes/limitations, and a source citation — accumulating these entries into a persistent session log so cross-paper themes emerge as the batch is processed.\n3. After all papers are logged, synthesize the Diary entries into a candidate briefing: group findings by theme, flag agreements/contradictions across papers, and attach each synthesized statement to the originating paper ID(s).\n4. Invoke InterServiceContractTester (@design_seeder/inter-service-contract-tester) to validate the synthesis against a 'claim-to-source' contract schema — every claim must reference a valid logged paper ID and required fields (metric, finding, citation); reject or send back any orphaned, hallucinated, or under-cited claim before it reaches the audience.\n5. Pass the contract-passing, structured content to LayoutCompositor (@design_seeder/layout-compositor) to arrange sections — headline takeaways, theme clusters, contradiction callouts, and a citations appendix — into a coherent visual layout sized for the chosen format and audience.\n6. Invoke Present (@dmz_agent/present) to render the composited layout into the final deliverable (deck or handout), applying audience-appropriate tone and density.\n7. Return the finished briefing plus a short provenance report listing which claims passed validation, any claims that were dropped, and the full source citation list.\n8. If InterServiceContractTester reports failures, loop back to the synthesis step to repair or remove the offending claims before composing and presenting — never present unverified content.\n\n## Prompt Template\n```\nYou are PaperDistillery, a meta-workflow that produces a verified, presentation-ready research briefing from a set of scientific papers.\n\nINPUT:\n{{input}}\n\nExecute the pipeline in order:\n1. PARSE: Identify the papers, target audience, and output format (deck | handout).\n2. LOG (Diary @dmz_agent/diary): For each paper, append a structured entry — {paper_id, question, method, key_findings, effect_size, limitations, citation}. Accumulate all entries in the session log.\n3. SYNTHESIZE: Cluster findings by theme across the logged entries; mark agreements and contradictions; tag every synthesized claim with its source paper_id(s).\n4. VERIFY (InterServiceContractTester @design_seeder/inter-service-contract-tester): Validate the synthesis against the claim-to-source contract (each claim must cite a valid logged paper_id and include metric + finding + citation). Drop or repair any failing claim and re-verify until the contract passes.\n5. COMPOSE (LayoutCompositor @design_seeder/layout-compositor): Arrange headline takeaways, theme clusters, contradiction callouts, and a citations appendix into a layout sized for the chosen format and audience.\n6. PRESENT (Present @dmz_agent/present): Render the composited layout into the final {format}, with tone/density tuned to the audience.\n7. REPORT: Output the deliverable plus a provenance report (claims passed, claims dropped, full citation list).\n\nNever present a claim that did not pass the contract check.\n```\n"
+}

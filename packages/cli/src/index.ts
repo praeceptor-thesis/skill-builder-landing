@@ -4,14 +4,32 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { execSync } from 'child_process';
 import { pathToFileURL } from 'url';
-import { createApiClient, type Skill, type SkillPayload } from './api/client.js';
+import { createApiClient, type SkillPayload, type RegistrySearchParams } from './api/client.js';
+import { runSync } from './sync.js';
+import { runGenerate } from './generate.js';
+import { resolveInstallPlan, writeSkillForTool } from './install.js';
+import { renderSkillTable, renderSkillInfo, renderSuggestions, displayId, effectiveType } from './render.js';
+
+const DEFAULT_API = 'https://skills.dmzagent.com/api';
+
+/** Normalize a registry value to its API base, tolerating a bare site URL. */
+function apiBase(registry: string): string {
+  const trimmed = registry.replace(/\/+$/, '');
+  return /\/api$/.test(trimmed) ? trimmed : `${trimmed}/api`;
+}
+
+/** Open a URL in the user's default browser (best effort). */
+function openInBrowser(url: string): void {
+  const cmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open';
+  execSync(`${cmd} "${url}"`);
+}
 
 const cli = cac('skill-builder');
 
 cli
   .command('install <skill>', 'Install a skill package from the registry')
   .option('-r, --registry <url>', 'Registry URL (Worker API)', {
-    default: 'https://skills.dmzagent.com/api',
+    default: DEFAULT_API,
   })
   .option('-o, --output <dir>', 'Output directory for skill files (only for --tool file)', {
     default: '.',
@@ -22,89 +40,48 @@ cli
   .option('--agents-file <path>', 'Path to AGENTS.md (for claude/codex)', {
     default: './AGENTS.md',
   })
+  .option('--no-deps', 'Skip dependencies (install the meta skill only)')
   .action(async (skill, options) => {
-    const registry = options.registry as string;
-    const outputDir = options.output as string;
+    const registry = apiBase(options.registry as string);
     const tool = (options.tool as string) || 'file';
-    const agentsFile = options.agentsFile as string;
+    const writeOpts = { tool, outputDir: options.output as string, agentsFile: options.agentsFile as string };
+    const withDeps = options.deps !== false; // cac sets deps=false for --no-deps
     const client = createApiClient(registry);
-    const skillId = skill;
 
-    console.log(`Installing skill ${skill} from ${registry} [--tool ${tool}]`);
+    console.log(`Installing ${skill} from ${registry} [--tool ${tool}]`);
 
     try {
-      const response = await client.getSkill(skillId);
-      const metadata = response.skill;
-      const fileName = metadata.id.startsWith('@') ? metadata.id.slice(metadata.id.indexOf('/') + 1) : metadata.id;
+      const plan = await resolveInstallPlan(client, skill);
+      const isMeta = effectiveType(plan.root) === 'meta';
 
-      switch (tool) {
-        case 'claude':
-        case 'codex': {
-          const filePath = path.resolve(agentsFile);
-          const dir = path.dirname(filePath);
-          if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      // Decide the full install set (deps first so prerequisites land first).
+      const toInstall = withDeps ? [...plan.deps, plan.root] : [plan.root];
 
-          const heading = `## ${metadata.name}`;
-          const description = metadata.description ? `> ${metadata.description}\n` : '';
-          const preamble = `\n\n${heading}\n${description}\n<!-- skill-id: ${metadata.id} -->\n`;
-
-          if (fs.existsSync(filePath)) {
-            const existing = fs.readFileSync(filePath, 'utf-8');
-            if (existing.includes(`<!-- skill-id: ${metadata.id} -->`)) {
-              console.log(`Skill "${metadata.name}" already installed in ${filePath}.`);
-              return;
-            }
-            fs.appendFileSync(filePath, preamble + metadata.markdown, 'utf-8');
-          } else {
-            fs.writeFileSync(filePath, preamble + metadata.markdown, 'utf-8');
-          }
-          console.log(`Installed "${metadata.name}" into ${filePath}`);
-          break;
+      if (isMeta) {
+        if (withDeps) {
+          console.log(
+            `\n${plan.root.name} is a meta skill. Install plan (${toInstall.length} skill${toInstall.length === 1 ? '' : 's'}):`,
+          );
+          plan.deps.forEach((dep) => console.log(`  • ${displayId(dep)}  (dependency)`));
+          console.log(`  • ${displayId(plan.root)}  (meta)`);
+        } else {
+          console.log(`\n${plan.root.name} is a meta skill; skipping ${plan.root.dependencies?.length ?? 0} dependency(ies) (--no-deps).`);
         }
-
-        case 'cursor': {
-          const rulesDir = path.resolve('.cursor/rules');
-          if (!fs.existsSync(rulesDir)) fs.mkdirSync(rulesDir, { recursive: true });
-
-          const mdcPath = path.join(rulesDir, `${fileName}.mdc`);
-          const frontmatter = [
-            '---',
-            `description: ${metadata.description || metadata.name}`,
-            'globs: *',
-            '---',
-            '',
-          ].join('\n');
-
-          fs.writeFileSync(mdcPath, frontmatter + metadata.markdown, 'utf-8');
-          console.log(`Installed "${metadata.name}" into ${mdcPath}`);
-          break;
-        }
-
-        default: {
-          const outDir = path.resolve(outputDir);
-          if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
-
-          const outPath = path.join(outDir, `${fileName}.md`);
-          fs.writeFileSync(outPath, metadata.markdown, 'utf-8');
-          console.log(`Skill markdown written to: ${outPath}`);
-
-          const configPath = path.join(outDir, `${fileName}.json`);
-          const config = {
-            id: metadata.id,
-            name: metadata.name,
-            description: metadata.description,
-            category: metadata.category,
-            tags: metadata.tags,
-            version: metadata.version,
-            author: metadata.author,
-          };
-          fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
-          console.log(`Skill config written to: ${configPath}`);
-          break;
+        if (plan.missing.length > 0) {
+          console.warn(`\n⚠ ${plan.missing.length} dependency(ies) could not be resolved and were skipped:`);
+          plan.missing.forEach((id) => console.warn(`    - ${id}`));
         }
       }
 
-      console.log('Skill installed successfully.');
+      console.log('');
+      for (const item of toInstall) {
+        for (const line of writeSkillForTool(item, writeOpts)) console.log(line);
+      }
+
+      console.log(
+        `\nDone. Installed ${toInstall.length} skill${toInstall.length === 1 ? '' : 's'}${isMeta && withDeps ? ` (1 meta + ${plan.deps.length} dependency${plan.deps.length === 1 ? '' : 'ies'})` : ''}.`,
+      );
+      if (plan.missing.length > 0) process.exit(1);
     } catch (error) {
       console.error('Install failed:', error instanceof Error ? error.message : String(error));
       process.exit(1);
@@ -181,54 +158,357 @@ cli
   });
 
 cli
-  .command('list', 'List all skills from the registry')
-  .option('-r, --registry <url>', 'Registry URL', {
-    default: 'https://skills.dmzagent.com',
+  .command('token <action> [id]', 'Manage long-lived API tokens for automation (action: create | list | revoke)')
+  .option('-r, --registry <url>', 'Registry URL (Worker API)', {
+    default: process.env.SKILL_API_URL || 'https://skills.dmzagent.com/api',
   })
-  .option('-q, --query <query>', 'Search query')
-  .option('-c, --category <category>', 'Filter by category')
-  .option('--tag <tag...>', 'Filter by tag (can be repeated)')
-  .option('--sort <sort>', 'Sort order: recent, popular, downloads')
-  .option('-p, --page <page>', 'Page number', { default: 1 })
-  .option('--page-size <size>', 'Results per page', { default: 20 })
-  .action(async (options) => {
-    const registry = (options.registry as string).replace(/\/api\/?$/, '');
-    const params = new URLSearchParams();
-    if (options.query) params.set('q', options.query as string);
-    if (options.category) params.set('category', options.category as string);
-    if (options.sort) params.set('sort', options.sort as string);
-    if (options.page) params.set('page', String(options.page));
-    if (options.pageSize) params.set('pageSize', String(options.pageSize));
-    const qs = params.toString();
-    const url = `${registry}/browse${qs ? `?${qs}` : ''}`;
-    console.log(`Opening ${url}`);
-    const cmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open';
-    execSync(`${cmd} "${url}"`);
+  .option('-t, --token <token>', 'An existing valid token to authenticate with (defaults to SKILL_TOKEN)')
+  .option('-l, --label <label>', 'Label for the new token (create only)', { default: 'automation' })
+  .action(async (action, id, options) => {
+    const registry = options.registry as string;
+    const authToken = (options.token as string) || process.env.SKILL_TOKEN || '';
+    const client = createApiClient(registry);
+
+    if (!authToken) {
+      console.error('Authenticate first: pass --token or set SKILL_TOKEN (run `skill-builder login <email>`).');
+      process.exit(1);
+    }
+    client.setToken(authToken);
+
+    try {
+      switch (action) {
+        case 'create': {
+          const res = await client.createApiToken(options.label as string);
+          console.log('Long-lived API token created. Copy it now — it is not shown again:');
+          console.log('');
+          console.log(`  ${res.token}`);
+          console.log('');
+          console.log(`id: ${res.id}   label: ${res.label}`);
+          console.log('Set it as SKILL_TOKEN locally, or: gh secret set SKILL_TOKEN');
+          break;
+        }
+        case 'list': {
+          const { tokens } = await client.listApiTokens();
+          if (tokens.length === 0) {
+            console.log('No API tokens.');
+          } else {
+            for (const t of tokens) {
+              console.log(`${t.id}\t${t.preview ?? ''}\t${t.label}\t${t.createdAt}`);
+            }
+          }
+          break;
+        }
+        case 'revoke': {
+          if (!id) {
+            console.error('Usage: skill-builder token revoke <id>   (get ids from `skill-builder token list`)');
+            process.exit(1);
+          }
+          await client.revokeApiToken(id);
+          console.log(`Revoked API token ${id}.`);
+          break;
+        }
+        default:
+          console.error(`Unknown action "${action}". Use: create | list | revoke <id>.`);
+          process.exit(1);
+      }
+    } catch (error) {
+      console.error('Token command failed:', error instanceof Error ? error.message : String(error));
+      process.exit(1);
+    }
   });
 
 cli
-  .command('search <query>', 'Search skills in the registry')
-  .option('-r, --registry <url>', 'Registry URL', {
-    default: 'https://skills.dmzagent.com',
+  .command('generate', 'Invent brand-new skills with the registry AI, then save and/or publish them')
+  .option('-r, --registry <url>', 'Registry URL (Worker API)', {
+    default: process.env.SKILL_API_URL || 'https://skills.dmzagent.com/api',
   })
+  .option('-t, --token <token>', 'Auth token for registry (defaults to SKILL_TOKEN)')
+  .option('-n, --count <count>', 'How many skills to invent', { default: 1 })
+  .option('--theme <theme>', 'Force a domain/theme (otherwise a random one is chosen per skill)')
+  .option('--meta', 'Invent meta skills that bundle existing skills as dependencies')
+  .option('--meta-ratio <ratio>', 'Fraction (0-1) of invented skills that should be meta', { default: 0 })
+  .option('--backend <name>', "Generation backend: 'anthropic' (Opus 4.8) or 'registry'", { default: 'anthropic' })
+  .option('--model <id>', 'Anthropic model id', { default: 'claude-opus-4-8' })
+  .option('--effort <level>', 'Anthropic reasoning effort: low|medium|high|xhigh|max', { default: 'high' })
+  .option('-o, --out <dir>', 'Write each invented skill as a .json manifest into this folder')
+  .option('--publish', 'Publish invented skills to the registry (requires a token)')
+  .option('--no-publish', 'Do not publish; only generate (use with --out)')
+  .option('--dry-run', 'Invent and print, but neither save nor publish')
+  .action(async (options) => {
+    const registry = options.registry as string;
+    const token = (options.token as string) || process.env.SKILL_TOKEN || '';
+    const count = Math.max(1, parseInt(String(options.count), 10) || 1);
+    const metaRatio = options.meta ? 1 : Math.max(0, Math.min(1, parseFloat(String(options.metaRatio)) || 0));
+    const backend = (options.backend === 'registry' ? 'registry' : 'anthropic') as 'anthropic' | 'registry';
+    const anthropicApiKey = process.env.ANTHROPIC_API_KEY || '';
+    const outDir = options.out ? path.resolve(options.out as string) : undefined;
+
+    if (backend === 'anthropic' && !anthropicApiKey) {
+      console.error('Anthropic backend needs ANTHROPIC_API_KEY in the environment. Set it, or pass --backend registry.');
+      process.exit(1);
+    }
+    // cac exposes --no-publish as publish === false; default to publishing when a token exists.
+    const publish = options.publish === false ? false : (Boolean(options.publish) || (!options.out && Boolean(token)));
+
+    if (publish && !token && !options.dryRun) {
+      console.error('Publishing requires a token. Pass --token, set SKILL_TOKEN, or use --no-publish with --out.');
+      process.exit(1);
+    }
+    if (!publish && !outDir && !options.dryRun) {
+      console.error('Nothing to do: pass --out <dir> to save, --publish to publish, or --dry-run to preview.');
+      process.exit(1);
+    }
+
+    const backendLabel = backend === 'anthropic' ? `${options.model} (effort ${options.effort})` : 'registry Skill Architect';
+    console.log(`Imagining ${count} new skill(s) with ${backendLabel}${options.dryRun ? ' (dry-run)' : ''}...`);
+
+    try {
+      const result = await runGenerate({
+        registry,
+        token,
+        count,
+        theme: options.theme as string | undefined,
+        outDir,
+        publish,
+        dryRun: Boolean(options.dryRun),
+        metaRatio,
+        backend,
+        anthropicApiKey,
+        model: options.model as string,
+        effort: options.effort as string,
+        log: (msg) => console.log(msg),
+      });
+
+      console.log('');
+      console.log(
+        `Done: ${result.published} published, ${result.saved} saved, ${result.duplicate} duplicate, ${result.invalid} invalid, ${result.failed} failed.`,
+      );
+      if (result.failed > 0 && result.published === 0 && result.saved === 0) process.exit(1);
+    } catch (error) {
+      console.error('Generate failed:', error instanceof Error ? error.message : String(error));
+      process.exit(1);
+    }
+  });
+
+cli
+  .command('sync [dir]', 'Publish all new or changed skills in a folder to the registry')
+  .option('-r, --registry <url>', 'Registry URL (Worker API)', {
+    default: process.env.SKILL_API_URL || 'https://skills.dmzagent.com/api',
+  })
+  .option('-t, --token <token>', 'Auth token for registry (defaults to SKILL_TOKEN)')
+  .option('--dry-run', 'Show what would be published without publishing')
+  .option('--force', 'Publish every skill even if unchanged')
+  .action(async (dir, options) => {
+    const targetDir = path.resolve(dir || process.env.SKILL_DIR || './skills');
+    const registry = options.registry as string;
+    const token = (options.token as string) || process.env.SKILL_TOKEN || '';
+
+    if (!token) {
+      console.error('No auth token. Pass --token or set SKILL_TOKEN (run `skill-builder login <email>` to get one).');
+      process.exit(1);
+    }
+
+    console.log(`Syncing skills from ${targetDir} -> ${registry}${options.dryRun ? ' (dry-run)' : ''}`);
+
+    try {
+      const result = await runSync({
+        dir: targetDir,
+        registry,
+        token,
+        dryRun: Boolean(options.dryRun),
+        force: Boolean(options.force),
+        log: (msg) => console.log(msg),
+      });
+
+      console.log('');
+      const verb = options.dryRun ? 'would publish' : 'published';
+      console.log(
+        `Done: ${result.published} ${verb}, ${result.skipped} unchanged, ${result.invalid} invalid, ${result.failed} failed.`,
+      );
+
+      if (result.invalid > 0 || result.failed > 0) process.exit(1);
+    } catch (error) {
+      console.error('Sync failed:', error instanceof Error ? error.message : String(error));
+      process.exit(1);
+    }
+  });
+
+function browseUrl(registry: string, params: Record<string, string | undefined>): string {
+  const site = apiBase(registry).replace(/\/api$/, '');
+  const qs = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) if (v) qs.set(k, v);
+  const s = qs.toString();
+  return `${site}/browse${s ? `?${s}` : ''}`;
+}
+
+async function runListing(params: RegistrySearchParams, options: Record<string, unknown>): Promise<void> {
+  const client = createApiClient(apiBase(options.registry as string));
+  const result = await client.listSkills(params);
+  if (options.json) {
+    console.log(JSON.stringify(result, null, 2));
+    return;
+  }
+  console.log(renderSkillTable(result.skills));
+  const shown = result.skills.length;
+  console.log(`\n${result.total} skill(s) • page ${result.page} • showing ${shown}`);
+  if (shown > 0) console.log('Details: skill-builder info <id>   Install: skill-builder install <id>');
+}
+
+cli
+  .command('list', 'List skills from the registry, printed in your terminal')
+  .option('-r, --registry <url>', 'Registry URL (Worker API)', { default: DEFAULT_API })
+  .option('-q, --query <query>', 'Search query')
   .option('-c, --category <category>', 'Filter by category')
+  .option('-a, --author <handle>', 'Filter by author handle')
+  .option('--type <type>', 'Filter by type: basic or meta')
   .option('--tag <tag...>', 'Filter by tag (can be repeated)')
-  .option('--sort <sort>', 'Sort order: recent, popular, downloads')
+  .option('--sort <sort>', 'Sort order: recent, popular, downloads, relevant')
   .option('-p, --page <page>', 'Page number', { default: 1 })
-  .option('--page-size <size>', 'Results per page', { default: 20 })
+  .option('--page-size <size>', 'Results per page', { default: 30 })
+  .option('--json', 'Output raw JSON')
+  .option('--web', 'Open the browser registry instead of printing')
+  .action(async (options) => {
+    if (options.web) {
+      const url = browseUrl(options.registry as string, {
+        q: options.query as string | undefined,
+        category: options.category as string | undefined,
+        sort: options.sort as string | undefined,
+      });
+      console.log(`Opening ${url}`);
+      openInBrowser(url);
+      return;
+    }
+    try {
+      await runListing(
+        {
+          query: options.query as string | undefined,
+          category: options.category as string | undefined,
+          author: options.author as string | undefined,
+          type: options.type as RegistrySearchParams['type'],
+          tags: options.tag as string[] | undefined,
+          sort: (options.sort as RegistrySearchParams['sort']) || (options.query ? 'relevant' : 'recent'),
+          page: Number(options.page) || 1,
+          pageSize: Number(options.pageSize) || 30,
+        },
+        options,
+      );
+    } catch (error) {
+      console.error('List failed:', error instanceof Error ? error.message : String(error));
+      process.exit(1);
+    }
+  });
+
+cli
+  .command('search <query>', 'Search skills in the registry, ranked by relevance')
+  .option('-r, --registry <url>', 'Registry URL (Worker API)', { default: DEFAULT_API })
+  .option('-c, --category <category>', 'Filter by category')
+  .option('-a, --author <handle>', 'Filter by author handle')
+  .option('--type <type>', 'Filter by type: basic or meta')
+  .option('--tag <tag...>', 'Filter by tag (can be repeated)')
+  .option('--sort <sort>', 'Sort order: relevant (default), recent, popular, downloads')
+  .option('-p, --page <page>', 'Page number', { default: 1 })
+  .option('--page-size <size>', 'Results per page', { default: 30 })
+  .option('--json', 'Output raw JSON')
+  .option('--web', 'Open the browser registry instead of printing')
   .action(async (query, options) => {
-    const registry = (options.registry as string).replace(/\/api\/?$/, '');
-    const params = new URLSearchParams();
-    params.set('q', query);
-    if (options.category) params.set('category', options.category as string);
-    if (options.sort) params.set('sort', options.sort as string);
-    if (options.page) params.set('page', String(options.page));
-    if (options.pageSize) params.set('pageSize', String(options.pageSize));
-    const qs = params.toString();
-    const url = `${registry}/browse${qs ? `?${qs}` : ''}`;
-    console.log(`Opening ${url}`);
-    const cmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open';
-    execSync(`${cmd} "${url}"`);
+    if (options.web) {
+      const url = browseUrl(options.registry as string, {
+        q: query,
+        category: options.category as string | undefined,
+        sort: options.sort as string | undefined,
+      });
+      console.log(`Opening ${url}`);
+      openInBrowser(url);
+      return;
+    }
+    try {
+      await runListing(
+        {
+          query,
+          category: options.category as string | undefined,
+          author: options.author as string | undefined,
+          type: options.type as RegistrySearchParams['type'],
+          tags: options.tag as string[] | undefined,
+          sort: (options.sort as RegistrySearchParams['sort']) || 'relevant',
+          page: Number(options.page) || 1,
+          pageSize: Number(options.pageSize) || 30,
+        },
+        options,
+      );
+    } catch (error) {
+      console.error('Search failed:', error instanceof Error ? error.message : String(error));
+      process.exit(1);
+    }
+  });
+
+cli
+  .command('info <skill>', 'Show full details for a skill, including its dependencies')
+  .option('-r, --registry <url>', 'Registry URL (Worker API)', { default: DEFAULT_API })
+  .option('--json', 'Output raw JSON')
+  .action(async (skillId, options) => {
+    const client = createApiClient(apiBase(options.registry as string));
+    try {
+      const { skill } = await client.getSkill(skillId);
+      if (options.json) {
+        console.log(JSON.stringify(skill, null, 2));
+        return;
+      }
+      console.log(renderSkillInfo(skill));
+      console.log(`\nInstall: npx @dmzagent/skill-builder install ${displayId(skill)}`);
+    } catch (error) {
+      console.error('Lookup failed:', error instanceof Error ? error.message : String(error));
+      process.exit(1);
+    }
+  });
+
+cli
+  .command('suggest <query>', 'Autocomplete suggestions across skills, tags, and authors')
+  .option('-r, --registry <url>', 'Registry URL (Worker API)', { default: DEFAULT_API })
+  .option('--limit <n>', 'Maximum suggestions', { default: 8 })
+  .option('--ids', 'Print only matching skill ids (one per line) — for shell completion')
+  .option('--json', 'Output raw JSON')
+  .action(async (query, options) => {
+    const client = createApiClient(apiBase(options.registry as string));
+    try {
+      const result = await client.suggest(query, Number(options.limit) || 8);
+      if (options.json) {
+        console.log(JSON.stringify(result, null, 2));
+        return;
+      }
+      if (options.ids) {
+        result.suggestions.filter((s) => s.kind === 'skill').forEach((s) => console.log(s.value));
+        return;
+      }
+      console.log(renderSuggestions(result.suggestions));
+    } catch (error) {
+      console.error('Suggest failed:', error instanceof Error ? error.message : String(error));
+      process.exit(1);
+    }
+  });
+
+const COMPLETION_SCRIPT = `# skill-builder shell completion (bash/zsh)
+# Install:  skill-builder completion >> ~/.bashrc   (then restart your shell)
+_skill_builder_complete() {
+  local cur prev
+  cur="\${COMP_WORDS[COMP_CWORD]}"
+  prev="\${COMP_WORDS[COMP_CWORD-1]}"
+  case "$prev" in
+    install|info|fork)
+      if [ \${#cur} -ge 2 ]; then
+        COMPREPLY=( $(skill-builder suggest --ids "$cur" 2>/dev/null) )
+        return 0
+      fi
+      ;;
+  esac
+  COMPREPLY=( $(compgen -W "install publish generate sync list search info suggest fork login register completion" -- "$cur") )
+}
+complete -F _skill_builder_complete skill-builder
+`;
+
+cli
+  .command('completion', 'Print a bash/zsh completion script (skills, tags, authors)')
+  .action(() => {
+    console.log(COMPLETION_SCRIPT);
   });
 
 cli

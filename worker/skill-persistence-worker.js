@@ -32,8 +32,13 @@ const SKILL_OPERATION_TYPES = new Set([
   'append_example',
   'set_tests',
   'append_test',
+  'set_type',
+  'set_dependencies',
+  'append_dependency',
   'set_markdown_artifact',
 ]);
+
+const SKILL_TYPES = new Set(['basic', 'meta']);
 
 async function hashPassword(password, saltBytes) {
   const encoder = new TextEncoder();
@@ -57,6 +62,21 @@ function hexToBytes(hex) {
 
 function generateToken() {
   return crypto.randomUUID();
+}
+
+// Long-lived API tokens for automation (CI, the scheduled "claw", etc.).
+// Same `tokens/<token>` -> email mapping as session tokens, but stored WITHOUT
+// an expirationTtl so getUserFromToken keeps resolving them indefinitely.
+function generateApiToken() {
+  return `skb_${crypto.randomUUID().replace(/-/g, '')}`;
+}
+function generateApiTokenId() {
+  return crypto.randomUUID().replace(/-/g, '').slice(0, 10);
+}
+function maskToken(token) {
+  return typeof token === 'string' && token.length > 12
+    ? `${token.slice(0, 8)}…${token.slice(-4)}`
+    : undefined;
 }
 
 function parseSkillId(raw) {
@@ -103,6 +123,56 @@ function normalizeTags(value) {
   return normalizeStringArray(value).map(tag => tag.toLowerCase().replace(/^#/, '')).filter(Boolean);
 }
 
+function normalizeSkillType(value) {
+  const v = asString(value).toLowerCase();
+  return SKILL_TYPES.has(v) ? v : '';
+}
+
+function normalizeDependencies(value) {
+  const seen = new Set();
+  const out = [];
+  for (const dep of normalizeStringArray(value)) {
+    const trimmed = dep.trim();
+    if (!trimmed || seen.has(trimmed)) continue;
+    seen.add(trimmed);
+    out.push(trimmed);
+  }
+  return out;
+}
+
+// A skill that declares dependencies is, by definition, a meta skill.
+function resolveSkillType(explicitType, dependencies) {
+  if (Array.isArray(dependencies) && dependencies.length > 0) return 'meta';
+  return normalizeSkillType(explicitType) || 'basic';
+}
+
+// Dependencies must be fully qualified registry ids (`@handle/skill-id`). A bare
+// id is scoped to the skill's own author/org; an already-scoped id (possibly
+// cross-org) is preserved as-is.
+function qualifyDependencyId(dep, ownerHandle) {
+  const id = asString(dep);
+  if (!id) return '';
+  if (id.startsWith('@')) return id;
+  return ownerHandle ? `@${ownerHandle}/${id.replace(/^\/+/, '')}` : id;
+}
+
+function qualifyDependencies(deps, ownerHandle) {
+  const seen = new Set();
+  const out = [];
+  for (const dep of normalizeDependencies(deps)) {
+    const qualified = qualifyDependencyId(dep, ownerHandle);
+    if (qualified && !seen.has(qualified)) {
+      seen.add(qualified);
+      out.push(qualified);
+    }
+  }
+  return out;
+}
+
+function effectiveSkillType(skill) {
+  return resolveSkillType(skill?.type ?? skill?.spec?.type, skill?.dependencies ?? skill?.spec?.dependencies);
+}
+
 function normalizeExamples(value) {
   if (!Array.isArray(value)) return [];
   return value
@@ -144,12 +214,18 @@ function createEmptySkillSpec(overrides = {}) {
     promptTemplate: '',
     examples: [],
     tests: [],
+    type: 'basic',
+    dependencies: [],
     ...overrides,
   };
 }
 
 function normalizeSkillSpec(value, fallback = createEmptySkillSpec()) {
   const source = isRecord(value) ? value : {};
+  const dependencies = source.dependencies !== undefined
+    ? normalizeDependencies(source.dependencies)
+    : normalizeDependencies(fallback.dependencies);
+  const explicitType = normalizeSkillType(source.type) || normalizeSkillType(fallback.type);
   return {
     name: asString(source.name) || fallback.name || '',
     description: asString(source.description) || fallback.description || '',
@@ -160,6 +236,8 @@ function normalizeSkillSpec(value, fallback = createEmptySkillSpec()) {
     promptTemplate: asString(source.promptTemplate ?? source.prompt ?? source.prompt_template) || fallback.promptTemplate || '',
     examples: source.examples !== undefined ? normalizeExamples(source.examples) : normalizeExamples(fallback.examples),
     tests: source.tests !== undefined ? normalizeTests(source.tests) : normalizeTests(fallback.tests),
+    dependencies,
+    type: resolveSkillType(explicitType, dependencies),
   };
 }
 
@@ -181,6 +259,16 @@ function specToMarkdown(spec) {
     normalized.promptTemplate || 'Use the provided input to complete the task.',
     '```',
   ];
+
+  if (normalized.type === 'meta' && normalized.dependencies.length > 0) {
+    lines.push(
+      '',
+      '## Dependencies',
+      'This is a meta skill. Installing it also installs the skills below:',
+      '',
+      ...normalized.dependencies.map((dep) => `- \`${dep}\``),
+    );
+  }
 
   if (normalized.examples.length > 0) {
     lines.push('', '## Examples');
@@ -219,12 +307,16 @@ function buildArtifacts(spec) {
       description: normalized.description,
       category: normalized.category,
       tags: normalized.tags,
+      type: normalized.type,
+      dependencies: normalized.dependencies,
     },
     purpose: normalized.purpose,
     instructions: normalized.instructions,
     promptTemplate: normalized.promptTemplate,
     examples: normalized.examples,
     tests: normalized.tests,
+    type: normalized.type,
+    dependencies: normalized.dependencies,
     markdown: specToMarkdown(normalized),
   };
 }
@@ -240,6 +332,10 @@ function validateSkillSpec(spec) {
   if (!spec.promptTemplate?.trim()) errors.push('Prompt template is required');
   if (!Array.isArray(spec.examples)) errors.push('Examples must be an array');
   if (!Array.isArray(spec.tests)) errors.push('Tests must be an array');
+  if (spec.dependencies !== undefined && !Array.isArray(spec.dependencies)) errors.push('Dependencies must be an array of skill ids');
+  if (spec.type === 'meta' && (!Array.isArray(spec.dependencies) || spec.dependencies.length === 0)) {
+    errors.push('A meta skill must list at least one dependency');
+  }
   return errors;
 }
 
@@ -280,6 +376,18 @@ function applySkillOperation(spec, operation) {
       return { ...current, tests: normalizeTests(value) };
     case 'append_test':
       return { ...current, tests: [...current.tests, ...normalizeTests([value])] };
+    case 'set_type': {
+      const type = normalizeSkillType(value);
+      return { ...current, type: resolveSkillType(type, current.dependencies) };
+    }
+    case 'set_dependencies': {
+      const dependencies = normalizeDependencies(value);
+      return { ...current, dependencies, type: resolveSkillType(current.type, dependencies) };
+    }
+    case 'append_dependency': {
+      const dependencies = normalizeDependencies([...current.dependencies, value]);
+      return { ...current, dependencies, type: resolveSkillType(current.type, dependencies) };
+    }
     case 'set_markdown_artifact':
       return current;
     default:
@@ -404,6 +512,11 @@ function operationLabel(operation) {
     case 'set_tests':
     case 'append_test':
       return 'Generated tests';
+    case 'set_type':
+      return 'Classified skill type';
+    case 'set_dependencies':
+    case 'append_dependency':
+      return 'Updated skill dependencies';
     case 'set_markdown_artifact':
       return 'Generated markdown artifact';
     default:
@@ -543,6 +656,14 @@ async function handleRequest(request, env) {
     return saveSkill(request, SKILL_STORE);
   }
 
+  if (url.pathname === '/api/taxonomy' && request.method === 'GET') {
+    return getTaxonomy(request, SKILL_STORE);
+  }
+
+  if (url.pathname === '/api/skills/suggest' && request.method === 'GET') {
+    return suggestSkills(request, SKILL_STORE, url);
+  }
+
   if (url.pathname === '/api/skill-builder/session' && request.method === 'POST') {
     return createSkillBuilderSession(request, SKILL_STORE);
   }
@@ -592,6 +713,18 @@ async function handleRequest(request, env) {
 
   if (url.pathname === '/api/auth/me' && request.method === 'GET') {
     return handleAuthMe(request, SKILL_STORE);
+  }
+
+  if (url.pathname === '/api/auth/tokens' && request.method === 'POST') {
+    return createApiToken(request, SKILL_STORE);
+  }
+
+  if (url.pathname === '/api/auth/tokens' && request.method === 'GET') {
+    return listApiTokens(request, SKILL_STORE);
+  }
+
+  if (url.pathname.startsWith('/api/auth/tokens/') && request.method === 'DELETE') {
+    return revokeApiToken(request, url.pathname.replace('/api/auth/tokens/', ''), SKILL_STORE);
   }
 
   return err('NOT_FOUND', 'Not found', 404);
@@ -649,6 +782,87 @@ async function handleAuthMe(request, SKILL_STORE) {
   if (!record) return err('AUTH_INVALID_TOKEN', 'Invalid or expired token', 401);
   const { passwordHash, saltHex, ...user } = record;
   return ok({ user });
+}
+
+// Mint a long-lived (non-expiring) API token for automation. Authenticated with
+// any currently-valid token. The full token is returned once, at creation.
+async function createApiToken(request, SKILL_STORE) {
+  try {
+    const { user, error } = await requireAuth(request, SKILL_STORE);
+    if (error) return error;
+
+    let label = 'automation';
+    try {
+      const body = await request.json();
+      if (body && typeof body.label === 'string' && body.label.trim()) {
+        label = body.label.trim().slice(0, 80);
+      }
+    } catch {
+      // no body / not JSON — keep the default label
+    }
+
+    const token = generateApiToken();
+    const id = generateApiTokenId();
+    const createdAt = new Date().toISOString();
+
+    // No expirationTtl => never expires.
+    await SKILL_STORE.put(`tokens/${token}`, user.email);
+    await SKILL_STORE.put(
+      `apitokens/${user.email}/${id}`,
+      JSON.stringify({ id, token, label, createdAt }),
+    );
+
+    return ok({ id, token, label, createdAt, preview: maskToken(token) }, 201);
+  } catch (error) {
+    console.error('Create API token error:', error);
+    return err('API_TOKEN_CREATE_FAILED', 'Could not create API token', 500);
+  }
+}
+
+// List the caller's API tokens (masked — the raw value is only shown at creation).
+async function listApiTokens(request, SKILL_STORE) {
+  try {
+    const { user, error } = await requireAuth(request, SKILL_STORE);
+    if (error) return error;
+
+    const prefix = `apitokens/${user.email}/`;
+    const tokens = [];
+    let cursor;
+    do {
+      const res = await SKILL_STORE.list({ prefix, cursor });
+      for (const k of res.keys) {
+        const rec = await SKILL_STORE.get(k.name, { type: 'json' });
+        if (rec) tokens.push({ id: rec.id, label: rec.label, createdAt: rec.createdAt, preview: maskToken(rec.token) });
+      }
+      cursor = res.list_complete ? undefined : res.cursor;
+    } while (cursor);
+
+    tokens.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return ok({ tokens });
+  } catch (error) {
+    console.error('List API tokens error:', error);
+    return err('API_TOKEN_LIST_FAILED', 'Could not list API tokens', 500);
+  }
+}
+
+// Revoke one of the caller's API tokens by its id.
+async function revokeApiToken(request, rawId, SKILL_STORE) {
+  try {
+    const { user, error } = await requireAuth(request, SKILL_STORE);
+    if (error) return error;
+
+    const id = decodeURIComponent(rawId);
+    const recKey = `apitokens/${user.email}/${id}`;
+    const rec = await SKILL_STORE.get(recKey, { type: 'json' });
+    if (!rec) return err('API_TOKEN_NOT_FOUND', 'API token not found', 404);
+
+    if (rec.token) await SKILL_STORE.delete(`tokens/${rec.token}`);
+    await SKILL_STORE.delete(recKey);
+    return ok({ success: true, id });
+  } catch (error) {
+    console.error('Revoke API token error:', error);
+    return err('API_TOKEN_REVOKE_FAILED', 'Could not revoke API token', 500);
+  }
 }
 
 async function createSkillBuilderSession(request, SKILL_STORE) {
@@ -799,96 +1013,251 @@ async function handleSkillExecute(request, rawSkillId, SKILL_STORE, AI) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Shared registry read helpers (used by list, taxonomy, and suggest)
+// ---------------------------------------------------------------------------
+
+async function loadAllSkills(SKILL_STORE) {
+  const keys = [];
+  let cursor;
+  do {
+    const result = await SKILL_STORE.list({ prefix: 'skills/', cursor });
+    keys.push(...result.keys);
+    cursor = result.list_complete ? undefined : result.cursor;
+  } while (cursor);
+
+  const values = await Promise.all(keys.map((item) => SKILL_STORE.get(item.name, { type: 'json' })));
+  return values.filter(Boolean);
+}
+
+async function resolveCurrentHandle(request, SKILL_STORE) {
+  try {
+    const authResult = await requireAuth(request, SKILL_STORE);
+    if (!authResult.error) return authResult.user.handle;
+  } catch {}
+  return undefined;
+}
+
+function visibleTo(skills, handle) {
+  return skills.filter((s) => !(s.visibility === 'draft' && s.authorHandle !== handle));
+}
+
+function relevanceScore(skill, query) {
+  if (!query) return 0;
+  const name = (skill.name || '').toLowerCase();
+  const id = (skill.id || '').toLowerCase();
+  const description = (skill.description || '').toLowerCase();
+  const tags = (skill.tags || []).map((t) => String(t).toLowerCase());
+  let score = 0;
+  if (name === query || id === query) score += 100;
+  if (name.startsWith(query)) score += 50;
+  if (name.includes(query)) score += 25;
+  if (tags.some((t) => t === query)) score += 30;
+  if (tags.some((t) => t.includes(query))) score += 10;
+  if (id.includes(query)) score += 15;
+  if (description.includes(query)) score += 5;
+  score += Math.min(20, (skill.downloads || 0) / 5); // popularity tiebreaker
+  return score;
+}
+
+function buildFacet(counts, labels) {
+  return [...counts.entries()]
+    .map(([value, count]) => (labels && labels.get(value) ? { value, label: labels.get(value), count } : { value, count }))
+    .sort((a, b) => b.count - a.count || a.value.localeCompare(b.value));
+}
+
+function computeFacets(skills) {
+  const categories = new Map();
+  const authors = new Map();
+  const authorNames = new Map();
+  const tags = new Map();
+  const types = new Map();
+
+  for (const s of skills) {
+    const category = s.category || s.spec?.category || 'Uncategorized';
+    categories.set(category, (categories.get(category) || 0) + 1);
+
+    const handle = s.authorHandle || '';
+    if (handle) {
+      authors.set(handle, (authors.get(handle) || 0) + 1);
+      if (s.author?.name) authorNames.set(handle, s.author.name);
+    }
+
+    for (const tag of s.tags || []) {
+      const key = String(tag).toLowerCase();
+      if (key) tags.set(key, (tags.get(key) || 0) + 1);
+    }
+
+    const type = effectiveSkillType(s);
+    types.set(type, (types.get(type) || 0) + 1);
+  }
+
+  return {
+    total: skills.length,
+    categories: buildFacet(categories),
+    authors: buildFacet(authors, authorNames),
+    tags: buildFacet(tags).slice(0, 100),
+    types: buildFacet(types),
+  };
+}
+
 async function listSkills(request, SKILL_STORE, url) {
   const searchParams = url.searchParams;
   const page = Math.max(1, parseInt(searchParams.get('page') || '') || 1);
   const pageSize = Math.max(1, Math.min(100, parseInt(searchParams.get('pageSize') || '') || 20));
-  const query = searchParams.get('query')?.toLowerCase() || '';
+  // Accept both `query` and the more conventional `q`.
+  const query = (searchParams.get('query') || searchParams.get('q') || '').toLowerCase().trim();
   const category = searchParams.get('category')?.toLowerCase() || '';
   const tags = searchParams.getAll('tags');
-  const sort = searchParams.get('sort') || 'recent';
-  const hasFilters = query || category || tags.length > 0;
-  const needsAllValues = hasFilters || sort !== 'recent';
+  const author = searchParams.get('author')?.toLowerCase().replace(/^@/, '') || '';
+  const typeFilter = normalizeSkillType(searchParams.get('type'));
+  const wantFacets = ['1', 'true', 'yes'].includes((searchParams.get('facets') || '').toLowerCase());
+  let sort = searchParams.get('sort') || 'recent';
+  if (sort === 'relevant' && !query) sort = 'recent';
 
-  // Determine the current user for draft filtering
-  let currentUserHandle;
-  try {
-    const authResult = await requireAuth(request, SKILL_STORE);
-    if (!authResult.error) {
-      currentUserHandle = authResult.user.handle;
-    }
-  } catch {}
+  const hasFilters = query || category || tags.length > 0 || author || typeFilter;
+  const needsAllValues = hasFilters || sort !== 'recent' || wantFacets;
 
-  // Collect all skill key names (cheap — only metadata, no value fetches)
-  const allKeys = [];
-  let cursor;
-  do {
-    const result = await SKILL_STORE.list({ prefix: 'skills/', cursor });
-    allKeys.push(...result.keys);
-    cursor = result.list_complete ? undefined : result.cursor;
-  } while (cursor);
+  const currentUserHandle = await resolveCurrentHandle(request, SKILL_STORE);
 
-  if (needsAllValues) {
-    // Filters or non-recent sort require scanning all values
-    let skills = (await Promise.all(
-      allKeys.map(async (item) => {
-        const value = await SKILL_STORE.get(item.name, { type: 'json' });
-        return value || null;
-      }),
-    )).filter(Boolean).filter((s) => !(s.visibility === 'draft' && s.authorHandle !== currentUserHandle));
+  if (!needsAllValues) {
+    // Fast path: no filters, default sort, no facets — page through keys only.
+    const allKeys = [];
+    let cursor;
+    do {
+      const result = await SKILL_STORE.list({ prefix: 'skills/', cursor });
+      allKeys.push(...result.keys);
+      cursor = result.list_complete ? undefined : result.cursor;
+    } while (cursor);
 
-    if (query) {
-      skills = skills.filter((s) => {
-        const searchable = [s.name, s.description, s.category, s.markdown, JSON.stringify(s.spec || {}), ...(s.tags || [])].join(' ').toLowerCase();
-        return searchable.includes(query);
-      });
-    }
-    if (category) {
-      skills = skills.filter(s => s.category?.toLowerCase() === category || s.spec?.category?.toLowerCase() === category);
-    }
-    if (tags.length > 0) {
-      const lowerTags = tags.map(t => t.toLowerCase());
-      skills = skills.filter(s => lowerTags.some(t => s.tags?.some(st => st.toLowerCase() === t)));
-    }
-
-    const now = Date.now();
-    switch (sort) {
-      case 'popular':
-        skills.sort((a, b) => {
-          const daysA = (now - new Date(a.updatedAt).getTime()) / 86400000;
-          const daysB = (now - new Date(b.updatedAt).getTime()) / 86400000;
-          return (b.downloads * 100 - daysB) - (a.downloads * 100 - daysA);
-        });
-        break;
-      case 'downloads':
-        skills.sort((a, b) => b.downloads - a.downloads);
-        break;
-      case 'recent':
-      default:
-        skills.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-    }
-
-    const total = skills.length;
+    const total = allKeys.length;
     const start = (page - 1) * pageSize;
-    return ok({ skills: skills.slice(start, start + pageSize), total, page, pageSize });
+    const pageKeys = allKeys.slice(start, start + pageSize);
+    let skills = (await Promise.all(pageKeys.map((item) => SKILL_STORE.get(item.name, { type: 'json' }))))
+      .filter(Boolean)
+      .filter((s) => !(s.visibility === 'draft' && s.authorHandle !== currentUserHandle));
+    skills.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+    return ok({ skills, total, page, pageSize });
   }
 
-  // No filters, sort=recent: fetch values only for the requested page
-  const total = allKeys.length;
+  // Filtered / sorted / faceted path: scan all values once.
+  const allVisible = visibleTo(await loadAllSkills(SKILL_STORE), currentUserHandle);
+  const facets = wantFacets ? computeFacets(allVisible) : undefined;
+
+  let skills = allVisible;
+  if (query) {
+    skills = skills.filter((s) => {
+      const searchable = [s.name, s.description, s.category, s.markdown, JSON.stringify(s.spec || {}), ...(s.tags || [])].join(' ').toLowerCase();
+      return searchable.includes(query);
+    });
+  }
+  if (category) {
+    skills = skills.filter((s) => s.category?.toLowerCase() === category || s.spec?.category?.toLowerCase() === category);
+  }
+  if (tags.length > 0) {
+    const lowerTags = tags.map((t) => t.toLowerCase());
+    skills = skills.filter((s) => lowerTags.some((t) => s.tags?.some((st) => st.toLowerCase() === t)));
+  }
+  if (author) {
+    skills = skills.filter((s) => (s.authorHandle || '').toLowerCase() === author);
+  }
+  if (typeFilter) {
+    skills = skills.filter((s) => effectiveSkillType(s) === typeFilter);
+  }
+
+  const now = Date.now();
+  switch (sort) {
+    case 'relevant':
+      skills.sort((a, b) => relevanceScore(b, query) - relevanceScore(a, query));
+      break;
+    case 'popular':
+      skills.sort((a, b) => {
+        const daysA = (now - new Date(a.updatedAt).getTime()) / 86400000;
+        const daysB = (now - new Date(b.updatedAt).getTime()) / 86400000;
+        return (b.downloads * 100 - daysB) - (a.downloads * 100 - daysA);
+      });
+      break;
+    case 'downloads':
+      skills.sort((a, b) => b.downloads - a.downloads);
+      break;
+    case 'recent':
+    default:
+      skills.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+  }
+
+  const total = skills.length;
   const start = (page - 1) * pageSize;
-  const end = start + pageSize;
-  const pageKeys = allKeys.slice(start, end);
+  const body = { skills: skills.slice(start, start + pageSize), total, page, pageSize };
+  if (facets) body.facets = facets;
+  return ok(body);
+}
 
-  let skills = (await Promise.all(
-    pageKeys.map(async (item) => {
-      const value = await SKILL_STORE.get(item.name, { type: 'json' });
-      return value || null;
-    }),
-  )).filter(Boolean).filter((s) => !(s.visibility === 'draft' && s.authorHandle !== currentUserHandle));
+async function getTaxonomy(request, SKILL_STORE) {
+  try {
+    const handle = await resolveCurrentHandle(request, SKILL_STORE);
+    const all = visibleTo(await loadAllSkills(SKILL_STORE), handle);
+    return ok(computeFacets(all));
+  } catch (error) {
+    console.error('Taxonomy error:', error);
+    return err('TAXONOMY_FAILED', 'Could not build taxonomy', 500);
+  }
+}
 
-  skills.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+async function suggestSkills(request, SKILL_STORE, url) {
+  try {
+    const q = (url.searchParams.get('q') || url.searchParams.get('query') || '').toLowerCase().trim();
+    const limit = Math.max(1, Math.min(25, parseInt(url.searchParams.get('limit') || '') || 8));
+    if (!q) return ok({ suggestions: [] });
 
-  return ok({ skills, total, page, pageSize });
+    const handle = await resolveCurrentHandle(request, SKILL_STORE);
+    const all = visibleTo(await loadAllSkills(SKILL_STORE), handle);
+
+    const suggestions = [];
+
+    // Skill matches, ranked by relevance.
+    const ranked = all
+      .map((s) => ({ s, score: relevanceScore(s, q) }))
+      .filter((x) => x.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit);
+    for (const { s } of ranked) {
+      suggestions.push({
+        kind: 'skill',
+        value: s.id,
+        label: s.name,
+        category: s.category,
+        type: effectiveSkillType(s),
+        dependencies: (s.dependencies || []).length,
+        downloads: s.downloads || 0,
+      });
+    }
+
+    // Tag, author, and category matches.
+    const tagCounts = new Map();
+    const authorNames = new Map();
+    const categorySet = new Set();
+    for (const s of all) {
+      for (const tag of s.tags || []) {
+        const key = String(tag).toLowerCase();
+        if (key.includes(q)) tagCounts.set(key, (tagCounts.get(key) || 0) + 1);
+      }
+      const ah = (s.authorHandle || '').toLowerCase();
+      if (ah && ah.includes(q)) authorNames.set(s.authorHandle, s.author?.name || s.authorHandle);
+      const cat = s.category || '';
+      if (cat.toLowerCase().includes(q)) categorySet.add(cat);
+    }
+    [...tagCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5)
+      .forEach(([tag, count]) => suggestions.push({ kind: 'tag', value: tag, label: tag, count }));
+    [...authorNames.entries()].slice(0, 3)
+      .forEach(([h, name]) => suggestions.push({ kind: 'author', value: h, label: name }));
+    [...categorySet].slice(0, 3)
+      .forEach((cat) => suggestions.push({ kind: 'category', value: cat, label: cat }));
+
+    return ok({ suggestions });
+  } catch (error) {
+    console.error('Suggest error:', error);
+    return err('SUGGEST_FAILED', 'Could not build suggestions', 500);
+  }
 }
 
 async function requireAuth(request, SKILL_STORE) {
@@ -913,6 +1282,8 @@ async function saveSkill(request, SKILL_STORE) {
     if (!skill?.spec) return err('VALIDATION_REQUIRED_FIELD', 'SkillSpec required');
 
     const spec = normalizeSkillSpec(skill.spec);
+    spec.dependencies = qualifyDependencies(spec.dependencies, user.handle);
+    spec.type = resolveSkillType(spec.type, spec.dependencies);
     const validationErrors = validateSkillSpec(spec);
     if (validationErrors.length > 0) {
       return err('VALIDATION_SKILL_SPEC_INVALID', 'SkillSpec is invalid', 400, validationErrors);
@@ -927,6 +1298,8 @@ async function saveSkill(request, SKILL_STORE) {
       description: spec.description,
       category: spec.category,
       tags: spec.tags,
+      type: spec.type,
+      dependencies: spec.dependencies,
       spec,
       markdown,
       author: { id: user.id, name: user.name, avatar: user.avatar },
@@ -967,6 +1340,8 @@ async function updateSkill(request, rawSkillId, SKILL_STORE) {
     let markdown = updates.markdown;
     if (!isVisibilityOnly) {
       spec = normalizeSkillSpec(updates.spec || existing.spec);
+      spec.dependencies = qualifyDependencies(spec.dependencies, existing.authorHandle || user.handle);
+      spec.type = resolveSkillType(spec.type, spec.dependencies);
       const validationErrors = validateSkillSpec(spec);
       if (validationErrors.length > 0) {
         return err('VALIDATION_SKILL_SPEC_INVALID', 'SkillSpec is invalid', 400, validationErrors);
@@ -982,6 +1357,8 @@ async function updateSkill(request, rawSkillId, SKILL_STORE) {
       description: spec.description,
       category: spec.category,
       tags: spec.tags,
+      type: spec.type || existing.type || 'basic',
+      dependencies: Array.isArray(spec.dependencies) ? spec.dependencies : (existing.dependencies || []),
       spec,
       markdown,
       updatedAt: new Date().toISOString(),
@@ -1045,6 +1422,9 @@ async function forkSkill(request, rawSkillId, SKILL_STORE) {
       name: body.name || `${original.spec.name || original.name} (fork)`,
       description: body.description || original.spec.description || original.description,
     }, original.spec);
+    // Preserve already-scoped dependencies (incl. cross-org); scope any bare ids.
+    spec.dependencies = qualifyDependencies(spec.dependencies, user.handle);
+    spec.type = resolveSkillType(spec.type, spec.dependencies);
 
     const forked = {
       ...original,
@@ -1053,6 +1433,8 @@ async function forkSkill(request, rawSkillId, SKILL_STORE) {
       description: spec.description,
       category: spec.category,
       tags: spec.tags,
+      type: spec.type,
+      dependencies: spec.dependencies,
       spec,
       markdown: specToMarkdown(spec),
       forkedFrom: skillId,

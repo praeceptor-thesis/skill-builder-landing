@@ -10,9 +10,12 @@ variable "cloudflare_account_id" {
 }
 
 variable "cloudflare_zone_name" {
-  description = "The Cloudflare DNS zone for the custom domain."
+  # Drives the Worker route (skills.<zone>/api/*), the Pages custom domain
+  # (skills.<zone>), and the Resend email DNS in email.tf. Cut over to
+  # dmzagent.com (2026-06) — old zone eastern-shore-solutions.com is retired.
+  description = "The Cloudflare DNS zone for the registry domain."
   type        = string
-  default     = "eastern-shore-solutions.com"
+  default     = "dmzagent.com"
 }
 
 variable "pages_project_name" {

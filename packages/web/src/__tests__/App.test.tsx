@@ -527,7 +527,7 @@ describe('App', () => {
         expect(screen.getByText('Browse skills')).toBeInTheDocument();
       });
 
-      const searchInput = screen.getByPlaceholderText(/Search by name/);
+      const searchInput = screen.getByPlaceholderText(/Search skills/);
       fireEvent.change(searchInput, { target: { value: 'Test' } });
 
       await waitFor(() => {

@@ -100,7 +100,7 @@ export type SkillBuilderTurnResponse = {
 };
 
 const apiBase =
-  (import.meta.env.VITE_SKILL_API_URL as string | undefined) || 'https://skills.eastern-shore-solutions.com/api';
+  (import.meta.env.VITE_SKILL_API_URL as string | undefined) || 'https://skills.dmzagent.com/api';
 
 async function requestJson<T>(path: string, options?: RequestInit): Promise<T> {
   const { headers: extraHeaders, ...rest } = options ?? {};

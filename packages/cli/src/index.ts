@@ -11,7 +11,7 @@ const cli = cac('skill-builder');
 cli
   .command('install <skill>', 'Install a skill package from the registry')
   .option('-r, --registry <url>', 'Registry URL (Worker API)', {
-    default: 'https://skills.eastern-shore-solutions.com/api',
+    default: 'https://skills.dmzagent.com/api',
   })
   .option('-o, --output <dir>', 'Output directory for skill files (only for --tool file)', {
     default: '.',
@@ -114,7 +114,7 @@ cli
 cli
   .command('publish <path>', 'Publish a local skill to the registry')
   .option('-r, --registry <url>', 'Registry URL (Worker API)', {
-    default: 'https://skills.eastern-shore-solutions.com/api',
+    default: 'https://skills.dmzagent.com/api',
   })
   .option('-t, --token <token>', 'Auth token for registry')
   .action(async (skillPath, options) => {
@@ -183,7 +183,7 @@ cli
 cli
   .command('list', 'List all skills from the registry')
   .option('-r, --registry <url>', 'Registry URL', {
-    default: 'https://skills.eastern-shore-solutions.com',
+    default: 'https://skills.dmzagent.com',
   })
   .option('-q, --query <query>', 'Search query')
   .option('-c, --category <category>', 'Filter by category')
@@ -209,7 +209,7 @@ cli
 cli
   .command('search <query>', 'Search skills in the registry')
   .option('-r, --registry <url>', 'Registry URL', {
-    default: 'https://skills.eastern-shore-solutions.com',
+    default: 'https://skills.dmzagent.com',
   })
   .option('-c, --category <category>', 'Filter by category')
   .option('--tag <tag...>', 'Filter by tag (can be repeated)')
@@ -234,7 +234,7 @@ cli
 cli
   .command('fork <skill-id>', 'Fork an existing skill')
   .option('-r, --registry <url>', 'Registry URL (Worker API)', {
-    default: 'https://skills.eastern-shore-solutions.com/api',
+    default: 'https://skills.dmzagent.com/api',
   })
   .option('-n, --name <name>', 'New name for the forked skill')
   .option('-t, --token <token>', 'Auth token for registry')
@@ -265,7 +265,7 @@ cli
 cli
   .command('login <email>', 'Login to the registry')
   .option('-r, --registry <url>', 'Registry URL (Worker API)', {
-    default: 'https://skills.eastern-shore-solutions.com/api',
+    default: 'https://skills.dmzagent.com/api',
   })
   .action(async (email, options) => {
     const registry = options.registry as string;
@@ -290,7 +290,7 @@ cli
 cli
   .command('register <handle> <name> <email>', 'Register a new account')
   .option('-r, --registry <url>', 'Registry URL (Worker API)', {
-    default: 'https://skills.eastern-shore-solutions.com/api',
+    default: 'https://skills.dmzagent.com/api',
   })
   .action(async (handle, name, email, options) => {
     const registry = options.registry as string;

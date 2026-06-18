@@ -1,0 +1,80 @@
+name: Publish skill-builder MCP
+
+# Publishes @dmzagent/skill-builder-mcp (packages/mcp) to npm.
+#
+# Auto-runs on pushes to main that touch packages/mcp, but only actually
+# publishes when packages/mcp/package.json carries a version that isn't on npm
+# yet — so ordinary edits are safe; bump the version to ship. Also runnable
+# manually (workflow_dispatch) with an optional dry run.
+#
+# Requires repo secret NPM_TOKEN: an npm automation token with publish rights to
+# the @dmzagent scope (the same token stored in .npm-private). Set it with:
+#   gh secret set NPM_TOKEN < <(cat .npm-private)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'packages/mcp/**'
+      - '.github/workflows/publish-mcp.yml'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Build and pack only — publish nothing'
+        type: boolean
+        default: false
+
+concurrency:
+  group: publish-mcp
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: '24'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          registry-url: 'https://registry.npmjs.org'
+          scope: '@dmzagent'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build the MCP package
+        run: npm run build --workspace @dmzagent/skill-builder-mcp
+
+      - name: Determine version state
+        id: ver
+        working-directory: packages/mcp
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if npm view "@dmzagent/skill-builder-mcp@$VERSION" version >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::@dmzagent/skill-builder-mcp@$VERSION is already published — skipping."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::@dmzagent/skill-builder-mcp@$VERSION is new — will publish."
+          fi
+
+      - name: Pack (dry run)
+        if: inputs.dry_run == true
+        run: npm publish --dry-run --access public --workspace @dmzagent/skill-builder-mcp
+
+      - name: Publish to npm
+        if: inputs.dry_run != true && steps.ver.outputs.exists == 'false'
+        run: npm publish --access public --workspace @dmzagent/skill-builder-mcp
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

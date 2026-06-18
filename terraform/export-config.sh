@@ -3,7 +3,10 @@
 
 set -e
 
-cd terraform
+# Anchor to this script's directory so it works whether invoked from the repo
+# root (terraform/export-config.sh) or from within terraform/ (./export-config.sh,
+# as the deploy workflow does via working-directory).
+cd "$(dirname "$0")"
 
 # Get Terraform outputs
 KV_NAMESPACE_ID=$(terraform output -raw kv_namespace_id 2>/dev/null || echo "")

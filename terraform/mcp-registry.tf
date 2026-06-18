@@ -12,14 +12,16 @@
 #   # private key (hex) -> set as the MCP_PRIVATE_KEY GitHub Actions secret:
 #   openssl pkey -in mcp-key.pem -noout -text | grep -A3 'priv:' | tail -n +2 | tr -d ' :\n'
 #
-# Then `terraform apply`. Leave the var empty to skip the record entirely
-# (keeps `terraform plan` clean until you have a key).
+# The PUBLIC key is published in DNS anyway, so it lives here as the variable
+# default: the deploy.yml `terraform apply` creates the record on the next push
+# to main — no local terraform needed. Override in tfvars to rotate the key, or
+# set to "" to remove the record.
 # ---------------------------------------------------------------------------
 
 variable "mcp_registry_public_key" {
   description = "Base64 Ed25519 public key for MCP Registry DNS auth (v=MCPv1). Empty disables the record."
   type        = string
-  default     = ""
+  default     = "191fdBnFFFq5VUQFbmYp4T3/jYzvj9C9MRCxgMPGNe8="
 }
 
 resource "cloudflare_dns_record" "mcp_registry_auth" {

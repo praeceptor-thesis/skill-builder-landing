@@ -154,8 +154,10 @@ openssl pkey -in mcp-key.pem -noout -text | grep -A3 'priv:' | tail -n +2 | tr -
 
 Then:
 
-1. Add the base64 public key to your tfvars as `mcp_registry_public_key` and `terraform apply`
-   (publishes the TXT record — see [`terraform/mcp-registry.tf`](../../terraform/mcp-registry.tf)).
+1. The public key is committed as the default of `mcp_registry_public_key` in
+   [`terraform/mcp-registry.tf`](../../terraform/mcp-registry.tf), so the `deploy.yml`
+   `terraform apply` publishes the TXT record on the next push to `main` — no local
+   terraform needed. (Override the var in tfvars to rotate the key.)
 2. Add repo secrets `MCP_PRIVATE_KEY` (the hex private key) and `NPM_TOKEN` (npm publish token).
 
 ### Publish a version

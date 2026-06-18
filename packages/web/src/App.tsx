@@ -1259,6 +1259,47 @@ Install with: ${generateNpxCommand(skillToPublish)}`);
               </button>
             </div>
           </div>
+
+          <section className="mt-8 overflow-hidden rounded-2xl border border-stone-200 bg-stone-950 text-stone-100 shadow-xl">
+            <div className="grid gap-8 p-8 sm:p-10 lg:grid-cols-2 lg:items-center">
+              <div>
+                <p className="mb-4 inline-flex rounded-full border border-amber-400/30 bg-amber-400/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-amber-200">
+                  New &middot; MCP server
+                </p>
+                <h2 className="font-display text-3xl font-light leading-tight text-white sm:text-4xl">
+                  Use it from your <span className="italic text-amber-300">coding agent</span>.
+                </h2>
+                <p className="mt-4 max-w-xl text-base leading-7 text-stone-300">
+                  Connect Claude Code, Cursor, Codex, or any MCP client to the registry. Your agent
+                  can search for skills and install them on demand &mdash; meta skills pull in their
+                  whole dependency tree automatically.
+                </p>
+                <div className="mt-5 flex flex-wrap gap-2 font-mono text-xs text-stone-400">
+                  <span className="rounded-full border border-stone-700 px-3 py-1">skill_search</span>
+                  <span className="rounded-full border border-stone-700 px-3 py-1">skill_info</span>
+                  <span className="rounded-full border border-stone-700 px-3 py-1">skill_install</span>
+                </div>
+              </div>
+
+              <div>
+                <div className="mb-2 text-xs font-medium uppercase tracking-[0.2em] text-amber-300">
+                  Add to your MCP config
+                </div>
+                <pre className="overflow-x-auto rounded-xl bg-black/40 p-4 font-mono text-xs leading-6 text-stone-200">{`{
+  "mcpServers": {
+    "skill-builder": {
+      "command": "npx",
+      "args": ["-y", "@dmzagent/skill-builder-mcp"]
+    }
+  }
+}`}</pre>
+                <p className="mt-3 text-xs leading-relaxed text-stone-400">
+                  Then ask your agent to install a skill by name &mdash; it writes the files for
+                  Claude&nbsp;Code, Cursor, or Codex for you.
+                </p>
+              </div>
+            </div>
+          </section>
         </div>
       ) : (
         <main className="mx-auto max-w-7xl px-6 py-6">

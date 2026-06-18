@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { SEOHead } from '../seo/SEOHead';
 import { SkillJsonLd, BreadcrumbJsonLd } from '../seo/JsonLd';
 import type { Skill } from '../services/api';
-import { generateNpxCommand, getSkill, getCurrentUser, updateSkillVisibility, deleteSkill } from '../services/api';
+import { generateNpxCommand, generateMcpInstallCommand, getSkill, getCurrentUser, updateSkillVisibility, deleteSkill } from '../services/api';
 
 const SITE_URL = 'https://skill-builder.ai';
 
@@ -117,6 +117,7 @@ export default function SkillDetailPage() {
   const resolvedId = scope ? `${scope}/${skillSlug}` : skillId;
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
+  const [copiedMcp, setCopiedMcp] = useState(false);
   const [skill, setSkill] = useState<Skill | null>(null);
   const [loading, setLoading] = useState(true);
   const [showSource, setShowSource] = useState(false);
@@ -186,6 +187,7 @@ export default function SkillDetailPage() {
   const colors = getCategoryColor(skill.category);
   const canonicalUrl = `${SITE_URL}/skill/${skill.id}`;
   const npxCommand = generateNpxCommand(skill);
+  const mcpCommand = generateMcpInstallCommand(skill);
   const dependencies = skill.dependencies ?? [];
   const isMeta = skill.type === 'meta' || dependencies.length > 0;
 
@@ -193,6 +195,12 @@ export default function SkillDetailPage() {
     navigator.clipboard.writeText(npxCommand);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleCopyMcp = () => {
+    navigator.clipboard.writeText(mcpCommand);
+    setCopiedMcp(true);
+    setTimeout(() => setCopiedMcp(false), 2000);
   };
 
   return (
@@ -282,7 +290,17 @@ export default function SkillDetailPage() {
                   </button>
                 </div>
                 <p className="mt-1.5 text-xs text-stone-400">
-                  Run this command to install the skill locally
+                  Run this command to install the skill locally — or install it straight from your
+                  coding agent with the{' '}
+                  <a
+                    href="https://www.npmjs.com/package/@dmzagent/skill-builder-mcp"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-amber-600 hover:underline"
+                  >
+                    MCP server
+                  </a>
+                  .
                 </p>
               </div>
 
@@ -444,6 +462,7 @@ export default function SkillDetailPage() {
               <div className="rounded-2xl border border-stone-200 bg-white p-6">
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-stone-400">Install</h3>
                 <div className="mt-3">
+                  <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-stone-400">Command line</p>
                   <div className="rounded-xl bg-stone-950 px-4 py-3">
                     <code className="block break-all font-mono text-xs text-amber-200">{npxCommand}</code>
                   </div>
@@ -453,6 +472,31 @@ export default function SkillDetailPage() {
                   >
                     {copied ? 'Copied!' : 'Copy Install Command'}
                   </button>
+                </div>
+
+                <div className="mt-5 border-t border-stone-100 pt-4">
+                  <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-stone-400">AI coding agent &middot; MCP</p>
+                  <div className="rounded-xl bg-stone-950 px-4 py-3">
+                    <code className="block break-all font-mono text-xs text-emerald-300">{mcpCommand}</code>
+                  </div>
+                  <button
+                    onClick={handleCopyMcp}
+                    className="mt-2 w-full rounded-lg border border-stone-300 bg-white py-2 text-xs font-medium text-stone-700 transition hover:border-amber-500 hover:text-amber-700"
+                  >
+                    {copiedMcp ? 'Copied!' : 'Copy Agent Command'}
+                  </button>
+                  <p className="mt-2 text-[11px] leading-relaxed text-stone-400">
+                    With the{' '}
+                    <a
+                      href="https://www.npmjs.com/package/@dmzagent/skill-builder-mcp"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-amber-600 hover:underline"
+                    >
+                      skill-builder MCP server
+                    </a>{' '}
+                    connected, your agent installs this{isMeta ? ' and its dependencies' : ''} automatically.
+                  </p>
                 </div>
               </div>
 

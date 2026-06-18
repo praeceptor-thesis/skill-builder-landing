@@ -480,9 +480,17 @@ export function getAuthToken(): string | null {
   return localStorage.getItem('auth_token');
 }
 
+export function getSkillDisplayId(skill: { id: string; authorHandle?: string }): string {
+  return skill.id.startsWith('@') ? skill.id : skill.authorHandle ? `@${skill.authorHandle}/${skill.id}` : skill.id;
+}
+
 export function generateNpxCommand(skill: { id: string; authorHandle?: string }): string {
-  const displayId = skill.id.startsWith('@') ? skill.id : skill.authorHandle ? `@${skill.authorHandle}/${skill.id}` : skill.id;
-  return `npx @dmzagent/skill-builder install ${displayId}`;
+  return `npx @dmzagent/skill-builder install ${getSkillDisplayId(skill)}`;
+}
+
+/** The MCP tool call an agent runs to auto-install this skill (via the MCP server). */
+export function generateMcpInstallCommand(skill: { id: string; authorHandle?: string }): string {
+  return `skill_install ${getSkillDisplayId(skill)}`;
 }
 
 export function isUnauthorizedError(error: unknown): error is ApiError {

@@ -5,6 +5,9 @@
   "workspaces": [
     "packages/*"
   ],
+  "overrides": {
+    "zod": "3.25.76"
+  },
   "scripts": {
     "dev": "turbo run dev",
     "build": "turbo run build",

@@ -454,7 +454,7 @@ cli
         return;
       }
       console.log(renderSkillInfo(skill));
-      console.log(`\nInstall: npx @concordex-ai/skill-builder install ${displayId(skill)}`);
+      console.log(`\nInstall: npx @dmzagent/skill-builder install ${displayId(skill)}`);
     } catch (error) {
       console.error('Lookup failed:', error instanceof Error ? error.message : String(error));
       process.exit(1);

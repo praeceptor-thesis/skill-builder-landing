@@ -62,7 +62,7 @@ const CFG = {
 
 function num(v, d) { const n = parseInt(v ?? '', 10); return Number.isFinite(n) && n > 0 ? n : d; }
 const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-const INSTALL = (id) => `npx @concordex-ai/skill-builder install ${id}`;
+const INSTALL = (id) => `npx @dmzagent/skill-builder install ${id}`;
 const INNOVATIVE_RE = /orchestrat|compos|pipeline|router|route|swarm|workflow|\bagent\b|loop|handoff|meta|chain|graph|conduct/i;
 
 // ---------------------------------------------------------------------------
@@ -268,7 +268,7 @@ ${inner}
     <a href="https://skills.dmzagent.com/browse" style="display:inline-block;margin-top:14px;background:#38bdf8;color:#0f172a;font-weight:700;font-size:14px;text-decoration:none;padding:11px 22px;border-radius:8px;">Open the registry &rarr;</a>
   </td></tr></table></td></tr>`;
 
-  const footer = `<tr><td style="padding:0 32px 28px 32px;"><hr style="border:none;border-top:1px solid #e2e8f0;margin:0 0 14px 0;"><div style="font-size:11px;color:#94a3b8;line-height:1.6;">The Skill Forge &middot; generated automatically from your skill registry.<br>Install any skill with <span style="font-family:ui-monospace,Menlo,monospace;">npx @concordex-ai/skill-builder install &lt;id&gt;</span></div></td></tr>`;
+  const footer = `<tr><td style="padding:0 32px 28px 32px;"><hr style="border:none;border-top:1px solid #e2e8f0;margin:0 0 14px 0;"><div style="font-size:11px;color:#94a3b8;line-height:1.6;">The Skill Forge &middot; generated automatically from your skill registry.<br>Install any skill with <span style="font-family:ui-monospace,Menlo,monospace;">npx @dmzagent/skill-builder install &lt;id&gt;</span></div></td></tr>`;
 
   return wrap(masthead + intro + stats + topBlock + ownerBlock + innovativeBlock + newBlock + numbersBlock + cta + footer);
 }

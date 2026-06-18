@@ -3,7 +3,7 @@
 Publish and install AI skill prompts from the command line — or author them in the web editor with help from an AI drafting assistant.
 
 ```bash
-npx @concordex-ai/skill-builder install @author/skill-id
+npx @dmzagent/skill-builder install @author/skill-id
 ```
 
 ---
@@ -15,39 +15,39 @@ npx @concordex-ai/skill-builder install @author/skill-id
 Results print as a dense table right in your terminal:
 
 ```bash
-npx @concordex-ai/skill-builder list
+npx @dmzagent/skill-builder list
 ```
 
 Filter by category, author, type, tag, and sort order:
 
 ```bash
-npx @concordex-ai/skill-builder list --category "Developer Tools"
-npx @concordex-ai/skill-builder list --type meta          # only meta skills
-npx @concordex-ai/skill-builder list --author skillauthor
-npx @concordex-ai/skill-builder list --sort downloads
-npx @concordex-ai/skill-builder list --json               # machine-readable
-npx @concordex-ai/skill-builder list --web                # open the browser registry instead
+npx @dmzagent/skill-builder list --category "Developer Tools"
+npx @dmzagent/skill-builder list --type meta          # only meta skills
+npx @dmzagent/skill-builder list --author skillauthor
+npx @dmzagent/skill-builder list --sort downloads
+npx @dmzagent/skill-builder list --json               # machine-readable
+npx @dmzagent/skill-builder list --web                # open the browser registry instead
 ```
 
 ### Search and inspect
 
 ```bash
-npx @concordex-ai/skill-builder search "data pipeline"    # ranked by relevance
-npx @concordex-ai/skill-builder info @skillauthor/dialogue-flow
-npx @concordex-ai/skill-builder suggest dial              # autocomplete: skills, tags, authors
+npx @dmzagent/skill-builder search "data pipeline"    # ranked by relevance
+npx @dmzagent/skill-builder info @skillauthor/dialogue-flow
+npx @dmzagent/skill-builder suggest dial              # autocomplete: skills, tags, authors
 ```
 
 Wire up shell completion (skills, tags, and authors complete as you type):
 
 ```bash
-npx @concordex-ai/skill-builder completion >> ~/.bashrc
+npx @dmzagent/skill-builder completion >> ~/.bashrc
 ```
 
 ### Install a skill
 
 ```bash
-npx @concordex-ai/skill-builder install dialogue-flow
-npx @concordex-ai/skill-builder install @skillauthor/dialogue-flow
+npx @dmzagent/skill-builder install dialogue-flow
+npx @dmzagent/skill-builder install @skillauthor/dialogue-flow
 ```
 
 Downloads `dialogue-flow.md` and `dialogue-flow.json` to the current directory. Use `--output ./my-skills` to change where files land.
@@ -57,7 +57,7 @@ resolves its full dependency tree (deduped, cycle-safe) and installs every
 required skill alongside it. Use `--no-deps` to install just the meta skill.
 
 ```bash
-npx @concordex-ai/skill-builder install @skillauthor/my-bundle
+npx @dmzagent/skill-builder install @skillauthor/my-bundle
 # → resolves and installs my-bundle + every skill it depends on
 ```
 
@@ -68,19 +68,19 @@ npx @concordex-ai/skill-builder install @skillauthor/my-bundle
 ### 1. Create an account
 
 ```bash
-npx @concordex-ai/skill-builder register myhandle "My Name" me@email.com
+npx @dmzagent/skill-builder register myhandle "My Name" me@email.com
 ```
 
 You'll be prompted for a password. Or set `SKILL_PASSWORD` to skip the prompt:
 
 ```bash
-SKILL_PASSWORD=hunter2 npx @concordex-ai/skill-builder register myhandle "My Name" me@email.com
+SKILL_PASSWORD=hunter2 npx @dmzagent/skill-builder register myhandle "My Name" me@email.com
 ```
 
 ### 2. Log in
 
 ```bash
-npx @concordex-ai/skill-builder login me@email.com
+npx @dmzagent/skill-builder login me@email.com
 ```
 
 Your auth token is printed on success. Set it as `SKILL_TOKEN` so subsequent commands can use it:
@@ -96,19 +96,19 @@ export SKILL_TOKEN=<token-from-login>
 From a markdown file:
 
 ```bash
-npx @concordex-ai/skill-builder publish ./my-skill.md
+npx @dmzagent/skill-builder publish ./my-skill.md
 ```
 
 The CLI reads the filename as the skill id and the first heading as the name. You can also use a JSON manifest:
 
 ```bash
-npx @concordex-ai/skill-builder publish ./my-skill.json
+npx @dmzagent/skill-builder publish ./my-skill.json
 ```
 
 ### 4. Fork an existing skill (optional)
 
 ```bash
-npx @concordex-ai/skill-builder fork @skillauthor/dialogue-flow --name my-dialogue
+npx @dmzagent/skill-builder fork @skillauthor/dialogue-flow --name my-dialogue
 ```
 
 Creates a copy under your account that you can republish.

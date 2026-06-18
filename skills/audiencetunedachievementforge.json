@@ -1,0 +1,66 @@
+{
+  "id": "audiencetunedachievementforge",
+  "name": "AudienceTunedAchievementForge",
+  "description": "Rewrites a single resume bullet or accomplishment into three audience-tuned variants (recruiter screen, hiring manager, and executive/ATS) so the same achievement lands correctly for whoever is reading it next in the hiring funnel.",
+  "category": "Productivity",
+  "tags": [
+    "resume",
+    "career",
+    "tone-adaptation",
+    "job-search",
+    "achievements"
+  ],
+  "type": "basic",
+  "dependencies": [],
+  "spec": {
+    "name": "AudienceTunedAchievementForge",
+    "description": "Rewrites a single resume bullet or accomplishment into three audience-tuned variants (recruiter screen, hiring manager, and executive/ATS) so the same achievement lands correctly for whoever is reading it next in the hiring funnel.",
+    "category": "Productivity",
+    "tags": [
+      "resume",
+      "career",
+      "tone-adaptation",
+      "job-search",
+      "achievements"
+    ],
+    "purpose": "Turn a raw, weakly-worded accomplishment into impact-driven resume bullets calibrated in tone, jargon, and metric emphasis for each distinct reader in the hiring pipeline.",
+    "instructions": [
+      "Extract the underlying achievement from {{input}}: the action taken, the scope, and any quantifiable result. If a number is missing, insert a clearly-bracketed placeholder like [X%] for the user to fill.",
+      "Identify the target role and seniority from {{target_role}} and {{seniority}} so verb choice and jargon match expectations.",
+      "Produce a 'Recruiter Screen' variant: keyword-rich, scannable, mirrors job-posting language and ATS terms, leads with the result.",
+      "Produce a 'Hiring Manager' variant: emphasizes the how and the technical/operational craft, uses domain-specific verbs, shows judgment and ownership.",
+      "Produce an 'Executive/Skim' variant: one tight line emphasizing business outcome (revenue, cost, risk, time) in plain language, minimal jargon.",
+      "Start every bullet with a strong past-tense action verb, avoid first person, and never inflate beyond what {{input}} supports.",
+      "Flag any unverifiable or vague claims and suggest the specific metric the user should add.",
+      "Keep each bullet to one or two lines; output all three variants under labeled headers plus a short note on which to use where."
+    ],
+    "promptTemplate": "You are an expert resume coach who tailors achievements to different readers in the hiring funnel.\n\nRaw accomplishment: {{input}}\nTarget role: {{target_role}}\nSeniority level: {{seniority}}\nIndustry (optional): {{industry}}\n\nProduce exactly three rewritten variants of this single achievement, each as a polished resume bullet:\n\n1. RECRUITER SCREEN — keyword/ATS-rich, scannable, leads with the result, mirrors common job-posting phrasing.\n2. HIRING MANAGER — emphasizes craft, method, and ownership using domain-appropriate verbs.\n3. EXECUTIVE / SKIM — one line, plain business language, focuses on outcome (revenue, cost, risk, or time).\n\nRules: strong past-tense action verbs, no first person, no inflation beyond what is stated. Where a metric is missing, insert a bracketed placeholder like [X%] or [$X]. After the three variants, add:\n- METRICS TO ADD: specific numbers the user should verify or supply.\n- WHEN TO USE EACH: one short sentence of guidance.",
+    "examples": [
+      {
+        "title": "Vague support-role bullet",
+        "input": "input: 'I helped customers and answered tickets.' | target_role: Senior Customer Success Manager | seniority: Senior | industry: SaaS",
+        "output": "RECRUITER SCREEN: Resolved [X]+ customer support tickets monthly across email and chat, maintaining a [X]% CSAT score in a B2B SaaS environment.\n\nHIRING MANAGER: Owned end-to-end resolution for a portfolio of [X] accounts, triaging escalations and partnering with engineering to close recurring issues, lifting CSAT from [X]% to [X]%.\n\nEXECUTIVE / SKIM: Improved customer satisfaction [X] points while reducing repeat tickets, protecting [$X] in at-risk renewals.\n\nMETRICS TO ADD: monthly ticket volume, CSAT before/after, number of accounts, renewal dollars protected.\n\nWHEN TO USE EACH: Lead resumes with the recruiter version, expand in interviews with the hiring-manager version, and use the executive line in summaries or LinkedIn headlines."
+      },
+      {
+        "title": "Engineering accomplishment",
+        "input": "input: 'Made the deploy pipeline faster.' | target_role: Staff Software Engineer | seniority: Staff | industry: Fintech",
+        "output": "RECRUITER SCREEN: Reduced CI/CD pipeline runtime by [X]% by parallelizing builds and caching dependencies, accelerating release cadence for a fintech platform.\n\nHIRING MANAGER: Re-architected the deploy pipeline with parallel build stages, layered caching, and flaky-test isolation, cutting average deploy time from [X] min to [X] min and unblocking daily releases.\n\nEXECUTIVE / SKIM: Sped up software releases by [X]%, shortening time-to-market for revenue-generating features.\n\nMETRICS TO ADD: before/after pipeline minutes, deploy frequency change, number of engineers affected.\n\nWHEN TO USE EACH: Use the recruiter line on the resume, the hiring-manager line for technical screens, and the executive line for leadership-track promotions or summaries."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Produces three labeled variants with placeholders for missing metrics",
+        "input": "input: 'Managed social media accounts for the company.' | target_role: Marketing Manager | seniority: Mid | industry: E-commerce",
+        "expected": "Output contains three clearly labeled variants (RECRUITER SCREEN, HIRING MANAGER, EXECUTIVE / SKIM), each a past-tense action-verb bullet with bracketed placeholders like [X%] for unstated metrics, followed by a METRICS TO ADD list and a WHEN TO USE EACH note."
+      },
+      {
+        "name": "Does not inflate beyond stated facts",
+        "input": "input: 'Wrote some internal documentation.' | target_role: Technical Writer | seniority: Junior | industry: Software",
+        "expected": "Variants describe documentation work scoped to what is stated, use placeholders rather than invented large numbers, and flag in METRICS TO ADD which concrete figures (pages, audience size, time saved) the user should supply."
+      }
+    ],
+    "type": "basic",
+    "dependencies": []
+  },
+  "markdown": "# AudienceTunedAchievementForge\n\n## Purpose\nTurn a raw, weakly-worded accomplishment into impact-driven resume bullets calibrated in tone, jargon, and metric emphasis for each distinct reader in the hiring pipeline.\n\n## Instructions\n1. Extract the underlying achievement from {{input}}: the action taken, the scope, and any quantifiable result. If a number is missing, insert a clearly-bracketed placeholder like [X%] for the user to fill.\n2. Identify the target role and seniority from {{target_role}} and {{seniority}} so verb choice and jargon match expectations.\n3. Produce a 'Recruiter Screen' variant: keyword-rich, scannable, mirrors job-posting language and ATS terms, leads with the result.\n4. Produce a 'Hiring Manager' variant: emphasizes the how and the technical/operational craft, uses domain-specific verbs, shows judgment and ownership.\n5. Produce an 'Executive/Skim' variant: one tight line emphasizing business outcome (revenue, cost, risk, time) in plain language, minimal jargon.\n6. Start every bullet with a strong past-tense action verb, avoid first person, and never inflate beyond what {{input}} supports.\n7. Flag any unverifiable or vague claims and suggest the specific metric the user should add.\n8. Keep each bullet to one or two lines; output all three variants under labeled headers plus a short note on which to use where.\n\n## Prompt Template\n```\nYou are an expert resume coach who tailors achievements to different readers in the hiring funnel.\n\nRaw accomplishment: {{input}}\nTarget role: {{target_role}}\nSeniority level: {{seniority}}\nIndustry (optional): {{industry}}\n\nProduce exactly three rewritten variants of this single achievement, each as a polished resume bullet:\n\n1. RECRUITER SCREEN — keyword/ATS-rich, scannable, leads with the result, mirrors common job-posting phrasing.\n2. HIRING MANAGER — emphasizes craft, method, and ownership using domain-appropriate verbs.\n3. EXECUTIVE / SKIM — one line, plain business language, focuses on outcome (revenue, cost, risk, or time).\n\nRules: strong past-tense action verbs, no first person, no inflation beyond what is stated. Where a metric is missing, insert a bracketed placeholder like [X%] or [$X]. After the three variants, add:\n- METRICS TO ADD: specific numbers the user should verify or supply.\n- WHEN TO USE EACH: one short sentence of guidance.\n```\n"
+}

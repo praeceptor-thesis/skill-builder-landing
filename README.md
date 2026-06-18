@@ -150,6 +150,27 @@ dependency) is reported for manual review and never auto-applied.
 
 ---
 
+## Use from coding agents (MCP)
+
+Coding agents — Claude Code, Cursor, Codex, and other MCP clients — can search the
+registry and **auto-install** skills (resolving meta-skill dependency trees) via the
+[`@dmzagent/skill-builder-mcp`](packages/mcp) MCP server.
+
+```jsonc
+// e.g. .mcp.json (Claude Code) or .cursor/mcp.json (Cursor)
+{
+  "mcpServers": {
+    "skill-builder": { "command": "npx", "args": ["-y", "@dmzagent/skill-builder-mcp"] }
+  }
+}
+```
+
+Tools: `skill_search`, `skill_info`, `skill_suggest`, `skill_taxonomy`, and
+`skill_install` (writes skill files for the detected tool). See
+[`packages/mcp/README.md`](packages/mcp/README.md) for per-client setup.
+
+---
+
 ## Web App
 
 Visit the web editor at `https://skills.dmzagent.com` to:

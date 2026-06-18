@@ -1,0 +1,52 @@
+{
+  "name": "@dmzagent/skill-builder-mcp",
+  "version": "1.0.0",
+  "description": "MCP server that lets coding agents (Claude Code, Cursor, Codex, etc.) search the skill-builder registry and auto-install skills and their dependencies",
+  "type": "module",
+  "bin": {
+    "skill-builder-mcp": "dist/index.js"
+  },
+  "main": "dist/index.js",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "tsc",
+    "lint": "eslint . --ext .ts",
+    "start": "node dist/index.js",
+    "dev": "tsc --watch"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/praeceptor-thesis/skill-builder-landing.git"
+  },
+  "homepage": "https://skills.dmzagent.com",
+  "keywords": [
+    "ai",
+    "skills",
+    "prompts",
+    "mcp",
+    "model-context-protocol",
+    "llm",
+    "claude",
+    "cursor",
+    "codex"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.2",
+    "@typescript-eslint/eslint-plugin": "^7.11.0",
+    "@typescript-eslint/parser": "^7.11.0",
+    "eslint": "^8.57.0",
+    "typescript": "^5.5.4"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

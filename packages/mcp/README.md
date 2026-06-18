@@ -130,6 +130,49 @@ packages in this repo, the MCP server keeps its own copy of the types and the
 install logic (adapted from `packages/cli`) so the published package is
 self-contained.
 
+## Listed in the official MCP Registry
+
+This server is published to the [official MCP Registry](https://registry.modelcontextprotocol.io)
+under the domain-based name `com.dmzagent/skill-builder-mcp`. The registry only stores
+metadata (in [`server.json`](./server.json)); the package itself lives on npm.
+
+Publishing is automated by [`.github/workflows/publish-mcp.yml`](../../.github/workflows/publish-mcp.yml),
+which runs on a version tag and both publishes to npm and lists in the registry.
+
+### One-time setup (DNS authentication)
+
+The `com.dmzagent` namespace is proven by an apex TXT record on `dmzagent.com`. Generate an
+Ed25519 key pair locally — the private half is a CI secret, never committed:
+
+```bash
+openssl genpkey -algorithm Ed25519 -out mcp-key.pem
+# public key (base64) -> terraform var mcp_registry_public_key:
+openssl pkey -in mcp-key.pem -pubout -outform DER | tail -c 32 | base64
+# private key (hex) -> the MCP_PRIVATE_KEY GitHub secret:
+openssl pkey -in mcp-key.pem -noout -text | grep -A3 'priv:' | tail -n +2 | tr -d ' :\n'
+```
+
+Then:
+
+1. Add the base64 public key to your tfvars as `mcp_registry_public_key` and `terraform apply`
+   (publishes the TXT record — see [`terraform/mcp-registry.tf`](../../terraform/mcp-registry.tf)).
+2. Add repo secrets `MCP_PRIVATE_KEY` (the hex private key) and `NPM_TOKEN` (npm publish token).
+
+### Publish a version
+
+```bash
+# bump packages/mcp/package.json + server.json to the new version, commit, then:
+git tag v1.0.1 && git push origin v1.0.1
+```
+
+To publish manually instead of via CI, from `packages/mcp`:
+
+```bash
+npm publish --access public                       # to npm first (registry verifies it)
+mcp-publisher login dns --domain dmzagent.com --private-key "$MCP_PRIVATE_KEY"
+mcp-publisher publish                              # reads server.json
+```
+
 ## License
 
 MIT

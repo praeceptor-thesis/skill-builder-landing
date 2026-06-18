@@ -1,6 +1,7 @@
 {
   "name": "@dmzagent/skill-builder-mcp",
-  "version": "1.0.0",
+  "version": "1.0.1",
+  "mcpName": "com.dmzagent/skill-builder-mcp",
   "description": "MCP server that lets coding agents (Claude Code, Cursor, Codex, etc.) search the skill-builder registry and auto-install skills and their dependencies",
   "type": "module",
   "bin": {

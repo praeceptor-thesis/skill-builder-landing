@@ -1,22 +1,24 @@
 name: Publish skill-builder MCP
 
-# Publishes @dmzagent/skill-builder-mcp (packages/mcp) to npm.
+# Publishes @dmzagent/skill-builder-mcp (packages/mcp) to npm AND lists it in the
+# official MCP Registry (https://registry.modelcontextprotocol.io) under the
+# domain-based name com.dmzagent/skill-builder-mcp.
 #
-# Auto-runs on pushes to main that touch packages/mcp, but only actually
-# publishes when packages/mcp/package.json carries a version that isn't on npm
-# yet — so ordinary edits are safe; bump the version to ship. Also runnable
-# manually (workflow_dispatch) with an optional dry run.
+# Trigger: push a version tag (git tag v1.0.1 && git push origin v1.0.1).
+# Also runnable manually (workflow_dispatch) with an optional dry run.
 #
-# Requires repo secret NPM_TOKEN: an npm automation token with publish rights to
-# the @dmzagent scope (the same token stored in .npm-private). Set it with:
-#   gh secret set NPM_TOKEN < <(cat .npm-private)
+# Required repo secrets:
+#   NPM_TOKEN        npm automation token with publish rights to the @dmzagent scope
+#                    (the same token stored in .npm-private).
+#   MCP_PRIVATE_KEY  Ed25519 private key (hex) whose PUBLIC half is published as the
+#                    apex TXT record on dmzagent.com (see terraform/mcp-registry.tf).
+#
+# The npm publish is version-guarded (skips if the version is already on npm), so
+# re-running the workflow to retry the registry step is safe.
 
 on:
   push:
-    branches: [main]
-    paths:
-      - 'packages/mcp/**'
-      - '.github/workflows/publish-mcp.yml'
+    tags: ['v*']
   workflow_dispatch:
     inputs:
       dry_run:
@@ -33,6 +35,7 @@ permissions:
 
 env:
   NODE_VERSION: '24'
+  MCP_DOMAIN: 'dmzagent.com'
 
 jobs:
   publish:
@@ -55,7 +58,7 @@ jobs:
       - name: Build the MCP package
         run: npm run build --workspace @dmzagent/skill-builder-mcp
 
-      - name: Determine version state
+      - name: Determine npm version state
         id: ver
         working-directory: packages/mcp
         run: |
@@ -63,18 +66,41 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           if npm view "@dmzagent/skill-builder-mcp@$VERSION" version >/dev/null 2>&1; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
-            echo "::notice::@dmzagent/skill-builder-mcp@$VERSION is already published — skipping."
+            echo "::notice::npm already has @dmzagent/skill-builder-mcp@$VERSION — skipping npm publish."
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::@dmzagent/skill-builder-mcp@$VERSION is new — will publish."
           fi
 
       - name: Pack (dry run)
         if: inputs.dry_run == true
         run: npm publish --dry-run --access public --workspace @dmzagent/skill-builder-mcp
 
-      - name: Publish to npm
+      - name: Publish package to npm
         if: inputs.dry_run != true && steps.ver.outputs.exists == 'false'
         run: npm publish --access public --workspace @dmzagent/skill-builder-mcp
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Install mcp-publisher
+        if: inputs.dry_run != true
+        working-directory: packages/mcp
+        run: |
+          curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" | tar xz mcp-publisher
+
+      - name: Sync server.json version to package.json
+        if: inputs.dry_run != true
+        working-directory: packages/mcp
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          tmp="$(mktemp)"
+          jq --arg v "$VERSION" '.version = $v | (.packages[].version) |= $v' server.json > "$tmp" && mv "$tmp" server.json
+
+      - name: Authenticate to MCP Registry (DNS)
+        if: inputs.dry_run != true
+        working-directory: packages/mcp
+        run: ./mcp-publisher login dns --domain "$MCP_DOMAIN" --private-key "${{ secrets.MCP_PRIVATE_KEY }}"
+
+      - name: Publish to MCP Registry
+        if: inputs.dry_run != true
+        working-directory: packages/mcp
+        run: ./mcp-publisher publish

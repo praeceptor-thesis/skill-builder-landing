@@ -2,3 +2,10 @@ cloudflare_api_token    = "your_cloudflare_api_token"
 cloudflare_account_id  = "your_cloudflare_account_id"
 cloudflare_zone_name   = "dmzagent.com"
 pages_project_name    = "skill-builder-landing"
+
+# Official MCP Registry — base64 Ed25519 PUBLIC key proving ownership of the
+# zone for the com.dmzagent namespace (see terraform/mcp-registry.tf). Generate:
+#   openssl genpkey -algorithm Ed25519 -out mcp-key.pem
+#   openssl pkey -in mcp-key.pem -pubout -outform DER | tail -c 32 | base64
+# Leave empty to skip the TXT record (keeps `terraform plan` clean).
+mcp_registry_public_key = ""

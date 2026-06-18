@@ -101,3 +101,4 @@ yarn-error.log*
 # pnpm-lock.yaml
 .npm-private
 skills-dump.json
+mcp-key.pem

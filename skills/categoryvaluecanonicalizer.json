@@ -1,0 +1,68 @@
+{
+  "id": "categoryvaluecanonicalizer",
+  "name": "CategoryValueCanonicalizer",
+  "description": "Detects inconsistent spellings, casings, and synonyms within a categorical column and produces a copy-pasteable canonical mapping table to standardize the values. Use when a single column contains the same real-world category written multiple ways.",
+  "category": "Data",
+  "tags": [
+    "data-cleaning",
+    "categorical",
+    "deduplication",
+    "standardization",
+    "mapping",
+    "validation"
+  ],
+  "type": "basic",
+  "dependencies": [],
+  "spec": {
+    "name": "CategoryValueCanonicalizer",
+    "description": "Detects inconsistent spellings, casings, and synonyms within a categorical column and produces a copy-pasteable canonical mapping table to standardize the values. Use when a single column contains the same real-world category written multiple ways.",
+    "category": "Data",
+    "tags": [
+      "data-cleaning",
+      "categorical",
+      "deduplication",
+      "standardization",
+      "mapping",
+      "validation"
+    ],
+    "purpose": "Turn a messy list of categorical values into a deterministic value-to-canonical mapping plus ready-to-run SQL/Python to apply it, so a column collapses to a clean, consistent set of categories.",
+    "instructions": [
+      "Parse the input into a list of distinct raw values; if frequency counts are provided, retain them, otherwise treat each value as count 1.",
+      "Group raw values that refer to the same real-world category by normalizing case/punctuation/whitespace and recognizing common abbreviations, synonyms, and typos.",
+      "For each group, choose a canonical form: prefer the highest-frequency value, else the most complete/formal spelling; respect any explicit canonical convention named in {{convention}}.",
+      "Flag ambiguous cases where a value could belong to two groups (e.g., 'NA' meaning North America vs Not Available) and list them under REVIEW rather than auto-mapping.",
+      "Output a markdown mapping table with columns Raw Value, Count, Canonical, Confidence (High/Medium/Low).",
+      "Provide a copy-pasteable SQL CASE statement and a Python dict applying the mapping, using the column name from {{column}} (default 'value').",
+      "Summarize: number of raw values, number of canonical groups, and rows needing manual review.",
+      "Never silently drop a value; every raw value must appear in either the mapping table or the REVIEW list."
+    ],
+    "promptTemplate": "You are CategoryValueCanonicalizer, a data-cleaning specialist that standardizes inconsistent categorical values.\n\nColumn name: {{column}}\nCanonical convention (optional): {{convention}}\nRaw values (one per line, optional \"value | count\"):\n{{input}}\n\nDo the following:\n1. Group raw values referring to the same real-world category (handle case, punctuation, whitespace, abbreviations, synonyms, typos).\n2. Pick a canonical form per group (highest count wins; else most complete/formal spelling; honor the convention if given).\n3. Output a markdown table: | Raw Value | Count | Canonical | Confidence |.\n4. List any ambiguous values under a \"REVIEW\" section instead of auto-mapping them.\n5. Provide a copy-pasteable SQL CASE statement and a Python dict that apply the mapping to column {{column}}.\n6. End with a SUMMARY line: X raw values -> Y canonical groups, Z need review.\n\nEvery raw value must appear exactly once across the table and REVIEW list.",
+    "examples": [
+      {
+        "title": "Country column with mixed spellings",
+        "input": "column: country\nUSA | 1200\nU.S.A. | 30\nUnited States | 450\nunited states of america | 12\nUK | 800\nUnited Kingdom | 60\nDeutschland | 5\nGermany | 300",
+        "output": "| Raw Value | Count | Canonical | Confidence |\n|---|---|---|---|\n| USA | 1200 | United States | High |\n| U.S.A. | 30 | United States | High |\n| United States | 450 | United States | High |\n| united states of america | 12 | United States | High |\n| UK | 800 | United Kingdom | High |\n| United Kingdom | 60 | United Kingdom | High |\n| Deutschland | 5 | Germany | Medium |\n| Germany | 300 | Germany | High |\n\n**SQL**\n```sql\nSELECT CASE country\n  WHEN 'USA' THEN 'United States'\n  WHEN 'U.S.A.' THEN 'United States'\n  WHEN 'United States' THEN 'United States'\n  WHEN 'united states of america' THEN 'United States'\n  WHEN 'UK' THEN 'United Kingdom'\n  WHEN 'United Kingdom' THEN 'United Kingdom'\n  WHEN 'Deutschland' THEN 'Germany'\n  WHEN 'Germany' THEN 'Germany'\n  ELSE country END AS country_clean\nFROM your_table;\n```\n\n**Python**\n```python\ncountry_map = {\n    'USA': 'United States', 'U.S.A.': 'United States',\n    'United States': 'United States', 'united states of america': 'United States',\n    'UK': 'United Kingdom', 'United Kingdom': 'United Kingdom',\n    'Deutschland': 'Germany', 'Germany': 'Germany',\n}\ndf['country'] = df['country'].map(country_map).fillna(df['country'])\n```\n\nSUMMARY: 8 raw values -> 3 canonical groups, 0 need review."
+      },
+      {
+        "title": "Status column with typos and an ambiguous token",
+        "input": "column: status\nActive\nactive\nACTIVE \nInactve\nInactive\nN/A\nNA\npending review\nPending",
+        "output": "| Raw Value | Count | Canonical | Confidence |\n|---|---|---|---|\n| Active | 1 | Active | High |\n| active | 1 | Active | High |\n| ACTIVE  | 1 | Active | High |\n| Inactve | 1 | Inactive | Medium |\n| Inactive | 1 | Inactive | High |\n| N/A | 1 | Unknown | Medium |\n| pending review | 1 | Pending | Medium |\n| Pending | 1 | Pending | High |\n\n**REVIEW**\n- `NA`: ambiguous — could mean 'Not Available' (Unknown) or 'North America'. Confirm intended meaning before mapping.\n\n**SQL**\n```sql\nSELECT CASE TRIM(status)\n  WHEN 'Active' THEN 'Active'\n  WHEN 'active' THEN 'Active'\n  WHEN 'ACTIVE' THEN 'Active'\n  WHEN 'Inactve' THEN 'Inactive'\n  WHEN 'Inactive' THEN 'Inactive'\n  WHEN 'N/A' THEN 'Unknown'\n  WHEN 'pending review' THEN 'Pending'\n  WHEN 'Pending' THEN 'Pending'\n  ELSE status END AS status_clean\nFROM your_table;\n```\n\n**Python**\n```python\nstatus_map = {\n    'Active': 'Active', 'active': 'Active', 'ACTIVE': 'Active',\n    'Inactve': 'Inactive', 'Inactive': 'Inactive',\n    'N/A': 'Unknown', 'pending review': 'Pending', 'Pending': 'Pending',\n}\ndf['status'] = df['status'].str.strip().map(status_map).fillna(df['status'])\n```\n\nSUMMARY: 9 raw values -> 4 canonical groups, 1 need review."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Groups synonyms and flags ambiguous token",
+        "input": "column: region\nNorth America\nN. America\nNA\nNot Available\nEurope\nEU",
+        "expected": "A markdown mapping table groups 'North America' and 'N. America' to 'North America', maps 'Not Available' to 'Unknown', groups 'Europe' and 'EU' to 'Europe', and places 'NA' under a REVIEW section noting ambiguity between North America and Not Available. Includes SQL CASE and Python dict, ending with a SUMMARY line."
+      },
+      {
+        "name": "Casing and whitespace collapse only",
+        "input": "column: tier\nGold\ngold\nGOLD \nSilver\nSILVER",
+        "expected": "Maps Gold/gold/GOLD to canonical 'Gold' and Silver/SILVER to 'Silver' with High confidence, no REVIEW entries, plus SQL and Python output and SUMMARY: 5 raw values -> 2 canonical groups, 0 need review."
+      }
+    ],
+    "type": "basic",
+    "dependencies": []
+  },
+  "markdown": "# CategoryValueCanonicalizer\n\n## Purpose\nTurn a messy list of categorical values into a deterministic value-to-canonical mapping plus ready-to-run SQL/Python to apply it, so a column collapses to a clean, consistent set of categories.\n\n## Instructions\n1. Parse the input into a list of distinct raw values; if frequency counts are provided, retain them, otherwise treat each value as count 1.\n2. Group raw values that refer to the same real-world category by normalizing case/punctuation/whitespace and recognizing common abbreviations, synonyms, and typos.\n3. For each group, choose a canonical form: prefer the highest-frequency value, else the most complete/formal spelling; respect any explicit canonical convention named in {{convention}}.\n4. Flag ambiguous cases where a value could belong to two groups (e.g., 'NA' meaning North America vs Not Available) and list them under REVIEW rather than auto-mapping.\n5. Output a markdown mapping table with columns Raw Value, Count, Canonical, Confidence (High/Medium/Low).\n6. Provide a copy-pasteable SQL CASE statement and a Python dict applying the mapping, using the column name from {{column}} (default 'value').\n7. Summarize: number of raw values, number of canonical groups, and rows needing manual review.\n8. Never silently drop a value; every raw value must appear in either the mapping table or the REVIEW list.\n\n## Prompt Template\n```\nYou are CategoryValueCanonicalizer, a data-cleaning specialist that standardizes inconsistent categorical values.\n\nColumn name: {{column}}\nCanonical convention (optional): {{convention}}\nRaw values (one per line, optional \"value | count\"):\n{{input}}\n\nDo the following:\n1. Group raw values referring to the same real-world category (handle case, punctuation, whitespace, abbreviations, synonyms, typos).\n2. Pick a canonical form per group (highest count wins; else most complete/formal spelling; honor the convention if given).\n3. Output a markdown table: | Raw Value | Count | Canonical | Confidence |.\n4. List any ambiguous values under a \"REVIEW\" section instead of auto-mapping them.\n5. Provide a copy-pasteable SQL CASE statement and a Python dict that apply the mapping to column {{column}}.\n6. End with a SUMMARY line: X raw values -> Y canonical groups, Z need review.\n\nEvery raw value must appear exactly once across the table and REVIEW list.\n```\n"
+}

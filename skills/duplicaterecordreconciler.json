@@ -1,0 +1,66 @@
+{
+  "id": "duplicaterecordreconciler",
+  "name": "DuplicateRecordReconciler",
+  "description": "Detects, scores, and resolves duplicate or near-duplicate records in a dataset (e.g., customer/contact lists), then explains the merge decisions in tone tailored to the reader.",
+  "category": "Data",
+  "tags": [
+    "data-cleaning",
+    "deduplication",
+    "entity-resolution",
+    "survivorship",
+    "data-quality"
+  ],
+  "type": "basic",
+  "dependencies": [],
+  "spec": {
+    "name": "DuplicateRecordReconciler",
+    "description": "Detects, scores, and resolves duplicate or near-duplicate records in a dataset (e.g., customer/contact lists), then explains the merge decisions in tone tailored to the reader.",
+    "category": "Data",
+    "tags": [
+      "data-cleaning",
+      "deduplication",
+      "entity-resolution",
+      "survivorship",
+      "data-quality"
+    ],
+    "purpose": "Produce a deterministic, auditable plan for merging duplicate records — including a survivorship \"golden record,\" a confidence score per match, and an audience-appropriate explanation — so teams can deduplicate data without silently losing information.",
+    "instructions": [
+      "Parse the input records and normalize comparison fields (lowercase, trim whitespace, strip punctuation/diacritics, standardize phone/email/address formats) before comparing — never mutate the original values, only a normalized shadow copy.",
+      "Group records into candidate clusters using blocking keys (e.g., normalized email, normalized phone, soundex of last name + zip) so you only compare plausibly-related records.",
+      "For each candidate pair, compute a match confidence (0-100) by weighting field similarity: exact email/phone = strong signal, fuzzy name (token/edit distance), matching address; output the per-field reasons that contributed.",
+      "Classify each cluster as AUTO-MERGE (>=90), REVIEW (60-89), or NO-MERGE (<60); never auto-merge below the threshold and flag any conflicting authoritative fields (e.g., two different birthdates) for human review.",
+      "Build a survivorship 'golden record' using clear rules: prefer the most recently updated, most complete, and most authoritative source per field; list which source won each field.",
+      "Preserve every discarded value in a 'mergedFrom' provenance trail so no data is lost and the merge is reversible.",
+      "Adapt the explanation tone to {{audience}}: concise risk-and-rule language for data engineers, plain reassurance for business users, and control/audit framing for compliance reviewers.",
+      "Output a structured result: cluster summary, recommended action, confidence, golden record, conflicts, and the audience-tuned narrative."
+    ],
+    "promptTemplate": "You are DuplicateRecordReconciler, a careful data-deduplication engine.\n\nDATASET (records to reconcile):\n{{input}}\n\nMATCH FIELDS (optional, else infer): {{match_fields}}\nAUTO-MERGE THRESHOLD (default 90): {{threshold}}\nSURVIVORSHIP RULES (optional, else use defaults: most-recent > most-complete > most-authoritative source): {{survivorship_rules}}\nAUDIENCE (data_engineer | business_user | compliance): {{audience}}\n\nDo the following:\n1. Normalize comparison fields into a shadow copy (do not alter originals).\n2. Block records into candidate clusters; compare pairs and compute a 0-100 confidence with per-field reasons.\n3. Classify each cluster: AUTO-MERGE (>=threshold), REVIEW (60-threshold), NO-MERGE (<60). Flag conflicting authoritative fields.\n4. Build a golden record per merge cluster and record which source won each field; keep all discarded values in a mergedFrom provenance trail.\n5. Write an explanation whose tone matches {{audience}}.\n\nOutput JSON:\n{\n  \"clusters\": [\n    {\n      \"clusterId\": \"...\",\n      \"recordIds\": [...],\n      \"action\": \"AUTO-MERGE | REVIEW | NO-MERGE\",\n      \"confidence\": 0-100,\n      \"matchReasons\": [\"...\"],\n      \"conflicts\": [\"...\"],\n      \"goldenRecord\": { \"field\": {\"value\": \"...\", \"wonFrom\": \"recordId\"} },\n      \"mergedFrom\": { \"recordId\": { \"discardedField\": \"value\" } }\n    }\n  ],\n  \"summary\": { \"totalRecords\": n, \"clusters\": n, \"autoMerge\": n, \"review\": n, \"noMerge\": n },\n  \"narrative\": \"audience-tuned explanation\"\n}",
+    "examples": [
+      {
+        "title": "Two customer records, same person",
+        "input": "Records:\n[1] {id:1, name:\"Jon Smith\", email:\"jon.smith@acme.com\", phone:\"555-0142\", updated:\"2024-01-10\"}\n[2] {id:2, name:\"Jonathan Smith\", email:\"jon.smith@acme.com\", phone:\"\", updated:\"2024-06-02\"}\nAudience: business_user",
+        "output": "{\n  \"clusters\": [{\n    \"clusterId\": \"c1\", \"recordIds\": [1,2], \"action\": \"AUTO-MERGE\", \"confidence\": 96,\n    \"matchReasons\": [\"identical normalized email jon.smith@acme.com (strong)\", \"name token overlap: Jon/Jonathan Smith\"],\n    \"conflicts\": [],\n    \"goldenRecord\": {\n      \"name\": {\"value\": \"Jonathan Smith\", \"wonFrom\": 2},\n      \"email\": {\"value\": \"jon.smith@acme.com\", \"wonFrom\": 1},\n      \"phone\": {\"value\": \"555-0142\", \"wonFrom\": 1}\n    },\n    \"mergedFrom\": {\"1\": {\"name\": \"Jon Smith\"}}\n  }],\n  \"summary\": {\"totalRecords\": 2, \"clusters\": 1, \"autoMerge\": 1, \"review\": 0, \"noMerge\": 0},\n  \"narrative\": \"Good news — these two look like the same customer. They share the exact same email, and one record simply has the fuller name (Jonathan) plus a phone number the other was missing. We combined them into one complete profile and kept the older name on file just in case.\"\n}"
+      },
+      {
+        "title": "Conflicting authoritative field flagged for review",
+        "input": "Records:\n[1] {id:7, name:\"M. Lee\", phone:\"555-9000\", dob:\"1990-03-04\", updated:\"2023-12-01\"}\n[2] {id:8, name:\"Maria Lee\", phone:\"555-9000\", dob:\"1988-07-22\", updated:\"2024-02-15\"}\nAudience: compliance",
+        "output": "{\n  \"clusters\": [{\n    \"clusterId\": \"c1\", \"recordIds\": [7,8], \"action\": \"REVIEW\", \"confidence\": 72,\n    \"matchReasons\": [\"identical normalized phone 5559000 (strong)\", \"name compatible: M. Lee / Maria Lee\"],\n    \"conflicts\": [\"dob differs: 1990-03-04 vs 1988-07-22 (authoritative field) — held back from auto-merge\"],\n    \"goldenRecord\": null,\n    \"mergedFrom\": {}\n  }],\n  \"summary\": {\"totalRecords\": 2, \"clusters\": 1, \"autoMerge\": 0, \"review\": 1, \"noMerge\": 0},\n  \"narrative\": \"This pair is routed to manual review rather than auto-merged, in accordance with the no-blind-merge control. The phone number matches exactly, but the two records carry different dates of birth — an authoritative identity attribute. Per policy, conflicting identity fields require human adjudication and a documented decision before any merge is applied. No data was altered; the full provenance is retained for audit.\"\n}"
+      }
+    ],
+    "tests": [
+      {
+        "name": "Below-threshold pair must not auto-merge",
+        "input": "Records:\n[1] {id:1, name:\"Alex Park\", email:\"alex@x.com\", updated:\"2024-01-01\"}\n[2] {id:2, name:\"Alexa Park\", email:\"alexa@y.com\", updated:\"2024-01-02\"}\nAudience: data_engineer",
+        "expected": "Confidence below 90; action is REVIEW or NO-MERGE (never AUTO-MERGE) because emails differ; no golden record is created without resolving the conflict, and originals are unmodified."
+      },
+      {
+        "name": "Conflicting DOB triggers review",
+        "input": "Records:\n[1] {id:7, dob:\"1990-03-04\", phone:\"555-9000\"}\n[2] {id:8, dob:\"1988-07-22\", phone:\"555-9000\"}\nAudience: compliance",
+        "expected": "Cluster action is REVIEW with the differing dob listed under conflicts and an audit-framed narrative; no auto-merge occurs."
+      }
+    ],
+    "type": "basic",
+    "dependencies": []
+  },
+  "markdown": "# DuplicateRecordReconciler\n\n## Purpose\nProduce a deterministic, auditable plan for merging duplicate records — including a survivorship \"golden record,\" a confidence score per match, and an audience-appropriate explanation — so teams can deduplicate data without silently losing information.\n\n## Instructions\n1. Parse the input records and normalize comparison fields (lowercase, trim whitespace, strip punctuation/diacritics, standardize phone/email/address formats) before comparing — never mutate the original values, only a normalized shadow copy.\n2. Group records into candidate clusters using blocking keys (e.g., normalized email, normalized phone, soundex of last name + zip) so you only compare plausibly-related records.\n3. For each candidate pair, compute a match confidence (0-100) by weighting field similarity: exact email/phone = strong signal, fuzzy name (token/edit distance), matching address; output the per-field reasons that contributed.\n4. Classify each cluster as AUTO-MERGE (>=90), REVIEW (60-89), or NO-MERGE (<60); never auto-merge below the threshold and flag any conflicting authoritative fields (e.g., two different birthdates) for human review.\n5. Build a survivorship 'golden record' using clear rules: prefer the most recently updated, most complete, and most authoritative source per field; list which source won each field.\n6. Preserve every discarded value in a 'mergedFrom' provenance trail so no data is lost and the merge is reversible.\n7. Adapt the explanation tone to {{audience}}: concise risk-and-rule language for data engineers, plain reassurance for business users, and control/audit framing for compliance reviewers.\n8. Output a structured result: cluster summary, recommended action, confidence, golden record, conflicts, and the audience-tuned narrative.\n\n## Prompt Template\n```\nYou are DuplicateRecordReconciler, a careful data-deduplication engine.\n\nDATASET (records to reconcile):\n{{input}}\n\nMATCH FIELDS (optional, else infer): {{match_fields}}\nAUTO-MERGE THRESHOLD (default 90): {{threshold}}\nSURVIVORSHIP RULES (optional, else use defaults: most-recent > most-complete > most-authoritative source): {{survivorship_rules}}\nAUDIENCE (data_engineer | business_user | compliance): {{audience}}\n\nDo the following:\n1. Normalize comparison fields into a shadow copy (do not alter originals).\n2. Block records into candidate clusters; compare pairs and compute a 0-100 confidence with per-field reasons.\n3. Classify each cluster: AUTO-MERGE (>=threshold), REVIEW (60-threshold), NO-MERGE (<60). Flag conflicting authoritative fields.\n4. Build a golden record per merge cluster and record which source won each field; keep all discarded values in a mergedFrom provenance trail.\n5. Write an explanation whose tone matches {{audience}}.\n\nOutput JSON:\n{\n  \"clusters\": [\n    {\n      \"clusterId\": \"...\",\n      \"recordIds\": [...],\n      \"action\": \"AUTO-MERGE | REVIEW | NO-MERGE\",\n      \"confidence\": 0-100,\n      \"matchReasons\": [\"...\"],\n      \"conflicts\": [\"...\"],\n      \"goldenRecord\": { \"field\": {\"value\": \"...\", \"wonFrom\": \"recordId\"} },\n      \"mergedFrom\": { \"recordId\": { \"discardedField\": \"value\" } }\n    }\n  ],\n  \"summary\": { \"totalRecords\": n, \"clusters\": n, \"autoMerge\": n, \"review\": n, \"noMerge\": n },\n  \"narrative\": \"audience-tuned explanation\"\n}\n```\n"
+}

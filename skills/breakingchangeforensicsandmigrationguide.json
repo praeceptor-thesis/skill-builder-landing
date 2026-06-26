@@ -1,0 +1,67 @@
+{
+  "id": "breakingchangeforensicsandmigrationguide",
+  "name": "BreakingChangeForensicsAndMigrationGuide",
+  "description": "Diffs two API specification versions, classifies every change by breaking severity and SemVer impact, then emits a developer-facing migration guide with before/after code and edge-case warnings. Use it when shipping an API release that consumers must adapt to.",
+  "category": "Developer Tools",
+  "tags": [
+    "api",
+    "changelog",
+    "semver",
+    "breaking-changes",
+    "migration"
+  ],
+  "type": "basic",
+  "dependencies": [],
+  "spec": {
+    "name": "BreakingChangeForensicsAndMigrationGuide",
+    "description": "Diffs two API specification versions, classifies every change by breaking severity and SemVer impact, then emits a developer-facing migration guide with before/after code and edge-case warnings. Use it when shipping an API release that consumers must adapt to.",
+    "category": "Developer Tools",
+    "tags": [
+      "api",
+      "changelog",
+      "semver",
+      "breaking-changes",
+      "migration"
+    ],
+    "purpose": "Produce an accurate, auditable breaking-change report plus a copy-paste-ready migration guide from a structured diff of two API versions, so consumers can upgrade with zero surprises.",
+    "instructions": [
+      "Parse both the OLD and NEW API artifacts (OpenAPI/GraphQL SDL/protobuf/typed signatures). If only a unified diff or changelog prose is supplied, reconstruct the affected surface before classifying.",
+      "Enumerate every change atomically: endpoints/operations, request params, request/response field names, types, nullability, enum values, defaults, auth scopes, status codes, rate limits, pagination, and serialization format.",
+      "Classify each change as BREAKING, NON-BREAKING-ADDITIVE, or BEHAVIORAL (same shape, changed semantics). Apply the rule that field removal, type narrowing, new required inputs, tightened validation, renamed fields, and removed enum values are breaking; new optional fields and new enum values are additive UNLESS the client uses exhaustive matching.",
+      "Flag silent/runtime-only breaks that static schemas miss: default value changes, timezone/precision shifts, ordering guarantees, idempotency, error-code remapping, and pagination cursor invalidation. Mark these clearly as BEHAVIORAL with a runtime-risk note.",
+      "Derive the minimum correct SemVer bump (MAJOR if any breaking, MINOR if only additive, PATCH if only fixes/docs) and state the single change that forces it.",
+      "For each breaking or behavioral change, write a migration step with a concrete BEFORE and AFTER snippet in the target consumer language ({{language}}, default the spec's example language), plus a deprecation-window recommendation.",
+      "Surface edge cases explicitly: backward-compat shims, dual-write/dual-read windows, feature flags, and any change that is breaking only for a subset of clients (e.g., those relying on undefined behavior).",
+      "Output in this order: (1) SemVer verdict + justification, (2) breaking-change table, (3) behavioral-risk table, (4) ordered migration guide, (5) deprecation timeline. Never downgrade a breaking change to non-breaking to look cleaner; if uncertain, mark UNCERTAIN with the assumption to verify."
+    ],
+    "promptTemplate": "You are an API breaking-change forensics expert. Analyze the change between two API versions and produce a SemVer-accurate breaking-change report and migration guide.\n\nOLD version / NEW version artifacts (specs, diffs, or signatures):\n{{input}}\n\nTarget consumer language for code samples: {{language}}\nStability policy (optional, e.g. deprecation window): {{policy}}\n\nSteps:\n1. Reconstruct the full affected API surface from the artifacts above.\n2. Enumerate every atomic change and classify each as BREAKING, NON-BREAKING-ADDITIVE, or BEHAVIORAL.\n3. Detect silent runtime breaks not visible in the schema (defaults, precision, ordering, error remapping, pagination cursors, idempotency).\n4. Compute the minimum required SemVer bump and name the single change that forces it.\n\nOutput exactly these sections:\n## SemVer Verdict\n<MAJOR|MINOR|PATCH> — <one-line justification naming the forcing change>\n\n## Breaking Changes\n| Change | Surface | Why Breaking | Affected Clients |\n\n## Behavioral / Runtime Risks\n| Change | Old Behavior | New Behavior | Detection Difficulty |\n\n## Migration Guide\nFor each breaking/behavioral item: numbered step, BEFORE ({{language}}) and AFTER ({{language}}) snippets, and a note.\n\n## Deprecation Timeline\nRecommended phases (announce → dual-support → enforce → remove) with concrete guidance.\n\nRules: Never soften a breaking change. Mark anything ambiguous as UNCERTAIN with the assumption to verify. Treat new required inputs, removed/renamed fields, type narrowing, removed enum values, and tightened validation as breaking.",
+    "examples": [
+      {
+        "title": "Renamed response field + new required param",
+        "input": "OLD (OpenAPI): GET /users/{id} -> 200 { \"user_name\": string, \"created\": string(date-time) }\nNEW: GET /users/{id} requires query param `tenant_id` (required); response { \"username\": string, \"createdAt\": string(date-time) }\nlanguage: TypeScript",
+        "output": "## SemVer Verdict\nMAJOR — new required query param `tenant_id` and rename `user_name`->`username` both break existing callers.\n\n## Breaking Changes\n| Change | Surface | Why Breaking | Affected Clients |\n| Added required `tenant_id` | GET /users/{id} query | Existing requests omit it -> 4xx | All |\n| Renamed `user_name`->`username` | response body | Field access returns undefined | All reading user_name |\n| Renamed `created`->`createdAt` | response body | Same | All reading created |\n\n## Behavioral / Runtime Risks\n| Change | Old | New | Detection |\n| none material | — | — | — |\n\n## Migration Guide\n1. Send tenant_id.\nBEFORE: `api.getUser(id)`\nAFTER: `api.getUser(id, { tenantId })`\n2. Update field reads.\nBEFORE: `u.user_name; u.created`\nAFTER: `u.username; u.createdAt`\n\n## Deprecation Timeline\nAnnounce v2; offer a compatibility alias returning both old+new field names for 2 minor releases; make tenant_id optional-with-default during dual-support, then enforce.",
+        "title_note": ""
+      },
+      {
+        "title": "Additive enum value with exhaustive-match risk",
+        "input": "OLD (GraphQL SDL): enum OrderStatus { PENDING, PAID, SHIPPED }\nNEW: enum OrderStatus { PENDING, PAID, SHIPPED, REFUNDED }\nlanguage: Go",
+        "output": "## SemVer Verdict\nMINOR — only an additive enum value; breaking ONLY for clients using exhaustive matching without a default.\n\n## Breaking Changes\n| Change | Surface | Why Breaking | Affected Clients |\n| (conditional) added REFUNDED | OrderStatus enum | Exhaustive switch without default panics/misroutes | Clients with no default case |\n\n## Behavioral / Runtime Risks\n| Change | Old | New | Detection |\n| New status reachable | 3 states | 4 states | Medium — only at runtime when a REFUNDED order appears |\n\n## Migration Guide\n1. Add default case.\nBEFORE: `switch s { case PENDING: ...; case PAID: ...; case SHIPPED: ... }`\nAFTER: `switch s { case PENDING: ...; case PAID: ...; case SHIPPED: ...; default: handleUnknown(s) }`\n\n## Deprecation Timeline\nNo removal needed. Announce new value one release ahead so clients add default handling before REFUNDED orders flow."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Type narrowing is flagged MAJOR",
+        "input": "OLD: response { \"amount\": number }  NEW: response { \"amount\": integer }  language: Python",
+        "expected": "SemVer verdict is MAJOR; the report lists the number->integer narrowing as a breaking change because non-integer amounts previously valid are now rejected/truncated, with a behavioral note about precision/rounding."
+      },
+      {
+        "name": "Pure docs change stays PATCH",
+        "input": "OLD and NEW schemas identical; only the description text of GET /health changed. language: TypeScript",
+        "expected": "SemVer verdict is PATCH; breaking and behavioral tables are empty; no migration steps required."
+      }
+    ],
+    "type": "basic",
+    "dependencies": []
+  },
+  "markdown": "# BreakingChangeForensicsAndMigrationGuide\n\n## Purpose\nProduce an accurate, auditable breaking-change report plus a copy-paste-ready migration guide from a structured diff of two API versions, so consumers can upgrade with zero surprises.\n\n## Instructions\n1. Parse both the OLD and NEW API artifacts (OpenAPI/GraphQL SDL/protobuf/typed signatures). If only a unified diff or changelog prose is supplied, reconstruct the affected surface before classifying.\n2. Enumerate every change atomically: endpoints/operations, request params, request/response field names, types, nullability, enum values, defaults, auth scopes, status codes, rate limits, pagination, and serialization format.\n3. Classify each change as BREAKING, NON-BREAKING-ADDITIVE, or BEHAVIORAL (same shape, changed semantics). Apply the rule that field removal, type narrowing, new required inputs, tightened validation, renamed fields, and removed enum values are breaking; new optional fields and new enum values are additive UNLESS the client uses exhaustive matching.\n4. Flag silent/runtime-only breaks that static schemas miss: default value changes, timezone/precision shifts, ordering guarantees, idempotency, error-code remapping, and pagination cursor invalidation. Mark these clearly as BEHAVIORAL with a runtime-risk note.\n5. Derive the minimum correct SemVer bump (MAJOR if any breaking, MINOR if only additive, PATCH if only fixes/docs) and state the single change that forces it.\n6. For each breaking or behavioral change, write a migration step with a concrete BEFORE and AFTER snippet in the target consumer language ({{language}}, default the spec's example language), plus a deprecation-window recommendation.\n7. Surface edge cases explicitly: backward-compat shims, dual-write/dual-read windows, feature flags, and any change that is breaking only for a subset of clients (e.g., those relying on undefined behavior).\n8. Output in this order: (1) SemVer verdict + justification, (2) breaking-change table, (3) behavioral-risk table, (4) ordered migration guide, (5) deprecation timeline. Never downgrade a breaking change to non-breaking to look cleaner; if uncertain, mark UNCERTAIN with the assumption to verify.\n\n## Prompt Template\n```\nYou are an API breaking-change forensics expert. Analyze the change between two API versions and produce a SemVer-accurate breaking-change report and migration guide.\n\nOLD version / NEW version artifacts (specs, diffs, or signatures):\n{{input}}\n\nTarget consumer language for code samples: {{language}}\nStability policy (optional, e.g. deprecation window): {{policy}}\n\nSteps:\n1. Reconstruct the full affected API surface from the artifacts above.\n2. Enumerate every atomic change and classify each as BREAKING, NON-BREAKING-ADDITIVE, or BEHAVIORAL.\n3. Detect silent runtime breaks not visible in the schema (defaults, precision, ordering, error remapping, pagination cursors, idempotency).\n4. Compute the minimum required SemVer bump and name the single change that forces it.\n\nOutput exactly these sections:\n## SemVer Verdict\n<MAJOR|MINOR|PATCH> — <one-line justification naming the forcing change>\n\n## Breaking Changes\n| Change | Surface | Why Breaking | Affected Clients |\n\n## Behavioral / Runtime Risks\n| Change | Old Behavior | New Behavior | Detection Difficulty |\n\n## Migration Guide\nFor each breaking/behavioral item: numbered step, BEFORE ({{language}}) and AFTER ({{language}}) snippets, and a note.\n\n## Deprecation Timeline\nRecommended phases (announce → dual-support → enforce → remove) with concrete guidance.\n\nRules: Never soften a breaking change. Mark anything ambiguous as UNCERTAIN with the assumption to verify. Treat new required inputs, removed/renamed fields, type narrowing, removed enum values, and tightened validation as breaking.\n```\n"
+}

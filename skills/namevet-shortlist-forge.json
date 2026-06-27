@@ -1,0 +1,66 @@
+{
+  "id": "namevet-shortlist-forge",
+  "name": "NameVet Shortlist Forge",
+  "description": "Generates a ranked shortlist of product names from a brief, then stress-tests each one against pronounceability, positioning fit, trademark/domain risk, and linguistic pitfalls — use it when you need defensible, decision-ready name candidates rather than a raw brainstorm.",
+  "category": "Sales",
+  "tags": [
+    "product-naming",
+    "positioning",
+    "branding",
+    "shortlist",
+    "trademark-screen"
+  ],
+  "type": "basic",
+  "dependencies": [],
+  "spec": {
+    "name": "NameVet Shortlist Forge",
+    "description": "Generates a ranked shortlist of product names from a brief, then stress-tests each one against pronounceability, positioning fit, trademark/domain risk, and linguistic pitfalls — use it when you need defensible, decision-ready name candidates rather than a raw brainstorm.",
+    "category": "Sales",
+    "tags": [
+      "product-naming",
+      "positioning",
+      "branding",
+      "shortlist",
+      "trademark-screen"
+    ],
+    "purpose": "Produce a scored, risk-screened shortlist of 5-8 product name candidates with rationale, a recommended pick, and a one-line positioning statement for each — so a team can move straight to validation instead of more brainstorming.",
+    "instructions": [
+      "Parse the brief for product category, target audience, key benefit, desired tone (e.g. playful, clinical, premium), and any hard constraints (avoid words, must include, length limits).",
+      "Generate 12-16 raw candidates spanning at least three naming strategies: descriptive, evocative/metaphor, and coined/invented; discard any that violate stated constraints.",
+      "Score each surviving candidate 1-5 on five axes: Positioning Fit, Pronounceability, Memorability, Distinctiveness, and Risk-Free (5 = low risk).",
+      "Flag obvious risks per name: likely-crowded trademark space, awkward .com availability, negative or unintended meaning in major languages, and confusing similarity to known brands. Note these as caveats, never as legal advice.",
+      "Keep the top 5-8 by total score and write a one-line positioning statement for each in the form '<Name> is the <category> that <benefit> for <audience>.'",
+      "Pick one recommended name and justify it in 2-3 sentences referencing the scores and the brief's priorities.",
+      "Always include the explicit disclaimer that trademark/domain notes are heuristic and require professional clearance before adoption.",
+      "Output a Markdown scoring table, the positioning lines, the recommendation, the disclaimer, and a short worked example illustrating the method."
+    ],
+    "promptTemplate": "You are NameVet Shortlist Forge, an expert product namer and brand strategist.\n\nPRODUCT BRIEF:\n{{input}}\n\nOptional constraints (use if provided, otherwise infer sensible defaults):\n- Tone: {{tone}}\n- Must avoid: {{avoid_words}}\n- Length limit: {{max_chars}} characters\n\nDo the following:\n1. Restate the inferred category, audience, key benefit, and tone in 2 lines.\n2. Generate raw candidates across descriptive, evocative, and coined strategies; silently discard constraint violations.\n3. Score the survivors 1-5 on Positioning Fit, Pronounceability, Memorability, Distinctiveness, Risk-Free (5 = low risk). Present a Markdown table sorted by total descending, keeping the top 5-8.\n4. Add a \"Caveats\" column noting heuristic trademark crowding, .com likely-taken guesses, and any unintended meanings — clearly labeled as non-legal heuristics.\n5. Write a one-line positioning statement for each kept name: \"<Name> is the <category> that <benefit> for <audience>.\"\n6. Give a single RECOMMENDED PICK with a 2-3 sentence justification tied to the scores and brief.\n7. End with this disclaimer verbatim: \"Trademark and domain notes are heuristic estimates, not legal advice — clear any name with a qualified attorney before adoption.\"\n\nFormat with clear headers. Be decisive, not exhaustive.",
+    "examples": [
+      {
+        "title": "Naming a budgeting app for freelancers",
+        "input": "Product: a mobile app that auto-sets aside taxes and smooths irregular freelance income. Audience: US freelancers and gig workers. Benefit: never get surprised by a tax bill. Tone: friendly, reassuring.",
+        "output": "**Brief read:** Category = personal finance app; Audience = US freelancers; Benefit = automatic tax/income smoothing; Tone = friendly, reassuring.\n\n| Rank | Name | Fit | Pron | Mem | Distinct | Risk-Free | Total | Caveats |\n|---|---|---|---|---|---|---|---|---|\n| 1 | Cushion | 5 | 5 | 4 | 3 | 3 | 20 | Common word — likely crowded TM in fintech; cushion.com almost certainly taken |\n| 2 | Tidemark | 4 | 4 | 4 | 4 | 4 | 20 | Existing software co. named Tidemark — verify class overlap |\n| 3 | Setasiide | 4 | 3 | 4 | 5 | 5 | 21 | Coined; .com plausibly free; mild misspelling friction |\n| 4 | Levyl | 4 | 4 | 4 | 5 | 4 | 21 | Coined from 'levy'+'level'; check vs 'Levl' brands |\n| 5 | Buffer | 5 | 5 | 4 | 2 | 1 | 17 | Buffer (social media) — high confusion/TM risk; avoid |\n\n**Positioning lines:**\n- Setasiide is the finance app that automatically sets aside your taxes for US freelancers.\n- Levyl is the finance app that smooths irregular income and reserves taxes for gig workers.\n- Tidemark is the finance app that keeps freelancers ahead of tax season.\n\n**RECOMMENDED PICK: Levyl** — Top total score, highly distinctive and trademark-defensible as a coined term, pronounceable as 'level,' and the 'levy' root signals tax handling, matching the core benefit. It outperforms 'Cushion' and 'Buffer,' which score high on familiarity but carry serious confusion/trademark risk.\n\nTrademark and domain notes are heuristic estimates, not legal advice — clear any name with a qualified attorney before adoption."
+      },
+      {
+        "title": "Naming a premium ceramic knife line",
+        "input": "Product: a line of high-end ceramic kitchen knives. Audience: home cooking enthusiasts who buy premium tools. Benefit: stays razor-sharp far longer than steel. Tone: premium, minimalist. Must avoid: 'blade', 'sharp'.",
+        "output": "**Brief read:** Category = premium ceramic knives; Audience = serious home cooks; Benefit = long-lasting edge retention; Tone = premium, minimalist. (Excluded any names using 'blade' or 'sharp'.)\n\n| Rank | Name | Fit | Pron | Mem | Distinct | Risk-Free | Total | Caveats |\n|---|---|---|---|---|---|---|---|---|\n| 1 | Kaolin | 5 | 4 | 4 | 5 | 5 | 23 | Kaolin = the clay in ceramics; evocative + coined-feel; .com may be taken, .co/.kitchen likely open |\n| 2 | Edgeless | 3 | 5 | 4 | 4 | 4 | 20 | Implies 'no edge' — could misread as 'dull'; risky for a knife |\n| 3 | Whetless | 4 | 3 | 4 | 5 | 4 | 20 | Coined ('never needs whetting'); pronunciation ambiguity |\n| 4 | Porcel | 4 | 4 | 3 | 4 | 4 | 19 | Truncation of 'porcelain'; check vs porcelain-brand TMs |\n| 5 | Hone | 4 | 5 | 4 | 2 | 2 | 17 | Common kitchen term — crowded TM; hone.com taken |\n\n**Positioning lines:**\n- Kaolin is the ceramic knife line that holds its edge for years for serious home cooks.\n- Whetless is the ceramic knife line that never needs sharpening for premium home kitchens.\n- Porcel is the ceramic knife line that pairs precision with lasting performance.\n\n**RECOMMENDED PICK: Kaolin** — Highest total, with strong positioning fit because kaolin is the literal raw material, giving the premium audience an insider, authentic story. It is distinctive and low-risk while reading clean and minimalist, unlike 'Hone' (crowded) or 'Edgeless' (risks signaling dullness).\n\nTrademark and domain notes are heuristic estimates, not legal advice — clear any name with a qualified attorney before adoption."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Respects avoid-word constraint and includes recommendation + disclaimer",
+        "input": "Product: a meditation app for new parents. Audience: sleep-deprived parents of infants. Benefit: 3-minute resets between feedings. Tone: calm, warm. Must avoid: 'zen', 'calm'.",
+        "expected": "Returns a Markdown scoring table of 5-8 candidates with five scoring axes and a caveats column, where NO candidate name contains the words 'zen' or 'calm'; includes one-line positioning statements, exactly one RECOMMENDED PICK with 2-3 sentence justification, and ends with the verbatim disclaimer about trademark/domain notes not being legal advice."
+      },
+      {
+        "name": "Honors length limit",
+        "input": "Product: an energy drink for esports gamers. Audience: competitive PC gamers 18-30. Benefit: sustained focus without a crash. Tone: edgy, modern. Length limit: 6 characters.",
+        "expected": "Every kept candidate name is 6 characters or fewer, scored across all five axes, with positioning lines and a single recommended pick plus the verbatim disclaimer."
+      }
+    ],
+    "type": "basic",
+    "dependencies": []
+  },
+  "markdown": "# NameVet Shortlist Forge\n\n## Purpose\nProduce a scored, risk-screened shortlist of 5-8 product name candidates with rationale, a recommended pick, and a one-line positioning statement for each — so a team can move straight to validation instead of more brainstorming.\n\n## Instructions\n1. Parse the brief for product category, target audience, key benefit, desired tone (e.g. playful, clinical, premium), and any hard constraints (avoid words, must include, length limits).\n2. Generate 12-16 raw candidates spanning at least three naming strategies: descriptive, evocative/metaphor, and coined/invented; discard any that violate stated constraints.\n3. Score each surviving candidate 1-5 on five axes: Positioning Fit, Pronounceability, Memorability, Distinctiveness, and Risk-Free (5 = low risk).\n4. Flag obvious risks per name: likely-crowded trademark space, awkward .com availability, negative or unintended meaning in major languages, and confusing similarity to known brands. Note these as caveats, never as legal advice.\n5. Keep the top 5-8 by total score and write a one-line positioning statement for each in the form '<Name> is the <category> that <benefit> for <audience>.'\n6. Pick one recommended name and justify it in 2-3 sentences referencing the scores and the brief's priorities.\n7. Always include the explicit disclaimer that trademark/domain notes are heuristic and require professional clearance before adoption.\n8. Output a Markdown scoring table, the positioning lines, the recommendation, the disclaimer, and a short worked example illustrating the method.\n\n## Prompt Template\n```\nYou are NameVet Shortlist Forge, an expert product namer and brand strategist.\n\nPRODUCT BRIEF:\n{{input}}\n\nOptional constraints (use if provided, otherwise infer sensible defaults):\n- Tone: {{tone}}\n- Must avoid: {{avoid_words}}\n- Length limit: {{max_chars}} characters\n\nDo the following:\n1. Restate the inferred category, audience, key benefit, and tone in 2 lines.\n2. Generate raw candidates across descriptive, evocative, and coined strategies; silently discard constraint violations.\n3. Score the survivors 1-5 on Positioning Fit, Pronounceability, Memorability, Distinctiveness, Risk-Free (5 = low risk). Present a Markdown table sorted by total descending, keeping the top 5-8.\n4. Add a \"Caveats\" column noting heuristic trademark crowding, .com likely-taken guesses, and any unintended meanings — clearly labeled as non-legal heuristics.\n5. Write a one-line positioning statement for each kept name: \"<Name> is the <category> that <benefit> for <audience>.\"\n6. Give a single RECOMMENDED PICK with a 2-3 sentence justification tied to the scores and brief.\n7. End with this disclaimer verbatim: \"Trademark and domain notes are heuristic estimates, not legal advice — clear any name with a qualified attorney before adoption.\"\n\nFormat with clear headers. Be decisive, not exhaustive.\n```\n"
+}

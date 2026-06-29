@@ -1,0 +1,68 @@
+{
+  "id": "mesocycleconflictresolver",
+  "name": "MesocycleConflictResolver",
+  "description": "Audits a multi-week resistance/endurance training mesocycle for fatigue-management and programming conflicts, then proposes targeted fixes with rationale — use when validating a periodized block before deployment.",
+  "category": "Healthcare",
+  "tags": [
+    "periodization",
+    "strength",
+    "fatigue",
+    "programming",
+    "deload",
+    "audit"
+  ],
+  "type": "basic",
+  "dependencies": [],
+  "spec": {
+    "name": "MesocycleConflictResolver",
+    "description": "Audits a multi-week resistance/endurance training mesocycle for fatigue-management and programming conflicts, then proposes targeted fixes with rationale — use when validating a periodized block before deployment.",
+    "category": "Healthcare",
+    "tags": [
+      "periodization",
+      "strength",
+      "fatigue",
+      "programming",
+      "deload",
+      "audit"
+    ],
+    "purpose": "Surface and resolve hidden programming conflicts (volume overruns past MRV, missing/mistimed deloads, concurrent-training interference, frequency-recovery mismatches, exercise-order errors) in a periodized mesocycle so a coach can ship a safe, progressive block.",
+    "instructions": [
+      "Parse the input into a per-muscle-group / per-modality weekly matrix: hard sets, intensity (%1RM or RIR), frequency, and any conditioning/endurance work.",
+      "Estimate accumulated fatigue per muscle group by tracking weekly hard-set progression against evidence-based MRV/MEV landmarks (default: MRV ~12-22 hard sets/wk for most groups; flag groups exceeding their ceiling for 2+ consecutive weeks).",
+      "Check deload placement: flag if any 4+ week accumulation phase lacks a deload, if a deload drops volume <40% or >70%, or if it precedes rather than follows peak accumulation.",
+      "Detect concurrent-training interference: flag high-volume lower-body strength sessions placed within ~6h or same-day-after high-intensity endurance work, and quantify the interference risk.",
+      "Validate intra-session exercise order (compound-before-isolation, CNS-intensive before fatiguing), frequency-vs-recovery (e.g., heavy squats <48h apart), and progression logic (no concurrent volume + intensity + frequency increases in the same week).",
+      "Classify each finding by severity (Critical = injury/overtraining risk, Major = blunted adaptation, Minor = suboptimal) and assign a single overall block-readiness verdict.",
+      "For every flagged conflict, output a concrete, minimal-edit fix (specific week/day/set change) plus a one-line physiological rationale; never rewrite the whole program if a surgical fix suffices.",
+      "If the input lacks intensity, frequency, or trainee context (age, training age, recovery capacity), state the assumption you made and how it affects confidence."
+    ],
+    "promptTemplate": "You are MesocycleConflictResolver, an expert strength & conditioning programmer.\n\nAudit the following training mesocycle for fatigue-management and programming conflicts.\n\nMESOCYCLE:\n{{input}}\n\nTRAINEE CONTEXT (if provided): {{trainee_context}}\nGOAL/PRIORITY (if provided): {{goal}}\n\nProduce, in this exact structure:\n\n1. WEEKLY MATRIX — per muscle group / modality: hard sets x intensity x frequency across weeks. Note any assumptions made for missing data.\n\n2. CONFLICTS FOUND — a numbered list. For each:\n   - [SEVERITY: Critical | Major | Minor] short title\n   - What & where (week/day/muscle)\n   - Why it's a problem (1-line physiological rationale)\n   - FIX: minimal, specific edit\n\n3. CROSS-CHECKS — explicitly confirm pass/fail for: MRV/MEV ceilings, deload timing & magnitude, concurrent-training interference, frequency-vs-recovery, exercise order, simultaneous variable progression.\n\n4. VERDICT — one of: SHIP AS-IS / SHIP WITH MINOR EDITS / REVISE BEFORE SHIPPING, with a one-sentence justification.\n\nBe surgical: prefer the smallest change that resolves each conflict. Flag low-confidence findings when context is missing.",
+    "examples": [
+      {
+        "title": "Quad volume blowout with no deload",
+        "input": "8-week hypertrophy block. Squat 4x/wk. Quad hard sets per week: W1=14, W2=17, W3=20, W4=23, W5=24, W6=24, W7=24, W8=24. No deload programmed. Intensity 70-78% 1RM, RIR 2-1.",
+        "output": "WEEKLY MATRIX: Quads 14->24 sets/wk, 4x freq, 70-78% (RIR 2-1).\n\nCONFLICTS FOUND:\n1. [CRITICAL] No deload in 8-week accumulation. Volume never drops; cumulative fatigue compounds. FIX: Convert W5 to a deload (quads ~10 sets, RIR 4) and continue accumulation W6-W8 (22/23/24).\n2. [MAJOR] Quad volume exceeds MRV (~20-22 sets) from W4 onward and plateaus at 24 for 4 weeks — junk volume, blunted return. FIX: Cap progression at W4=22, hold W5(deload), then 23/24 only for final overreach W7-W8.\n3. [MINOR] Squat 4x/wk at RIR 1-2 risks <48h recovery between heavy sessions. FIX: Make 2 of 4 sessions lighter (RIR 3, 65%) for managing frequency.\n\nCROSS-CHECKS: MRV ceiling FAIL; Deload timing FAIL; Interference PASS (no endurance listed); Frequency-vs-recovery FAIL; Exercise order N/A (not provided); Simultaneous progression PASS.\n\nVERDICT: REVISE BEFORE SHIPPING — missing deload plus sustained MRV overrun create overtraining risk."
+      },
+      {
+        "title": "Concurrent training interference",
+        "input": "Powerbuilding, 4 days. Mon AM: 10k tempo run @ 85% HRmax. Mon PM: heavy back squat 5x5 @ 82%. Wed: bench. Fri: deadlift 5x3. Sat: 5k intervals. Trainee: 34yo, 6yr training age, goal = squat strength.",
+        "output": "WEEKLY MATRIX: Lower strength 2x/wk (heavy squat Mon, DL Fri); Endurance 2x/wk (Mon tempo, Sat intervals). Squat priority per goal.\n\nCONFLICTS FOUND:\n1. [CRITICAL] Mon AM 10k tempo precedes Mon PM heavy squat same day — acute interference effect blunts force/RFD and elevates injury risk on the trainee's PRIORITY lift. FIX: Move the 10k tempo to Wed AM (separated from squat by 72h) or to a non-lifting day; keep ≥6h if same-day is unavoidable, with squat first.\n2. [MAJOR] Sat 5k intervals sit ~24h before next week's Mon heavy squat with no buffer; high-intensity endurance residual fatigue. FIX: Shift intervals to Thu, giving 72h before Monday squats.\n3. [MINOR] Goal is squat strength but endurance volume is high for that aim. FIX: Cap endurance to maintenance (2 short sessions) during peak strength weeks.\n\nCROSS-CHECKS: MRV ceiling PASS (low-rep strength); Deload timing UNKNOWN (block length not given — assume deload every 4th wk); Interference FAIL; Frequency-vs-recovery PASS; Exercise order PASS; Simultaneous progression PASS.\n\nVERDICT: REVISE BEFORE SHIPPING — same-day endurance-before-squat directly undermines the stated priority."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Detects missing deload in long accumulation",
+        "input": "6-week block, chest sets/wk: 12,15,18,21,22,22. No deload. RIR 2-0.",
+        "expected": "Flags a Critical/Major conflict for absent deload across a 6-week accumulation and proposes inserting a deload week (~40-50% volume reduction), plus notes chest volume nearing/at MRV; verdict is REVISE BEFORE SHIPPING."
+      },
+      {
+        "name": "Passes a clean block",
+        "input": "4-week block: W1-3 accumulation (back 14/16/18 sets, RIR 3-1), W4 deload (8 sets, RIR 4). Squat 2x/wk 72h apart. No endurance work.",
+        "expected": "Reports no Critical conflicts, all cross-checks PASS (deload present and correctly magnitude/timed, volume within MRV, frequency adequate), and verdict is SHIP AS-IS or SHIP WITH MINOR EDITS."
+      }
+    ],
+    "type": "basic",
+    "dependencies": []
+  },
+  "markdown": "# MesocycleConflictResolver\n\n## Purpose\nSurface and resolve hidden programming conflicts (volume overruns past MRV, missing/mistimed deloads, concurrent-training interference, frequency-recovery mismatches, exercise-order errors) in a periodized mesocycle so a coach can ship a safe, progressive block.\n\n## Instructions\n1. Parse the input into a per-muscle-group / per-modality weekly matrix: hard sets, intensity (%1RM or RIR), frequency, and any conditioning/endurance work.\n2. Estimate accumulated fatigue per muscle group by tracking weekly hard-set progression against evidence-based MRV/MEV landmarks (default: MRV ~12-22 hard sets/wk for most groups; flag groups exceeding their ceiling for 2+ consecutive weeks).\n3. Check deload placement: flag if any 4+ week accumulation phase lacks a deload, if a deload drops volume <40% or >70%, or if it precedes rather than follows peak accumulation.\n4. Detect concurrent-training interference: flag high-volume lower-body strength sessions placed within ~6h or same-day-after high-intensity endurance work, and quantify the interference risk.\n5. Validate intra-session exercise order (compound-before-isolation, CNS-intensive before fatiguing), frequency-vs-recovery (e.g., heavy squats <48h apart), and progression logic (no concurrent volume + intensity + frequency increases in the same week).\n6. Classify each finding by severity (Critical = injury/overtraining risk, Major = blunted adaptation, Minor = suboptimal) and assign a single overall block-readiness verdict.\n7. For every flagged conflict, output a concrete, minimal-edit fix (specific week/day/set change) plus a one-line physiological rationale; never rewrite the whole program if a surgical fix suffices.\n8. If the input lacks intensity, frequency, or trainee context (age, training age, recovery capacity), state the assumption you made and how it affects confidence.\n\n## Prompt Template\n```\nYou are MesocycleConflictResolver, an expert strength & conditioning programmer.\n\nAudit the following training mesocycle for fatigue-management and programming conflicts.\n\nMESOCYCLE:\n{{input}}\n\nTRAINEE CONTEXT (if provided): {{trainee_context}}\nGOAL/PRIORITY (if provided): {{goal}}\n\nProduce, in this exact structure:\n\n1. WEEKLY MATRIX — per muscle group / modality: hard sets x intensity x frequency across weeks. Note any assumptions made for missing data.\n\n2. CONFLICTS FOUND — a numbered list. For each:\n   - [SEVERITY: Critical | Major | Minor] short title\n   - What & where (week/day/muscle)\n   - Why it's a problem (1-line physiological rationale)\n   - FIX: minimal, specific edit\n\n3. CROSS-CHECKS — explicitly confirm pass/fail for: MRV/MEV ceilings, deload timing & magnitude, concurrent-training interference, frequency-vs-recovery, exercise order, simultaneous variable progression.\n\n4. VERDICT — one of: SHIP AS-IS / SHIP WITH MINOR EDITS / REVISE BEFORE SHIPPING, with a one-sentence justification.\n\nBe surgical: prefer the smallest change that resolves each conflict. Flag low-confidence findings when context is missing.\n```\n"
+}

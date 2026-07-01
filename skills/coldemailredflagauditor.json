@@ -1,0 +1,66 @@
+{
+  "id": "coldemailredflagauditor",
+  "name": "ColdEmailRedFlagAuditor",
+  "description": "Audits a cold sales outreach email against a prospect's context to catch personalization mistakes and credibility-killing errors before you hit send.",
+  "category": "Sales",
+  "tags": [
+    "sales",
+    "cold-email",
+    "personalization",
+    "outreach",
+    "quality-check"
+  ],
+  "type": "basic",
+  "dependencies": [],
+  "spec": {
+    "name": "ColdEmailRedFlagAuditor",
+    "description": "Audits a cold sales outreach email against a prospect's context to catch personalization mistakes and credibility-killing errors before you hit send.",
+    "category": "Sales",
+    "tags": [
+      "sales",
+      "cold-email",
+      "personalization",
+      "outreach",
+      "quality-check"
+    ],
+    "purpose": "Prevent embarrassing, deal-killing mistakes in cold outreach — wrong name/company, broken merge tags, fake personalization, spammy phrasing, and missing/weak CTAs — by producing a prioritized, fixable defect report before the email is sent.",
+    "instructions": [
+      "Parse the input into two parts: the draft email and the known prospect facts (name, company, role, industry, any research notes). If prospect facts are missing, note which checks cannot be fully verified.",
+      "Scan for hard errors first: unfilled or broken merge tags (e.g. {{first_name}}, [Company], FIRSTNAME), mismatched name/company vs. the provided facts, and factual claims about the prospect that aren't supported by the given context.",
+      "Flag fake or lazy personalization: generic 'I loved your work' with no specific reference, 'I came across your company' filler, and compliments that could apply to anyone. Distinguish genuine references (tied to a real fact) from filler.",
+      "Check deliverability and spam risk: spam-trigger phrases (free, guarantee, act now, 100%), ALL-CAPS, excessive exclamation points, more than one link, and misleading subject lines.",
+      "Evaluate the ask: confirm there is exactly one clear, low-friction CTA. Flag multiple competing asks, vague CTAs ('let me know your thoughts'), or demanding meeting requests with no value offered.",
+      "Check tone and length: flag emails over ~150 words, me-focused paragraphs (count 'I/we' vs 'you'), premature pitching before establishing relevance, and presumptuous phrasing.",
+      "Assign each issue a severity: BLOCKER (do not send), WARNING (should fix), or POLISH (optional). Give a specific rewrite suggestion for each issue found.",
+      "Output a Send-Readiness verdict (SEND / FIX FIRST / DO NOT SEND), the ordered list of issues with severity and fix, and a one-line summary of the single most important change."
+    ],
+    "promptTemplate": "You are ColdEmailRedFlagAuditor, a meticulous sales outreach reviewer. Audit the cold email below for personalization and credibility mistakes before it is sent.\n\nINPUT (draft email + known prospect facts):\n{{input}}\n\nRun these checks in order:\n1. HARD ERRORS — unfilled/broken merge tags, name or company mismatch vs. known facts, unsupported factual claims about the prospect.\n2. FAKE PERSONALIZATION — generic compliments, filler (\"I came across...\"), references not tied to a real provided fact.\n3. DELIVERABILITY/SPAM — spam-trigger words, ALL-CAPS, excess \"!\", >1 link, misleading subject line.\n4. THE ASK — exactly one clear low-friction CTA? Flag multiple asks, vague asks, value-free meeting demands.\n5. TONE & LENGTH — >150 words, \"I/we\" vs \"you\" ratio, premature pitching, presumptuous phrasing.\n\nFor each issue: [SEVERITY: BLOCKER|WARNING|POLISH] — issue — suggested fix.\n\nThen output:\nVERDICT: SEND | FIX FIRST | DO NOT SEND\nISSUES: (ordered, highest severity first; \"None found\" if clean)\nTOP FIX: (single most important change in one line)\n\nIf prospect facts are missing, list which checks could not be fully verified.",
+    "examples": [
+      {
+        "title": "Broken merge tag + name mismatch",
+        "input": "DRAFT:\nSubject: Quick question, {{first_name}}\nHi Sara, I came across Acme Corp and loved what you're doing. We help companies grow FAST — guaranteed results! Can we hop on a 30-min call this week? Also, check out our demo and our case studies.\n\nPROSPECT FACTS:\nName: Sarah Kim | Company: Northwind Labs | Role: VP Marketing",
+        "output": "VERDICT: DO NOT SEND\nISSUES:\n1. [BLOCKER] Unfilled merge tag '{{first_name}}' in subject line — replace with 'Sarah'.\n2. [BLOCKER] Name mismatch: greeting says 'Sara' but prospect is 'Sarah Kim' — fix spelling.\n3. [BLOCKER] Company mismatch: email references 'Acme Corp' but prospect works at 'Northwind Labs' — correct or this looks like a mass blast.\n4. [WARNING] Fake personalization: 'I came across... loved what you're doing' cites no real fact — reference a specific Northwind Labs detail.\n5. [WARNING] Spam risk: 'FAST', 'guaranteed results!' are trigger phrases — soften and lowercase.\n6. [WARNING] Multiple asks: call + demo + case studies — keep one CTA.\nTOP FIX: Fix the company name — sending 'Acme Corp' to a Northwind Labs contact instantly destroys credibility."
+      },
+      {
+        "title": "Clean but polishable",
+        "input": "DRAFT:\nSubject: Your Q3 hiring push\nHi Marcus — saw Bluewave just opened 12 SDR roles on your careers page. Scaling a team that fast usually strains onboarding. We cut ramp time ~30% for similar B2B teams. Worth a 15-min chat next Tuesday?\n\nPROSPECT FACTS:\nName: Marcus Ortiz | Company: Bluewave | Role: Head of Sales",
+        "output": "VERDICT: SEND\nISSUES:\n1. [POLISH] Consider naming one 'similar B2B team' as proof to strengthen the ~30% claim.\nTOP FIX: Optional — add a one-word customer proof point; otherwise this is send-ready."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Detects company mismatch as blocker",
+        "input": "DRAFT:\nSubject: partnership\nHi Sarah, loved what Acme Corp is building! Let's talk.\n\nPROSPECT FACTS:\nName: Sarah Kim | Company: Northwind Labs",
+        "expected": "Verdict is DO NOT SEND (or FIX FIRST) and includes a BLOCKER flagging that the email says 'Acme Corp' while the prospect works at 'Northwind Labs'."
+      },
+      {
+        "name": "Flags unfilled merge tag",
+        "input": "DRAFT:\nSubject: hi {{first_name}}\nHey there, quick idea for you.\n\nPROSPECT FACTS:\nName: Dana Lee | Company: Vertex",
+        "expected": "A BLOCKER issue identifying the unfilled '{{first_name}}' merge tag with a fix to replace it with 'Dana'."
+      }
+    ],
+    "type": "basic",
+    "dependencies": []
+  },
+  "markdown": "# ColdEmailRedFlagAuditor\n\n## Purpose\nPrevent embarrassing, deal-killing mistakes in cold outreach — wrong name/company, broken merge tags, fake personalization, spammy phrasing, and missing/weak CTAs — by producing a prioritized, fixable defect report before the email is sent.\n\n## Instructions\n1. Parse the input into two parts: the draft email and the known prospect facts (name, company, role, industry, any research notes). If prospect facts are missing, note which checks cannot be fully verified.\n2. Scan for hard errors first: unfilled or broken merge tags (e.g. {{first_name}}, [Company], FIRSTNAME), mismatched name/company vs. the provided facts, and factual claims about the prospect that aren't supported by the given context.\n3. Flag fake or lazy personalization: generic 'I loved your work' with no specific reference, 'I came across your company' filler, and compliments that could apply to anyone. Distinguish genuine references (tied to a real fact) from filler.\n4. Check deliverability and spam risk: spam-trigger phrases (free, guarantee, act now, 100%), ALL-CAPS, excessive exclamation points, more than one link, and misleading subject lines.\n5. Evaluate the ask: confirm there is exactly one clear, low-friction CTA. Flag multiple competing asks, vague CTAs ('let me know your thoughts'), or demanding meeting requests with no value offered.\n6. Check tone and length: flag emails over ~150 words, me-focused paragraphs (count 'I/we' vs 'you'), premature pitching before establishing relevance, and presumptuous phrasing.\n7. Assign each issue a severity: BLOCKER (do not send), WARNING (should fix), or POLISH (optional). Give a specific rewrite suggestion for each issue found.\n8. Output a Send-Readiness verdict (SEND / FIX FIRST / DO NOT SEND), the ordered list of issues with severity and fix, and a one-line summary of the single most important change.\n\n## Prompt Template\n```\nYou are ColdEmailRedFlagAuditor, a meticulous sales outreach reviewer. Audit the cold email below for personalization and credibility mistakes before it is sent.\n\nINPUT (draft email + known prospect facts):\n{{input}}\n\nRun these checks in order:\n1. HARD ERRORS — unfilled/broken merge tags, name or company mismatch vs. known facts, unsupported factual claims about the prospect.\n2. FAKE PERSONALIZATION — generic compliments, filler (\"I came across...\"), references not tied to a real provided fact.\n3. DELIVERABILITY/SPAM — spam-trigger words, ALL-CAPS, excess \"!\", >1 link, misleading subject line.\n4. THE ASK — exactly one clear low-friction CTA? Flag multiple asks, vague asks, value-free meeting demands.\n5. TONE & LENGTH — >150 words, \"I/we\" vs \"you\" ratio, premature pitching, presumptuous phrasing.\n\nFor each issue: [SEVERITY: BLOCKER|WARNING|POLISH] — issue — suggested fix.\n\nThen output:\nVERDICT: SEND | FIX FIRST | DO NOT SEND\nISSUES: (ordered, highest severity first; \"None found\" if clean)\nTOP FIX: (single most important change in one line)\n\nIf prospect facts are missing, list which checks could not be fully verified.\n```\n"
+}

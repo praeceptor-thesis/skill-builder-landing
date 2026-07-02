@@ -1,0 +1,72 @@
+{
+  "id": "releasenarrator-roadmap-to-changelog-documentation-pipeline",
+  "name": "ReleaseNarrator: Roadmap-to-Changelog Documentation Pipeline",
+  "description": "An end-to-end meta-workflow that turns a product roadmap and a batch of merged API changes into publish-ready, versioned changelog and reference documentation — by first architecting a reusable doc template, then aligning each change to roadmap milestones, and finally emitting synchronized changelog + migration notes. Use it whenever you need consistent, roadmap-aware release documentation instead of ad-hoc changelog entries.",
+  "category": "Developer Tools",
+  "tags": [
+    "changelog",
+    "api-docs",
+    "roadmap",
+    "semver",
+    "release-management"
+  ],
+  "type": "meta",
+  "dependencies": [
+    "@design_seeder/document-template-architect",
+    "@dmz_agent/roadmap"
+  ],
+  "spec": {
+    "name": "ReleaseNarrator: Roadmap-to-Changelog Documentation Pipeline",
+    "description": "An end-to-end meta-workflow that turns a product roadmap and a batch of merged API changes into publish-ready, versioned changelog and reference documentation — by first architecting a reusable doc template, then aligning each change to roadmap milestones, and finally emitting synchronized changelog + migration notes. Use it whenever you need consistent, roadmap-aware release documentation instead of ad-hoc changelog entries.",
+    "category": "Developer Tools",
+    "tags": [
+      "changelog",
+      "api-docs",
+      "roadmap",
+      "semver",
+      "release-management"
+    ],
+    "purpose": "Produce a single, coherent release documentation package (versioned changelog, API reference deltas, and migration guidance) that is structurally consistent across releases and explicitly traceable back to roadmap milestones, eliminating drift between what was promised, what shipped, and what was documented.",
+    "instructions": [
+      "Parse the {{input}} to extract three things: the raw list of API changes (endpoints, params, breaking/non-breaking flags), the target release version/date, and any references to roadmap themes or milestone names.",
+      "Invoke DocumentTemplateArchitect (@design_seeder/document-template-architect) to generate a reusable changelog template with fixed sections: Summary, Roadmap Alignment, Added, Changed, Deprecated, Removed, Breaking Changes, Migration Guide, and Reference Deltas. Persist this template so every future release reuses the identical structure.",
+      "Invoke Roadmap (@dmz_agent/roadmap) to retrieve or construct the milestone map, then classify each API change under the milestone/theme it advances; flag any change that has no roadmap owner as 'unplanned' for review.",
+      "Merge the two outputs: fill the architected template's 'Roadmap Alignment' section with the milestone mapping from Roadmap, and slot each API change into its correct semver category (Added/Changed/Deprecated/Removed/Breaking).",
+      "Auto-derive the version bump (major/minor/patch) from the presence of breaking vs. additive changes, and write the Summary as a human-readable narrative tying shipped changes to roadmap goals.",
+      "Generate the Migration Guide only for breaking changes, including before/after code snippets and deprecation timelines pulled from roadmap dates.",
+      "Validate completeness: ensure every input change appears in exactly one section, every breaking change has migration steps, and every roadmap-linked change cites its milestone. Emit a warning list for anything unmapped or unmigrated.",
+      "Output the final package as clean Markdown (plus a machine-readable JSON block of the same data) ready to commit to a CHANGELOG file or publish to a docs site."
+    ],
+    "promptTemplate": "You are ReleaseNarrator, orchestrating two sub-skills to produce roadmap-aware release documentation.\n\nINPUT:\n{{input}}\n\nSTEP 1 — Extract: Identify the API changes, target version ({{version}}), release date, and any roadmap themes/milestones mentioned.\n\nSTEP 2 — Template (via DocumentTemplateArchitect): Produce/reuse a changelog template with sections: Summary, Roadmap Alignment, Added, Changed, Deprecated, Removed, Breaking Changes, Migration Guide, Reference Deltas.\n\nSTEP 3 — Align (via Roadmap): Map each change to a milestone/theme. Mark orphan changes as \"unplanned\".\n\nSTEP 4 — Merge & Classify: Place each change into its semver section. Derive the bump: major if any Breaking, minor if only Added/Changed additively, patch if fixes only.\n\nSTEP 5 — Narrate & Migrate: Write the Summary narrative; generate Migration Guide entries (before/after) for every breaking change.\n\nSTEP 6 — Validate: Confirm each change appears exactly once, breaking changes have migrations, roadmap-linked changes cite milestones. List warnings.\n\nOUTPUT:\n1. A Markdown changelog following the template.\n2. A JSON block mirroring the same structured data.\n3. A \"Warnings\" list (unmapped/unmigrated items), or \"No warnings\".",
+    "examples": [
+      {
+        "title": "Minor release with one deprecation",
+        "input": "Version 2.4.0, releasing 2024-06-01. Changes: added GET /v2/invoices/{id}/pdf (roadmap theme: Billing Self-Serve); deprecated GET /v1/invoices (sunset 2024-12-01, part of API v2 Migration milestone); improved rate-limit headers on all endpoints.",
+        "output": "## v2.4.0 — 2024-06-01\n\n### Summary\nThis minor release advances the **Billing Self-Serve** roadmap theme with PDF invoice retrieval and continues the **API v2 Migration** by deprecating the v1 invoices endpoint. No breaking changes.\n\n### Roadmap Alignment\n- Billing Self-Serve → `GET /v2/invoices/{id}/pdf`\n- API v2 Migration → deprecation of `GET /v1/invoices`\n\n### Added\n- `GET /v2/invoices/{id}/pdf` — returns a rendered PDF of an invoice.\n\n### Changed\n- Rate-limit headers (`X-RateLimit-*`) now returned on all endpoints.\n\n### Deprecated\n- `GET /v1/invoices` — sunset 2024-12-01. Use `GET /v2/invoices`.\n\n### Breaking Changes\n_None._\n\n### Migration Guide\n_No migrations required this release._\n\n### Reference Deltas\n+ 1 endpoint added, 1 deprecated, headers updated globally.\n\n```json\n{\"version\":\"2.4.0\",\"bump\":\"minor\",\"date\":\"2024-06-01\",\"added\":[\"GET /v2/invoices/{id}/pdf\"],\"changed\":[\"rate-limit headers global\"],\"deprecated\":[{\"endpoint\":\"GET /v1/invoices\",\"sunset\":\"2024-12-01\"}],\"breaking\":[],\"roadmap\":{\"Billing Self-Serve\":[\"GET /v2/invoices/{id}/pdf\"],\"API v2 Migration\":[\"GET /v1/invoices\"]}}\n```\n\nWarnings: No warnings."
+      },
+      {
+        "title": "Major release with breaking change and orphan",
+        "input": "v3.0.0, 2024-09-15. Changes: removed POST /v1/login in favor of POST /v2/auth/token (OAuth2, roadmap: Auth Overhaul); changed pagination from offset to cursor on GET /users; added GET /health (no roadmap link).",
+        "output": "## v3.0.0 — 2024-09-15\n\n### Summary\nMajor release delivering the **Auth Overhaul** milestone: legacy login is removed in favor of OAuth2 token exchange, and `GET /users` moves to cursor pagination. Contains breaking changes.\n\n### Roadmap Alignment\n- Auth Overhaul → removal of `POST /v1/login`, new `POST /v2/auth/token`\n- (unplanned) → `GET /health`\n\n### Added\n- `POST /v2/auth/token` — OAuth2 token exchange.\n- `GET /health` — service liveness probe.\n\n### Changed\n- `GET /users` — cursor-based pagination replaces offset.\n\n### Removed\n- `POST /v1/login`.\n\n### Breaking Changes\n- `POST /v1/login` removed. `GET /users` pagination contract changed.\n\n### Migration Guide\n**Login → OAuth2**\nBefore: `POST /v1/login {user,pass}`\nAfter: `POST /v2/auth/token {grant_type:'password',...}` returning `access_token`.\n\n**Pagination**\nBefore: `GET /users?offset=40&limit=20`\nAfter: `GET /users?cursor=<next_cursor>&limit=20`; read `next_cursor` from response.\n\n### Reference Deltas\n+2 endpoints added, 1 removed, 1 changed (breaking).\n\n```json\n{\"version\":\"3.0.0\",\"bump\":\"major\",\"date\":\"2024-09-15\",\"added\":[\"POST /v2/auth/token\",\"GET /health\"],\"changed\":[\"GET /users cursor pagination\"],\"removed\":[\"POST /v1/login\"],\"breaking\":[\"POST /v1/login removed\",\"GET /users pagination\"],\"roadmap\":{\"Auth Overhaul\":[\"POST /v1/login\",\"POST /v2/auth/token\"],\"unplanned\":[\"GET /health\"]}}\n```\n\nWarnings: `GET /health` has no roadmap milestone (unplanned) — assign an owner."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Breaking change forces major bump and generates migration",
+        "input": "v2.0.0. Changes: removed field 'legacy_id' from User object response (roadmap: Schema Cleanup).",
+        "expected": "Output classifies bump as 'major', places the removal under Breaking Changes and Removed, and includes a Migration Guide entry with before/after showing 'legacy_id' removal. Roadmap Alignment cites 'Schema Cleanup'. No warnings."
+      },
+      {
+        "name": "Unmapped change raises warning",
+        "input": "v1.2.1. Changes: added GET /metrics (no roadmap reference).",
+        "expected": "Output classifies bump as 'minor', lists GET /metrics under Added and under Roadmap Alignment as 'unplanned', and emits a warning that GET /metrics has no roadmap milestone."
+      }
+    ],
+    "type": "meta",
+    "dependencies": [
+      "@design_seeder/document-template-architect",
+      "@dmz_agent/roadmap"
+    ]
+  },
+  "markdown": "# ReleaseNarrator: Roadmap-to-Changelog Documentation Pipeline\n\n## Purpose\nProduce a single, coherent release documentation package (versioned changelog, API reference deltas, and migration guidance) that is structurally consistent across releases and explicitly traceable back to roadmap milestones, eliminating drift between what was promised, what shipped, and what was documented.\n\n## Dependencies\nInstalling this skill also installs:\n- `@design_seeder/document-template-architect`\n- `@dmz_agent/roadmap`\n\n## Instructions\n1. Parse the {{input}} to extract three things: the raw list of API changes (endpoints, params, breaking/non-breaking flags), the target release version/date, and any references to roadmap themes or milestone names.\n2. Invoke DocumentTemplateArchitect (@design_seeder/document-template-architect) to generate a reusable changelog template with fixed sections: Summary, Roadmap Alignment, Added, Changed, Deprecated, Removed, Breaking Changes, Migration Guide, and Reference Deltas. Persist this template so every future release reuses the identical structure.\n3. Invoke Roadmap (@dmz_agent/roadmap) to retrieve or construct the milestone map, then classify each API change under the milestone/theme it advances; flag any change that has no roadmap owner as 'unplanned' for review.\n4. Merge the two outputs: fill the architected template's 'Roadmap Alignment' section with the milestone mapping from Roadmap, and slot each API change into its correct semver category (Added/Changed/Deprecated/Removed/Breaking).\n5. Auto-derive the version bump (major/minor/patch) from the presence of breaking vs. additive changes, and write the Summary as a human-readable narrative tying shipped changes to roadmap goals.\n6. Generate the Migration Guide only for breaking changes, including before/after code snippets and deprecation timelines pulled from roadmap dates.\n7. Validate completeness: ensure every input change appears in exactly one section, every breaking change has migration steps, and every roadmap-linked change cites its milestone. Emit a warning list for anything unmapped or unmigrated.\n8. Output the final package as clean Markdown (plus a machine-readable JSON block of the same data) ready to commit to a CHANGELOG file or publish to a docs site.\n\n## Prompt Template\n```\nYou are ReleaseNarrator, orchestrating two sub-skills to produce roadmap-aware release documentation.\n\nINPUT:\n{{input}}\n\nSTEP 1 — Extract: Identify the API changes, target version ({{version}}), release date, and any roadmap themes/milestones mentioned.\n\nSTEP 2 — Template (via DocumentTemplateArchitect): Produce/reuse a changelog template with sections: Summary, Roadmap Alignment, Added, Changed, Deprecated, Removed, Breaking Changes, Migration Guide, Reference Deltas.\n\nSTEP 3 — Align (via Roadmap): Map each change to a milestone/theme. Mark orphan changes as \"unplanned\".\n\nSTEP 4 — Merge & Classify: Place each change into its semver section. Derive the bump: major if any Breaking, minor if only Added/Changed additively, patch if fixes only.\n\nSTEP 5 — Narrate & Migrate: Write the Summary narrative; generate Migration Guide entries (before/after) for every breaking change.\n\nSTEP 6 — Validate: Confirm each change appears exactly once, breaking changes have migrations, roadmap-linked changes cite milestones. List warnings.\n\nOUTPUT:\n1. A Markdown changelog following the template.\n2. A JSON block mirroring the same structured data.\n3. A \"Warnings\" list (unmapped/unmigrated items), or \"No warnings\".\n```\n"
+}

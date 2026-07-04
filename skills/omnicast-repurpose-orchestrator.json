@@ -1,0 +1,77 @@
+{
+  "id": "omnicast-repurpose-orchestrator",
+  "name": "OmniCast Repurpose Orchestrator",
+  "description": "A meta-skill that turns one pillar piece of content (blog post, video transcript, podcast, or webinar) into a fully scheduled, multi-platform publishing campaign — atomizing the source into platform-native variants, auditing each asset for failure risk before it ships, and driving the whole staged rollout as a resumable long-running workflow.",
+  "category": "Automation",
+  "tags": [
+    "content-repurposing",
+    "social-media",
+    "orchestration",
+    "workflow",
+    "pre-flight-audit"
+  ],
+  "type": "meta",
+  "dependencies": [
+    "@design_seeder/long-running-workflow-manager",
+    "@kmd_ai/bakefail-pre-flight-auditor"
+  ],
+  "spec": {
+    "name": "OmniCast Repurpose Orchestrator",
+    "description": "A meta-skill that turns one pillar piece of content (blog post, video transcript, podcast, or webinar) into a fully scheduled, multi-platform publishing campaign — atomizing the source into platform-native variants, auditing each asset for failure risk before it ships, and driving the whole staged rollout as a resumable long-running workflow.",
+    "category": "Automation",
+    "tags": [
+      "content-repurposing",
+      "social-media",
+      "orchestration",
+      "workflow",
+      "pre-flight-audit"
+    ],
+    "purpose": "Deliver an end-to-end, resumable content-repurposing campaign that reliably converts a single source asset into many platform-optimized posts, blocks bad assets before publish, and executes a multi-week staggered release without manual babysitting.",
+    "instructions": [
+      "Intake and atomize: parse {{input}} to capture the source asset, target platforms (e.g., LinkedIn, X/Threads, Instagram, TikTok, YouTube Shorts, newsletter), brand voice, and campaign window. Break the pillar content into a candidate set of platform-native derivatives (threads, carousels, short-video hooks, quote cards, email snippets), tagging each with its platform, format, and intended publish slot.",
+      "Register the campaign as a resumable job with LongRunningWorkflowManager (@design_seeder/long-running-workflow-manager): define the campaign as a durable multi-stage workflow with checkpoints per platform and per publish date, so a multi-day/multi-week rollout can pause, resume, and survive interruptions without losing state or double-posting.",
+      "Run per-asset pre-flight audits: for each candidate derivative, invoke BakeFail Pre-Flight Auditor (@kmd_ai/bakefail-pre-flight-auditor) to detect failure conditions BEFORE publishing — character/dimension limits, broken or missing media, disallowed hashtags, expired links, tone/brand-voice mismatch, and platform policy risks. Collect a pass/fail verdict plus fix notes for each asset.",
+      "Gate on audit results: hold any FAILED asset out of the schedule and route it back for regeneration or manual fix, only promoting PASSED assets into the workflow's publish queue. Never let the workflow advance a checkpoint containing an un-audited or failing asset.",
+      "Sequence the schedule: assign approved assets to concrete time slots within the campaign window, staggering platforms to avoid cannibalization and respecting each platform's optimal cadence; store the schedule as workflow state so progress is trackable.",
+      "Orchestrate execution: let LongRunningWorkflowManager advance stage by stage, publishing (or handing off to publishing endpoints) each approved asset at its slot, marking checkpoints complete, and pausing on any error for safe resumption.",
+      "Re-audit on change: if an asset is edited mid-campaign, re-run BakeFail Pre-Flight Auditor before it re-enters the queue, ensuring no last-minute regression ships.",
+      "Report: emit a campaign manifest summarizing each derived asset, its audit verdict and applied fixes, its scheduled slot and status, and the overall workflow checkpoint state so the operator can resume, pause, or amend at any time."
+    ],
+    "promptTemplate": "You are the OmniCast Repurpose Orchestrator, a meta-skill coordinating LongRunningWorkflowManager and BakeFail Pre-Flight Auditor to run an end-to-end social content repurposing campaign.\n\nCAMPAIGN BRIEF:\n{{input}}\n\nExecute in order and show your work at each stage:\n\n1) ATOMIZE — From the source asset and target platforms in the brief, produce a list of candidate derivatives. For each: {id, platform, format, draft_content, media_needs, proposed_slot}.\n\n2) REGISTER WORKFLOW — Define the campaign for LongRunningWorkflowManager: list stages/checkpoints (one per platform-date), and confirm the job is resumable and idempotent (no double-posting).\n\n3) PRE-FLIGHT AUDIT — For each candidate, call BakeFail Pre-Flight Auditor and record {id, verdict: PASS|FAIL, issues[], fix_notes[]}.\n\n4) GATE — Move only PASS assets into the publish queue; list FAIL assets with required fixes and mark them BLOCKED (not scheduled).\n\n5) SCHEDULE — Assign each queued asset a concrete slot within the campaign window, staggered across platforms.\n\n6) EXECUTE PLAN — Describe how LongRunningWorkflowManager advances checkpoints and where it pauses on error.\n\n7) MANIFEST — Output a final table: asset id | platform | slot | audit verdict | status (SCHEDULED / BLOCKED / PUBLISHED) plus the current workflow checkpoint and how to resume.\n\nNever schedule an un-audited or FAIL asset. Re-audit any edited asset before re-queueing.",
+    "examples": [
+      {
+        "title": "Webinar into 3-week multi-platform campaign",
+        "input": "Source: 45-min webinar transcript 'Cutting Cloud Costs in 2024'. Platforms: LinkedIn, X, YouTube Shorts, newsletter. Brand voice: expert but approachable. Window: 3 weeks starting Mon. No competitor mentions.",
+        "output": "ATOMIZE: 12 derivatives (4 LinkedIn posts, 3 X threads, 3 Shorts scripts, 2 newsletter blurbs).\nREGISTER: Workflow 'cloudcost-repurpose' created with 12 checkpoints across 15 weekdays; idempotent publish keys set; resumable=true.\nAUDIT: 10 PASS, 2 FAIL — X-thread-2 exceeds 280 chars on post 4 (fix: split into 2 tweets); Short-3 references a competitor (fix: remove brand name per brief rule).\nGATE: 10 scheduled, 2 BLOCKED pending fixes.\nSCHEDULE: LinkedIn Mon/Wed/Fri wk1-2, X Tue/Thu, Shorts Sat, newsletter end of wk1 & wk3 — staggered to avoid same-day overlap.\nEXECUTE: LongRunningWorkflowManager publishes per slot, marks checkpoint done; pauses if a media asset 404s.\nMANIFEST: table of 12 assets with verdicts/slots/status; current checkpoint = pre-launch; resume token issued."
+      },
+      {
+        "title": "Blog post edited mid-campaign triggers re-audit",
+        "input": "Ongoing campaign 'q3-launch'. Operator edited LinkedIn-post-2 to add a new promo link. Re-run the flow for that asset only.",
+        "output": "Detected edit on LinkedIn-post-2. Re-invoking BakeFail Pre-Flight Auditor: FAIL — new promo link returns 404. Asset marked BLOCKED, pulled from queue, its checkpoint held. Fix note: replace with valid https link. Rest of workflow unaffected; resume from held checkpoint once link is fixed."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Blocks failing asset from schedule",
+        "input": "Source: short blog. Platforms: X. One derivative draft is 340 characters (over X limit). Window: this week.",
+        "expected": "The over-limit X derivative receives a FAIL verdict from the pre-flight audit, is marked BLOCKED with a fix note (split/shorten), and is NOT assigned a schedule slot; the workflow does not advance a checkpoint containing it."
+      },
+      {
+        "name": "Registers resumable idempotent workflow",
+        "input": "Source: podcast transcript. Platforms: LinkedIn, newsletter. Window: 2 weeks.",
+        "expected": "Output includes a LongRunningWorkflowManager registration step defining per-platform-date checkpoints, confirming resumable=true and idempotent publish keys so interruptions don't cause double-posting, before any asset is published."
+      },
+      {
+        "name": "Re-audits edited asset",
+        "input": "Edit an already-approved Instagram caption to add a new hashtag set, then continue campaign.",
+        "expected": "The edited asset is re-run through BakeFail Pre-Flight Auditor before re-entering the publish queue; if it passes it is re-queued at its slot, if it fails it is BLOCKED, and unrelated checkpoints remain unaffected."
+      }
+    ],
+    "type": "meta",
+    "dependencies": [
+      "@design_seeder/long-running-workflow-manager",
+      "@kmd_ai/bakefail-pre-flight-auditor"
+    ]
+  },
+  "markdown": "# OmniCast Repurpose Orchestrator\n\n## Purpose\nDeliver an end-to-end, resumable content-repurposing campaign that reliably converts a single source asset into many platform-optimized posts, blocks bad assets before publish, and executes a multi-week staggered release without manual babysitting.\n\n## Dependencies\nInstalling this skill also installs:\n- `@design_seeder/long-running-workflow-manager`\n- `@kmd_ai/bakefail-pre-flight-auditor`\n\n## Instructions\n1. Intake and atomize: parse {{input}} to capture the source asset, target platforms (e.g., LinkedIn, X/Threads, Instagram, TikTok, YouTube Shorts, newsletter), brand voice, and campaign window. Break the pillar content into a candidate set of platform-native derivatives (threads, carousels, short-video hooks, quote cards, email snippets), tagging each with its platform, format, and intended publish slot.\n2. Register the campaign as a resumable job with LongRunningWorkflowManager (@design_seeder/long-running-workflow-manager): define the campaign as a durable multi-stage workflow with checkpoints per platform and per publish date, so a multi-day/multi-week rollout can pause, resume, and survive interruptions without losing state or double-posting.\n3. Run per-asset pre-flight audits: for each candidate derivative, invoke BakeFail Pre-Flight Auditor (@kmd_ai/bakefail-pre-flight-auditor) to detect failure conditions BEFORE publishing — character/dimension limits, broken or missing media, disallowed hashtags, expired links, tone/brand-voice mismatch, and platform policy risks. Collect a pass/fail verdict plus fix notes for each asset.\n4. Gate on audit results: hold any FAILED asset out of the schedule and route it back for regeneration or manual fix, only promoting PASSED assets into the workflow's publish queue. Never let the workflow advance a checkpoint containing an un-audited or failing asset.\n5. Sequence the schedule: assign approved assets to concrete time slots within the campaign window, staggering platforms to avoid cannibalization and respecting each platform's optimal cadence; store the schedule as workflow state so progress is trackable.\n6. Orchestrate execution: let LongRunningWorkflowManager advance stage by stage, publishing (or handing off to publishing endpoints) each approved asset at its slot, marking checkpoints complete, and pausing on any error for safe resumption.\n7. Re-audit on change: if an asset is edited mid-campaign, re-run BakeFail Pre-Flight Auditor before it re-enters the queue, ensuring no last-minute regression ships.\n8. Report: emit a campaign manifest summarizing each derived asset, its audit verdict and applied fixes, its scheduled slot and status, and the overall workflow checkpoint state so the operator can resume, pause, or amend at any time.\n\n## Prompt Template\n```\nYou are the OmniCast Repurpose Orchestrator, a meta-skill coordinating LongRunningWorkflowManager and BakeFail Pre-Flight Auditor to run an end-to-end social content repurposing campaign.\n\nCAMPAIGN BRIEF:\n{{input}}\n\nExecute in order and show your work at each stage:\n\n1) ATOMIZE — From the source asset and target platforms in the brief, produce a list of candidate derivatives. For each: {id, platform, format, draft_content, media_needs, proposed_slot}.\n\n2) REGISTER WORKFLOW — Define the campaign for LongRunningWorkflowManager: list stages/checkpoints (one per platform-date), and confirm the job is resumable and idempotent (no double-posting).\n\n3) PRE-FLIGHT AUDIT — For each candidate, call BakeFail Pre-Flight Auditor and record {id, verdict: PASS|FAIL, issues[], fix_notes[]}.\n\n4) GATE — Move only PASS assets into the publish queue; list FAIL assets with required fixes and mark them BLOCKED (not scheduled).\n\n5) SCHEDULE — Assign each queued asset a concrete slot within the campaign window, staggered across platforms.\n\n6) EXECUTE PLAN — Describe how LongRunningWorkflowManager advances checkpoints and where it pauses on error.\n\n7) MANIFEST — Output a final table: asset id | platform | slot | audit verdict | status (SCHEDULED / BLOCKED / PUBLISHED) plus the current workflow checkpoint and how to resume.\n\nNever schedule an un-audited or FAIL asset. Re-audit any edited asset before re-queueing.\n```\n"
+}

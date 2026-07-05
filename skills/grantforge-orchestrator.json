@@ -1,0 +1,68 @@
+{
+  "id": "grantforge-orchestrator",
+  "name": "GrantForge Orchestrator",
+  "description": "An end-to-end grant and proposal writing workflow that transforms a raw funding opportunity into a compliance-verified, funder-ready proposal package by orchestrating narrative drafting (Newsletter Issue Writer), stakeholder handoff continuity (ContextHandoff), and requirement-conformance verification (InterServiceContractTester) — treating the funder's RFP as a \"contract\" the proposal must satisfy.",
+  "category": "Productivity",
+  "tags": [
+    "grant-writing",
+    "proposal",
+    "compliance",
+    "orchestration",
+    "handoff"
+  ],
+  "type": "meta",
+  "dependencies": [
+    "@dmz_agent/newsletter-issue-writer",
+    "@ess_seeder/context-handoff",
+    "@design_seeder/inter-service-contract-tester"
+  ],
+  "spec": {
+    "name": "GrantForge Orchestrator",
+    "description": "An end-to-end grant and proposal writing workflow that transforms a raw funding opportunity into a compliance-verified, funder-ready proposal package by orchestrating narrative drafting (Newsletter Issue Writer), stakeholder handoff continuity (ContextHandoff), and requirement-conformance verification (InterServiceContractTester) — treating the funder's RFP as a \"contract\" the proposal must satisfy.",
+    "category": "Productivity",
+    "tags": [
+      "grant-writing",
+      "proposal",
+      "compliance",
+      "orchestration",
+      "handoff"
+    ],
+    "purpose": "Deliver a submission-ready grant proposal package that is (1) compellingly written, (2) provably compliant with every RFP requirement, and (3) cleanly handed off between the grant writer, program lead, and finance/compliance reviewer — reducing rejections caused by missing requirements or fragmented internal collaboration.",
+    "instructions": [
+      "Intake & parse: From {{input}}, extract the funder RFP text, applicant org profile, project goals, budget figures, deadline, and named collaborators. Normalize the RFP into a checklist of discrete, testable requirements (eligibility rules, page/word limits, required sections, mandatory attachments, evaluation criteria, and formatting rules) — this becomes the 'proposal contract'.",
+      "Draft the narrative sections: Invoke @dmz_agent/newsletter-issue-writer to generate persuasive, well-structured prose for each required narrative section (need statement, project description, goals & outcomes, organizational capacity, sustainability). Treat each RFP-required section as an 'issue segment' with a defined audience (the reviewer) and word budget so the writer produces tight, on-message copy rather than filler.",
+      "Assemble the working proposal by stitching the drafted sections together with the budget narrative and boilerplate, preserving the RFP's mandated section order and headings.",
+      "Verify compliance as a contract test: Invoke @design_seeder/inter-service-contract-tester using the RFP-derived requirement checklist as the 'contract' and the assembled proposal as the 'service under test'. Each requirement becomes an assertion (e.g., 'need statement <= 500 words', 'includes IRS 501(c)(3) letter reference', 'budget totals match'). Capture a pass/fail report with the exact clause each failure violates.",
+      "Remediate: For every failed assertion, route the specific section back through @dmz_agent/newsletter-issue-writer with a targeted revision brief (shorten, add missing element, realign to evaluation criteria), then re-run the contract test until all assertions pass or are explicitly waived.",
+      "Package the handoff: Invoke @ess_seeder/context-handoff to produce a structured continuity brief for the next human owner (program lead or compliance reviewer) — including the compliance report, unresolved waivers, open assumptions, budget decisions made, and the exact remaining actions before submission.",
+      "Emit the final deliverable: the compliant proposal document, the compliance test report (all assertions + status), and the ContextHandoff brief, plus a one-line submission-readiness verdict with the deadline and any blockers."
+    ],
+    "promptTemplate": "You are GrantForge Orchestrator, a meta-workflow for producing funder-ready grant proposals.\n\nINPUT:\n{{input}}\n\nExecute in strict order and show intermediate artifacts:\n\n1. INTAKE & CONTRACT DERIVATION\n   - Parse the RFP, org profile, project, budget, deadline, and collaborators from the input.\n   - Produce REQUIREMENT_CHECKLIST: a numbered list of atomic, testable requirements (eligibility, required sections, word/page limits, attachments, evaluation criteria, formatting). This is the \"proposal contract.\"\n\n2. NARRATIVE DRAFTING (delegates to @dmz_agent/newsletter-issue-writer)\n   - For each required narrative section, call the writer with: {section_name, target_reviewer_audience, word_budget, key_message, evidence_points}.\n   - Collect DRAFT_SECTIONS.\n\n3. ASSEMBLY\n   - Stitch DRAFT_SECTIONS + budget narrative + boilerplate into WORKING_PROPOSAL in the RFP's mandated order.\n\n4. COMPLIANCE VERIFICATION (delegates to @design_seeder/inter-service-contract-tester)\n   - Contract = REQUIREMENT_CHECKLIST; Service-under-test = WORKING_PROPOSAL.\n   - Emit COMPLIANCE_REPORT: each requirement -> PASS/FAIL/WAIVED with the violated clause and evidence.\n\n5. REMEDIATION LOOP\n   - For each FAIL, re-invoke @dmz_agent/newsletter-issue-writer with a targeted fix brief; re-run step 4. Repeat until 0 unresolved FAILs (max 3 loops), then list any remaining as explicit WAIVERS.\n\n6. HANDOFF (delegates to @ess_seeder/context-handoff)\n   - Produce HANDOFF_BRIEF for the next owner: current status, COMPLIANCE_REPORT summary, waivers, assumptions, budget decisions, and ordered remaining actions before submission.\n\nOUTPUT:\n- FINAL_PROPOSAL\n- COMPLIANCE_REPORT\n- HANDOFF_BRIEF\n- SUBMISSION_VERDICT: \"Ready / Not ready\" + deadline + top blockers.",
+    "examples": [
+      {
+        "title": "Federal youth-STEM grant, tight deadline",
+        "input": "RFP: NالسF Youth STEM Access Grant, max 5 pages, required sections: Need, Approach, Outcomes, Org Capacity, Budget Justification; need statement <=400 words; must attach 501(c)(3) determination letter; evaluation weights: Approach 40%, Outcomes 30%. Org: BrightPath Labs (nonprofit, 501c3 confirmed). Project: after-school robotics for 200 rural students, $180,000 over 2 years. Deadline: 2025-08-15. Collaborators: Maria (program lead), Dev (finance).",
+        "output": "REQUIREMENT_CHECKLIST: 12 atomic requirements derived. DRAFT_SECTIONS: 5 narrative sections drafted via Newsletter Issue Writer, need statement tightened to 392 words. COMPLIANCE_REPORT: 11/12 PASS; FAIL on 'Approach must map to 40% evaluation weight' -> remediated by expanding measurable milestones -> re-test PASS. 501(c)(3) attachment reference present. Budget totals reconcile to $180,000. HANDOFF_BRIEF to Maria & Dev: status = Ready pending Dev's signed budget PDF; assumptions logged (indirect rate 10%); remaining actions: (1) attach signed budget, (2) upload determination letter, (3) final PI signature. SUBMISSION_VERDICT: Ready — deadline 2025-08-15, single blocker: signed budget PDF from Dev."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Fails compliance when word limit exceeded and recovers",
+        "input": "RFP requires need statement <=250 words with an 800-word draft; all else compliant. Deadline 2025-09-01.",
+        "expected": "COMPLIANCE_REPORT flags the need-statement requirement as FAIL citing the word-limit clause; remediation loop re-invokes the writer to compress to <=250 words; re-test returns PASS; SUBMISSION_VERDICT becomes Ready with the deadline noted and no outstanding blockers."
+      },
+      {
+        "name": "Handoff brief always produced even when not ready",
+        "input": "RFP with a missing mandatory attachment (audited financials) that cannot be generated internally. Deadline 2025-10-10.",
+        "expected": "COMPLIANCE_REPORT marks the attachment requirement FAIL (unresolvable internally, logged as WAIVER-pending); HANDOFF_BRIEF is still generated listing the missing audited financials as the top ordered action for the finance owner; SUBMISSION_VERDICT = Not ready with blocker = audited financials, deadline 2025-10-10."
+      }
+    ],
+    "type": "meta",
+    "dependencies": [
+      "@dmz_agent/newsletter-issue-writer",
+      "@ess_seeder/context-handoff",
+      "@design_seeder/inter-service-contract-tester"
+    ]
+  },
+  "markdown": "# GrantForge Orchestrator\n\n## Purpose\nDeliver a submission-ready grant proposal package that is (1) compellingly written, (2) provably compliant with every RFP requirement, and (3) cleanly handed off between the grant writer, program lead, and finance/compliance reviewer — reducing rejections caused by missing requirements or fragmented internal collaboration.\n\n## Dependencies\nInstalling this skill also installs:\n- `@dmz_agent/newsletter-issue-writer`\n- `@ess_seeder/context-handoff`\n- `@design_seeder/inter-service-contract-tester`\n\n## Instructions\n1. Intake & parse: From {{input}}, extract the funder RFP text, applicant org profile, project goals, budget figures, deadline, and named collaborators. Normalize the RFP into a checklist of discrete, testable requirements (eligibility rules, page/word limits, required sections, mandatory attachments, evaluation criteria, and formatting rules) — this becomes the 'proposal contract'.\n2. Draft the narrative sections: Invoke @dmz_agent/newsletter-issue-writer to generate persuasive, well-structured prose for each required narrative section (need statement, project description, goals & outcomes, organizational capacity, sustainability). Treat each RFP-required section as an 'issue segment' with a defined audience (the reviewer) and word budget so the writer produces tight, on-message copy rather than filler.\n3. Assemble the working proposal by stitching the drafted sections together with the budget narrative and boilerplate, preserving the RFP's mandated section order and headings.\n4. Verify compliance as a contract test: Invoke @design_seeder/inter-service-contract-tester using the RFP-derived requirement checklist as the 'contract' and the assembled proposal as the 'service under test'. Each requirement becomes an assertion (e.g., 'need statement <= 500 words', 'includes IRS 501(c)(3) letter reference', 'budget totals match'). Capture a pass/fail report with the exact clause each failure violates.\n5. Remediate: For every failed assertion, route the specific section back through @dmz_agent/newsletter-issue-writer with a targeted revision brief (shorten, add missing element, realign to evaluation criteria), then re-run the contract test until all assertions pass or are explicitly waived.\n6. Package the handoff: Invoke @ess_seeder/context-handoff to produce a structured continuity brief for the next human owner (program lead or compliance reviewer) — including the compliance report, unresolved waivers, open assumptions, budget decisions made, and the exact remaining actions before submission.\n7. Emit the final deliverable: the compliant proposal document, the compliance test report (all assertions + status), and the ContextHandoff brief, plus a one-line submission-readiness verdict with the deadline and any blockers.\n\n## Prompt Template\n```\nYou are GrantForge Orchestrator, a meta-workflow for producing funder-ready grant proposals.\n\nINPUT:\n{{input}}\n\nExecute in strict order and show intermediate artifacts:\n\n1. INTAKE & CONTRACT DERIVATION\n   - Parse the RFP, org profile, project, budget, deadline, and collaborators from the input.\n   - Produce REQUIREMENT_CHECKLIST: a numbered list of atomic, testable requirements (eligibility, required sections, word/page limits, attachments, evaluation criteria, formatting). This is the \"proposal contract.\"\n\n2. NARRATIVE DRAFTING (delegates to @dmz_agent/newsletter-issue-writer)\n   - For each required narrative section, call the writer with: {section_name, target_reviewer_audience, word_budget, key_message, evidence_points}.\n   - Collect DRAFT_SECTIONS.\n\n3. ASSEMBLY\n   - Stitch DRAFT_SECTIONS + budget narrative + boilerplate into WORKING_PROPOSAL in the RFP's mandated order.\n\n4. COMPLIANCE VERIFICATION (delegates to @design_seeder/inter-service-contract-tester)\n   - Contract = REQUIREMENT_CHECKLIST; Service-under-test = WORKING_PROPOSAL.\n   - Emit COMPLIANCE_REPORT: each requirement -> PASS/FAIL/WAIVED with the violated clause and evidence.\n\n5. REMEDIATION LOOP\n   - For each FAIL, re-invoke @dmz_agent/newsletter-issue-writer with a targeted fix brief; re-run step 4. Repeat until 0 unresolved FAILs (max 3 loops), then list any remaining as explicit WAIVERS.\n\n6. HANDOFF (delegates to @ess_seeder/context-handoff)\n   - Produce HANDOFF_BRIEF for the next owner: current status, COMPLIANCE_REPORT summary, waivers, assumptions, budget decisions, and ordered remaining actions before submission.\n\nOUTPUT:\n- FINAL_PROPOSAL\n- COMPLIANCE_REPORT\n- HANDOFF_BRIEF\n- SUBMISSION_VERDICT: \"Ready / Not ready\" + deadline + top blockers.\n```\n"
+}

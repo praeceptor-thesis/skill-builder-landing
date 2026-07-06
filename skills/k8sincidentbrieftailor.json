@@ -1,0 +1,68 @@
+{
+  "id": "k8sincidentbrieftailor",
+  "name": "K8sIncidentBriefTailor",
+  "description": "Turns raw Kubernetes/cloud incident data (alerts, kubectl output, timeline notes) into three audience-tailored status updates — engineer, leadership, and customer — each with the right tone, depth, and next steps.",
+  "category": "Support",
+  "tags": [
+    "kubernetes",
+    "incident-response",
+    "status-update",
+    "sre",
+    "communication",
+    "devops"
+  ],
+  "type": "basic",
+  "dependencies": [],
+  "spec": {
+    "name": "K8sIncidentBriefTailor",
+    "description": "Turns raw Kubernetes/cloud incident data (alerts, kubectl output, timeline notes) into three audience-tailored status updates — engineer, leadership, and customer — each with the right tone, depth, and next steps.",
+    "category": "Support",
+    "tags": [
+      "kubernetes",
+      "incident-response",
+      "status-update",
+      "sre",
+      "communication",
+      "devops"
+    ],
+    "purpose": "Eliminate the manual, error-prone work of rewriting the same live incident for on-call engineers, executives, and affected customers by producing three consistent, tone-appropriate briefs from a single source of truth.",
+    "instructions": [
+      "Parse the raw input for facts only: affected clusters/namespaces/services, symptom onset time, error signatures, blast radius (users/regions/percent traffic), current severity (SEV1-4), and mitigation actions taken so far.",
+      "Establish a single canonical timeline in UTC and reuse identical facts across all three audiences — never let numbers, times, or severity drift between versions.",
+      "Produce the ENGINEER brief: terse, technical, includes exact resource names, error messages, kubectl/log evidence, current hypothesis, and the specific next diagnostic or remediation step with an owner.",
+      "Produce the LEADERSHIP brief: business-impact-first, no jargon, state severity, customer/revenue impact, ETA confidence, resources engaged, and any decision needed from them.",
+      "Produce the CUSTOMER brief: calm, empathetic, non-technical, acknowledge impact without over-promising, avoid internal system names, give a plain-language status and next update time.",
+      "For any unknown, write 'Under investigation' rather than guessing; clearly mark ETAs as estimates and never invent root cause before evidence supports it.",
+      "Always end every brief with a concrete 'Next update by <UTC time>' line and, for engineer/leadership, name the incident commander.",
+      "If input lacks severity, infer it from blast radius and state the assumption explicitly at the top of the engineer brief."
+    ],
+    "promptTemplate": "You are an incident communications specialist for Kubernetes/cloud platforms. From the raw incident data below, generate THREE tone-adapted status updates that share one canonical set of facts (all times UTC).\n\nRAW INCIDENT DATA:\n{{input}}\n\nIncident Commander: {{incident_commander}}\nCurrent time (UTC): {{current_time_utc}}\n\nRules:\n- Use identical facts (times, severity, impact numbers) across all three briefs.\n- Mark unknowns as \"Under investigation\"; never invent root cause.\n- Label ETAs as estimates.\n\nOutput in exactly this structure:\n\n=== ENGINEER BRIEF (technical, terse) ===\nSeverity: <SEVx> (state assumption if inferred)\nAffected: <clusters/namespaces/services/resources>\nTimeline (UTC): <onset -> key events -> now>\nEvidence: <error signatures, log/kubectl findings>\nCurrent hypothesis: <or \"Under investigation\">\nNext action: <specific step> — Owner: <name>\nNext update by: <UTC time> | IC: {{incident_commander}}\n\n=== LEADERSHIP BRIEF (business-first, no jargon) ===\nStatus: <one line>\nCustomer/business impact: <who, how much, region>\nSeverity & ETA: <SEVx, estimated time to mitigation>\nResources engaged: <teams/people>\nDecision needed: <or \"None at this time\">\nNext update by: <UTC time> | IC: {{incident_commander}}\n\n=== CUSTOMER BRIEF (empathetic, non-technical) ===\n<2-4 plain-language sentences: acknowledge, current status, what we're doing, no internal system names>\nWe'll share our next update by <UTC time>.",
+    "examples": [
+      {
+        "title": "Ingress outage across a region",
+        "input": "Alert: 5xx spike on prod-us-east cluster, namespace payments, service checkout-api. Started 14:02 UTC. ~40% of US East checkout requests failing. kubectl shows ingress-nginx pods CrashLoopBackOff after config reload. Rolled back ingress configmap at 14:18, partial recovery. IC: Priya. current 14:25.",
+        "output": "=== ENGINEER BRIEF (technical, terse) ===\nSeverity: SEV2\nAffected: prod-us-east / namespace payments / checkout-api (via ingress-nginx)\nTimeline (UTC): 14:02 5xx spike onset -> 14:10 ingress-nginx pods CrashLoopBackOff after configmap reload -> 14:18 rolled back ingress configmap, partial recovery -> 14:25 error rate declining\nEvidence: 5xx spike on checkout-api; ingress-nginx pods CrashLoopBackOff correlating with configmap reload event\nCurrent hypothesis: Bad ingress configmap change triggered crash loop; rollback is stabilizing\nNext action: Confirm all ingress-nginx pods Ready and 5xx back to baseline; diff bad configmap vs prior — Owner: Priya\nNext update by: 14:40 UTC | IC: Priya\n\n=== LEADERSHIP BRIEF (business-first, no jargon) ===\nStatus: Partially recovered after a rollback; error rate is dropping.\nCustomer/business impact: ~40% of US East checkout attempts were failing since 14:02 UTC; now improving.\nSeverity & ETA: SEV2, estimated full recovery within ~15 min.\nResources engaged: On-call SRE and payments platform team.\nDecision needed: None at this time.\nNext update by: 14:40 UTC | IC: Priya\n\n=== CUSTOMER BRIEF (empathetic, non-technical) ===\nSome customers in the US East region may have had trouble completing checkout starting around 14:02 UTC. We identified the cause, applied a fix, and service is now recovering. We're monitoring closely to confirm everything is fully back to normal.\nWe'll share our next update by 14:40 UTC."
+      },
+      {
+        "title": "Sparse input, severity inferred",
+        "input": "Node group node-pool-b in gke-prod not scheduling pods, several deployments stuck Pending. Noticed ~09:30 UTC. Unclear cause. IC: unassigned. now 09:45",
+        "output": "=== ENGINEER BRIEF (technical, terse) ===\nSeverity: SEV3 (assumed — inferred from limited blast radius: single node pool, no confirmed customer impact yet)\nAffected: gke-prod / node-pool-b; multiple deployments in Pending (scheduling blocked)\nTimeline (UTC): 09:30 pods observed stuck Pending on node-pool-b -> 09:45 investigation ongoing\nEvidence: Deployments Pending; scheduling failures on node-pool-b (specific reason Under investigation)\nCurrent hypothesis: Under investigation\nNext action: Run kubectl describe on a Pending pod to capture scheduling FailedScheduling reason; check node-pool-b node conditions/taints and capacity — Owner: Under investigation (assign IC)\nNext update by: 10:00 UTC | IC: Unassigned (assign immediately)\n\n=== LEADERSHIP BRIEF (business-first, no jargon) ===\nStatus: Investigating a scheduling issue affecting one part of our infrastructure.\nCustomer/business impact: No confirmed customer impact yet; risk if capacity is not restored.\nSeverity & ETA: SEV3 (assumed), ETA under investigation.\nResources engaged: On-call SRE (incident commander needs to be assigned).\nDecision needed: Assign an incident commander.\nNext update by: 10:00 UTC | IC: Unassigned\n\n=== CUSTOMER BRIEF (empathetic, non-technical) ===\nWe're currently looking into an internal infrastructure issue. At this time we don't have evidence of customer-facing impact, and our team is actively investigating as a precaution.\nWe'll share our next update by 10:00 UTC."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Facts stay consistent across all three briefs",
+        "input": "DB connection pool exhausted on prod-eu cluster, orders-service. Onset 22:10 UTC. 15% of EU orders delayed. Increased pool size at 22:20, recovering. IC: Sam. now 22:25.",
+        "expected": "Three briefs (ENGINEER, LEADERSHIP, CUSTOMER) that all reference the same onset time (22:10 UTC), same impact (15% of EU orders), and same severity; engineer brief includes orders-service/prod-eu and the connection-pool detail with a next action and owner; customer brief avoids internal names; every brief ends with a 'Next update by <UTC time>' line and engineer/leadership name IC Sam."
+      },
+      {
+        "name": "Unknown root cause is not fabricated",
+        "input": "Intermittent 503s on api-gateway prod-west, cause unclear, started 03:40 UTC, ~5% requests. no mitigation yet. IC: Lee. now 03:50.",
+        "expected": "Engineer brief lists 'Current hypothesis: Under investigation' rather than a guessed root cause, provides a concrete next diagnostic step, and no brief claims a confirmed cause; ETA is either labeled an estimate or 'under investigation'."
+      }
+    ],
+    "type": "basic",
+    "dependencies": []
+  },
+  "markdown": "# K8sIncidentBriefTailor\n\n## Purpose\nEliminate the manual, error-prone work of rewriting the same live incident for on-call engineers, executives, and affected customers by producing three consistent, tone-appropriate briefs from a single source of truth.\n\n## Instructions\n1. Parse the raw input for facts only: affected clusters/namespaces/services, symptom onset time, error signatures, blast radius (users/regions/percent traffic), current severity (SEV1-4), and mitigation actions taken so far.\n2. Establish a single canonical timeline in UTC and reuse identical facts across all three audiences — never let numbers, times, or severity drift between versions.\n3. Produce the ENGINEER brief: terse, technical, includes exact resource names, error messages, kubectl/log evidence, current hypothesis, and the specific next diagnostic or remediation step with an owner.\n4. Produce the LEADERSHIP brief: business-impact-first, no jargon, state severity, customer/revenue impact, ETA confidence, resources engaged, and any decision needed from them.\n5. Produce the CUSTOMER brief: calm, empathetic, non-technical, acknowledge impact without over-promising, avoid internal system names, give a plain-language status and next update time.\n6. For any unknown, write 'Under investigation' rather than guessing; clearly mark ETAs as estimates and never invent root cause before evidence supports it.\n7. Always end every brief with a concrete 'Next update by <UTC time>' line and, for engineer/leadership, name the incident commander.\n8. If input lacks severity, infer it from blast radius and state the assumption explicitly at the top of the engineer brief.\n\n## Prompt Template\n```\nYou are an incident communications specialist for Kubernetes/cloud platforms. From the raw incident data below, generate THREE tone-adapted status updates that share one canonical set of facts (all times UTC).\n\nRAW INCIDENT DATA:\n{{input}}\n\nIncident Commander: {{incident_commander}}\nCurrent time (UTC): {{current_time_utc}}\n\nRules:\n- Use identical facts (times, severity, impact numbers) across all three briefs.\n- Mark unknowns as \"Under investigation\"; never invent root cause.\n- Label ETAs as estimates.\n\nOutput in exactly this structure:\n\n=== ENGINEER BRIEF (technical, terse) ===\nSeverity: <SEVx> (state assumption if inferred)\nAffected: <clusters/namespaces/services/resources>\nTimeline (UTC): <onset -> key events -> now>\nEvidence: <error signatures, log/kubectl findings>\nCurrent hypothesis: <or \"Under investigation\">\nNext action: <specific step> — Owner: <name>\nNext update by: <UTC time> | IC: {{incident_commander}}\n\n=== LEADERSHIP BRIEF (business-first, no jargon) ===\nStatus: <one line>\nCustomer/business impact: <who, how much, region>\nSeverity & ETA: <SEVx, estimated time to mitigation>\nResources engaged: <teams/people>\nDecision needed: <or \"None at this time\">\nNext update by: <UTC time> | IC: {{incident_commander}}\n\n=== CUSTOMER BRIEF (empathetic, non-technical) ===\n<2-4 plain-language sentences: acknowledge, current status, what we're doing, no internal system names>\nWe'll share our next update by <UTC time>.\n```\n"
+}

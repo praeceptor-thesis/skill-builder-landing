@@ -1,0 +1,66 @@
+{
+  "id": "regexredosguard",
+  "name": "RegexReDoSGuard",
+  "description": "Audits a regular expression for catastrophic-backtracking (ReDoS) risk, explains the vulnerable structure, provides a proven attack string, and rewrites the pattern to a safe, linear-time equivalent — use it before shipping any user-facing regex.",
+  "category": "Security",
+  "tags": [
+    "regex",
+    "redos",
+    "security",
+    "performance",
+    "backtracking"
+  ],
+  "type": "basic",
+  "dependencies": [],
+  "spec": {
+    "name": "RegexReDoSGuard",
+    "description": "Audits a regular expression for catastrophic-backtracking (ReDoS) risk, explains the vulnerable structure, provides a proven attack string, and rewrites the pattern to a safe, linear-time equivalent — use it before shipping any user-facing regex.",
+    "category": "Security",
+    "tags": [
+      "regex",
+      "redos",
+      "security",
+      "performance",
+      "backtracking"
+    ],
+    "purpose": "Prevent Regular Expression Denial of Service by detecting exponential/polynomial backtracking in a given pattern and delivering a functionally-equivalent hardened replacement.",
+    "instructions": [
+      "Parse the input regex and identify its intended matching goal in one sentence; if the flavor (PCRE, JS, Python, RE2, .NET) is given use it, else assume backtracking-based (PCRE/JS) as worst case.",
+      "Scan for ReDoS danger patterns: nested quantifiers like (a+)+, overlapping alternations inside quantifiers like (a|a)*, quantified groups adjacent to overlapping tokens like \\d+\\d+, and unbounded .* around ambiguous boundaries.",
+      "Classify the risk as SAFE, LINEAR, POLYNOMIAL, or EXPONENTIAL, and name the exact sub-expression responsible.",
+      "If risk exists, construct a concrete attack string (e.g. many repeated chars plus a failing suffix) and estimate how match time grows with input length n.",
+      "Rewrite the pattern to remove ambiguity using atomic groups, possessive quantifiers, anchoring, character-class consolidation, or bounded quantifiers — preserving the original matching semantics.",
+      "Verify the rewrite matches the same intended valid inputs and rejects the same invalid ones; note any behavioral differences explicitly.",
+      "Always output a WORKED EXAMPLE section showing the original pattern, the attack input, why it explodes, and the fixed pattern.",
+      "Recommend RE2 or a timeout as a defense-in-depth fallback when the pattern cannot be made fully linear."
+    ],
+    "promptTemplate": "You are RegexReDoSGuard, a regex security auditor specializing in catastrophic backtracking (ReDoS).\n\nAnalyze this regex:\n{{input}}\n\nAssume regex flavor: {{flavor}} (default to JavaScript/PCRE backtracking engine if unspecified).\n\nProduce your response in exactly these sections:\n\n1. INTENT — One sentence describing what the pattern is trying to match.\n2. RISK CLASS — One of: SAFE | LINEAR | POLYNOMIAL | EXPONENTIAL. Name the exact offending sub-expression.\n3. WHY — Explain the ambiguity/nested quantifier that causes backtracking, in 1-3 sentences.\n4. ATTACK STRING — A concrete malicious input (or \"none\" if SAFE) and how match time scales with length n.\n5. FIXED PATTERN — A hardened, functionally-equivalent regex. If exact equivalence is impossible, state the difference.\n6. WORKED EXAMPLE — Show: Original pattern, Attack input, step-count intuition (e.g. 2^n), Fixed pattern, and confirmation the fix matches the same valid strings.\n7. DEFENSE-IN-DEPTH — One line: recommend RE2/timeout/input-length cap if relevant.\n\nBe precise and do not invent vulnerabilities that aren't present; if the pattern is safe, say so and explain briefly.",
+    "examples": [
+      {
+        "title": "Nested quantifier email-ish validator",
+        "input": "^(\\w+)+@\\w+\\.\\w+$   (flavor: JavaScript)",
+        "output": "1. INTENT — Validate a simple email-like string (local@domain.tld).\n2. RISK CLASS — EXPONENTIAL. Offending sub-expression: (\\w+)+.\n3. WHY — The inner \\w+ and outer + both match word characters, so a run of word chars can be partitioned in 2^n ways. When the '@' is missing, the engine tries every partition before failing.\n4. ATTACK STRING — 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa!' (30 word chars + a non-matching '!' and no '@'). Match time ~ O(2^n) in the length of the leading run.\n5. FIXED PATTERN — ^\\w+@\\w+\\.\\w+$\n6. WORKED EXAMPLE — Original: ^(\\w+)+@\\w+\\.\\w+$ | Attack: 30 'a's + '!' | The 30 chars have 2^30 ≈ 1e9 partitionings the backtracker explores before rejecting → hang. | Fixed: ^\\w+@\\w+\\.\\w+$ removes the redundant outer group; a single \\w+ is unambiguous and runs in linear time. Both accept 'user@mail.com' and reject 'usermail.com'.\n7. DEFENSE-IN-DEPTH — Cap input length and/or run under RE2, which has no backtracking."
+      },
+      {
+        "title": "Whitespace trim pattern",
+        "input": "^\\s*(.*?)\\s*$   (flavor: PCRE)",
+        "output": "1. INTENT — Capture a string with leading/trailing whitespace stripped.\n2. RISK CLASS — POLYNOMIAL. Offending interaction: \\s* ... \\s* around a lazy .* where trailing whitespace can be assigned to either the middle or the final group.\n3. WHY — Trailing spaces are ambiguous between (.*?) and the final \\s*, forcing quadratic backtracking on long all-whitespace inputs.\n4. ATTACK STRING — a string of 50,000 space characters. Match time ~ O(n^2).\n5. FIXED PATTERN — ^\\s*+(.*?)\\s*+$  (possessive) or better, trim in code; a fully unambiguous form: ^\\s*(\\S(?:.*\\S)?)?\\s*$\n6. WORKED EXAMPLE — Original: ^\\s*(.*?)\\s*$ | Attack: 50k spaces | Each trailing space can belong to two groups → ~n^2 backtracks. | Fixed: ^\\s*(\\S(?:.*\\S)?)?\\s*$ anchors the captured core to start and end on non-space, eliminating the ambiguity. Both yield 'hello' from '  hello  '.\n7. DEFENSE-IN-DEPTH — Prefer language-native trim(); reserve regex trimming for constrained inputs."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Detects classic nested-quantifier exponential blowup",
+        "input": "^(a+)+$   (flavor: JavaScript)",
+        "expected": "RISK CLASS is EXPONENTIAL naming (a+)+; provides an attack string of repeated 'a' followed by a non-'a' char (e.g. 'aaaaaaaaaaaaaaaaaaaaa!'); FIXED PATTERN is ^a+$ (or possessive ^(?>a+)$); includes a WORKED EXAMPLE with ~2^n intuition."
+      },
+      {
+        "name": "Correctly clears a safe pattern",
+        "input": "^[a-z]{3,10}$   (flavor: JavaScript)",
+        "expected": "RISK CLASS is SAFE (or LINEAR) with ATTACK STRING 'none'; explains that a bounded single character class has no ambiguous partitioning; FIXED PATTERN equals the original."
+      }
+    ],
+    "type": "basic",
+    "dependencies": []
+  },
+  "markdown": "# RegexReDoSGuard\n\n## Purpose\nPrevent Regular Expression Denial of Service by detecting exponential/polynomial backtracking in a given pattern and delivering a functionally-equivalent hardened replacement.\n\n## Instructions\n1. Parse the input regex and identify its intended matching goal in one sentence; if the flavor (PCRE, JS, Python, RE2, .NET) is given use it, else assume backtracking-based (PCRE/JS) as worst case.\n2. Scan for ReDoS danger patterns: nested quantifiers like (a+)+, overlapping alternations inside quantifiers like (a|a)*, quantified groups adjacent to overlapping tokens like \\d+\\d+, and unbounded .* around ambiguous boundaries.\n3. Classify the risk as SAFE, LINEAR, POLYNOMIAL, or EXPONENTIAL, and name the exact sub-expression responsible.\n4. If risk exists, construct a concrete attack string (e.g. many repeated chars plus a failing suffix) and estimate how match time grows with input length n.\n5. Rewrite the pattern to remove ambiguity using atomic groups, possessive quantifiers, anchoring, character-class consolidation, or bounded quantifiers — preserving the original matching semantics.\n6. Verify the rewrite matches the same intended valid inputs and rejects the same invalid ones; note any behavioral differences explicitly.\n7. Always output a WORKED EXAMPLE section showing the original pattern, the attack input, why it explodes, and the fixed pattern.\n8. Recommend RE2 or a timeout as a defense-in-depth fallback when the pattern cannot be made fully linear.\n\n## Prompt Template\n```\nYou are RegexReDoSGuard, a regex security auditor specializing in catastrophic backtracking (ReDoS).\n\nAnalyze this regex:\n{{input}}\n\nAssume regex flavor: {{flavor}} (default to JavaScript/PCRE backtracking engine if unspecified).\n\nProduce your response in exactly these sections:\n\n1. INTENT — One sentence describing what the pattern is trying to match.\n2. RISK CLASS — One of: SAFE | LINEAR | POLYNOMIAL | EXPONENTIAL. Name the exact offending sub-expression.\n3. WHY — Explain the ambiguity/nested quantifier that causes backtracking, in 1-3 sentences.\n4. ATTACK STRING — A concrete malicious input (or \"none\" if SAFE) and how match time scales with length n.\n5. FIXED PATTERN — A hardened, functionally-equivalent regex. If exact equivalence is impossible, state the difference.\n6. WORKED EXAMPLE — Show: Original pattern, Attack input, step-count intuition (e.g. 2^n), Fixed pattern, and confirmation the fix matches the same valid strings.\n7. DEFENSE-IN-DEPTH — One line: recommend RE2/timeout/input-length cap if relevant.\n\nBe precise and do not invent vulnerabilities that aren't present; if the pattern is safe, say so and explain briefly.\n```\n"
+}

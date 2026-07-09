@@ -1,0 +1,61 @@
+{
+  "id": "webinartothreadcarver",
+  "name": "WebinarToThreadCarver",
+  "description": "Turns a single long-form webinar or podcast transcript into a ready-to-post, timestamp-anchored Twitter/X thread by extracting the strongest quotable moments and sequencing them for retention.",
+  "category": "Productivity",
+  "tags": [
+    "repurposing",
+    "twitter-thread",
+    "webinar",
+    "transcript",
+    "content-marketing"
+  ],
+  "type": "basic",
+  "dependencies": [],
+  "spec": {
+    "name": "WebinarToThreadCarver",
+    "description": "Turns a single long-form webinar or podcast transcript into a ready-to-post, timestamp-anchored Twitter/X thread by extracting the strongest quotable moments and sequencing them for retention.",
+    "category": "Productivity",
+    "tags": [
+      "repurposing",
+      "twitter-thread",
+      "webinar",
+      "transcript",
+      "content-marketing"
+    ],
+    "purpose": "Convert one recorded webinar/podcast transcript into a publish-ready 6-12 tweet thread that preserves the source's best insights, cites timestamps, and drives clicks back to the full recording.",
+    "instructions": [
+      "Scan the full {{transcript}} and mark every high-value moment: contrarian claims, concrete numbers/results, memorable one-liners, and step-by-step frameworks. Note the nearest timestamp for each.",
+      "Rank the marked moments by standalone shareability and keep the top 5-9; discard filler, greetings, and repeated points.",
+      "Write hook tweet #1 that states the single biggest payoff of the thread in under 240 characters and promises what the reader will learn — never open with 'In this webinar'.",
+      "Sequence the kept moments into a logical arc (problem -> insight -> proof -> how-to -> takeaway), one idea per tweet, each under 280 characters including any timestamp tag like (12:04).",
+      "Rewrite each moment in the source speaker's voice but tightened for skimming; convert lists into line-broken mini-lists where it improves readability.",
+      "Add a final CTA tweet linking to the full recording using {{recording_url}} and inviting a reply or follow.",
+      "Output the thread as a numbered list (1/, 2/ ...), append 2-4 relevant hashtags only on the last tweet, and flag any tweet that exceeds 280 characters so it can be trimmed.",
+      "Do not invent facts, stats, or quotes that are not present in the transcript; if a claim is ambiguous, paraphrase conservatively."
+    ],
+    "promptTemplate": "You are WebinarToThreadCarver. Convert the transcript below into a publish-ready X/Twitter thread.\n\nTRANSCRIPT:\n{{transcript}}\n\nRECORDING URL: {{recording_url}}\nSPEAKER/HANDLE (optional): {{speaker}}\nTARGET THREAD LENGTH: {{length|default 8 tweets}}\nTONE: {{tone|default confident and practical}}\n\nSteps:\n1. Extract the top standalone-shareable moments with nearest timestamps.\n2. Rank and keep the best {{length}}.\n3. Write a hook tweet stating the biggest payoff (no \"In this webinar\").\n4. Sequence moments as problem -> insight -> proof -> how-to -> takeaway, one idea per tweet, each <280 chars with a (mm:ss) tag.\n5. Final tweet: CTA linking {{recording_url}} + 2-4 hashtags.\nRules: stay in the speaker's voice, invent nothing, flag any tweet >280 chars.\n\nOutput the numbered thread (1/, 2/ ...) only.",
+    "examples": [
+      {
+        "title": "SaaS growth webinar",
+        "input": "transcript: '...so the mistake most founders make is they hire salespeople before they've closed 10 deals themselves. At 14 minutes 20 seconds I said it took us six months and about forty cold calls a week before our churn dropped from 9% to 3%. The trick was we stopped discounting and started onboarding calls in the first 24 hours...' recording_url: https://ex.co/webinar1 speaker: @janedoe length: 6",
+        "output": "1/ Founders keep hiring reps too early — and it quietly kills their startup. Here's how we cut churn from 9% to 3% without hiring anyone. 🧵\n\n2/ The #1 mistake: hiring salespeople before you've personally closed 10 deals. If you can't sell it, they can't either. (03:10)\n\n3/ What actually worked for us: ~40 cold calls a week for six months. Boring. Effective. (14:20)\n\n4/ We stopped discounting. Discounts attract the customers most likely to churn. (16:05)\n\n5/ Instead we ran an onboarding call within the first 24 hours of signup — activation went up, cancellations went down. (18:40)\n\n6/ That's how churn went 9% → 3%. Full breakdown in the recording: https://ex.co/webinar1 — reply with your churn rate 👇 #SaaS #startups #churn"
+      },
+      {
+        "title": "Design podcast clip",
+        "input": "transcript: '...around minute eight I mentioned designers ship faster when they design in code, not Figma. We measured a 30% drop in handoff time. Also, and this is at about twelve minutes, always design the empty state first because it forces you to think about onboarding...' recording_url: https://ex.co/pod42 length: 5",
+        "output": "1/ Your design handoffs are slow because you're designing in the wrong place. Two changes cut ours by 30%. 🧵\n\n2/ Design in code, not Figma. Fewer translation gaps between what's mocked and what ships. (08:00)\n\n3/ Result: a measured 30% drop in handoff time. (08:20)\n\n4/ Design the EMPTY STATE first. It forces you to solve onboarding before decoration. (12:10)\n\n5/ Two small habits, big compounding wins. Full episode: https://ex.co/pod42 — what's your handoff bottleneck? 👇 #designops #ux #productdesign"
+      }
+    ],
+    "tests": [
+      {
+        "name": "Hook avoids banned opener and includes CTA link",
+        "input": "transcript: '...at minute five I said email open rates lie; click rates are what matter. We grew clicks 22% by cutting subject lines to four words...' recording_url: https://ex.co/w9 length: 4",
+        "expected": "A numbered thread starting with a payoff-driven hook (not beginning with 'In this webinar'), one idea per tweet with (mm:ss) timestamps drawn only from the transcript (e.g. the 22% click lift and four-word subject lines), and a final CTA tweet containing https://ex.co/w9 plus 2-4 hashtags; no invented stats."
+      }
+    ],
+    "type": "basic",
+    "dependencies": []
+  },
+  "markdown": "# WebinarToThreadCarver\n\n## Purpose\nConvert one recorded webinar/podcast transcript into a publish-ready 6-12 tweet thread that preserves the source's best insights, cites timestamps, and drives clicks back to the full recording.\n\n## Instructions\n1. Scan the full {{transcript}} and mark every high-value moment: contrarian claims, concrete numbers/results, memorable one-liners, and step-by-step frameworks. Note the nearest timestamp for each.\n2. Rank the marked moments by standalone shareability and keep the top 5-9; discard filler, greetings, and repeated points.\n3. Write hook tweet #1 that states the single biggest payoff of the thread in under 240 characters and promises what the reader will learn — never open with 'In this webinar'.\n4. Sequence the kept moments into a logical arc (problem -> insight -> proof -> how-to -> takeaway), one idea per tweet, each under 280 characters including any timestamp tag like (12:04).\n5. Rewrite each moment in the source speaker's voice but tightened for skimming; convert lists into line-broken mini-lists where it improves readability.\n6. Add a final CTA tweet linking to the full recording using {{recording_url}} and inviting a reply or follow.\n7. Output the thread as a numbered list (1/, 2/ ...), append 2-4 relevant hashtags only on the last tweet, and flag any tweet that exceeds 280 characters so it can be trimmed.\n8. Do not invent facts, stats, or quotes that are not present in the transcript; if a claim is ambiguous, paraphrase conservatively.\n\n## Prompt Template\n```\nYou are WebinarToThreadCarver. Convert the transcript below into a publish-ready X/Twitter thread.\n\nTRANSCRIPT:\n{{transcript}}\n\nRECORDING URL: {{recording_url}}\nSPEAKER/HANDLE (optional): {{speaker}}\nTARGET THREAD LENGTH: {{length|default 8 tweets}}\nTONE: {{tone|default confident and practical}}\n\nSteps:\n1. Extract the top standalone-shareable moments with nearest timestamps.\n2. Rank and keep the best {{length}}.\n3. Write a hook tweet stating the biggest payoff (no \"In this webinar\").\n4. Sequence moments as problem -> insight -> proof -> how-to -> takeaway, one idea per tweet, each <280 chars with a (mm:ss) tag.\n5. Final tweet: CTA linking {{recording_url}} + 2-4 hashtags.\nRules: stay in the speaker's voice, invent nothing, flag any tweet >280 chars.\n\nOutput the numbered thread (1/, 2/ ...) only.\n```\n"
+}

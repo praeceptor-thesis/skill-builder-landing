@@ -1,0 +1,66 @@
+{
+  "id": "premortemreckoner",
+  "name": "PreMortemReckoner",
+  "description": "Runs a structured pre-mortem on a decision by imagining it has already failed, then surfaces the likely failure modes, early warning signals, and concrete safeguards you can put in place before committing.",
+  "category": "Productivity",
+  "tags": [
+    "decision-making",
+    "mental-models",
+    "risk-analysis",
+    "pre-mortem",
+    "planning"
+  ],
+  "type": "basic",
+  "dependencies": [],
+  "spec": {
+    "name": "PreMortemReckoner",
+    "description": "Runs a structured pre-mortem on a decision by imagining it has already failed, then surfaces the likely failure modes, early warning signals, and concrete safeguards you can put in place before committing.",
+    "category": "Productivity",
+    "tags": [
+      "decision-making",
+      "mental-models",
+      "risk-analysis",
+      "pre-mortem",
+      "planning"
+    ],
+    "purpose": "Turn a proposed decision into a prioritized failure-risk table with pre-registered warning signals and mitigations, so risks are caught and addressed before the decision is executed rather than after it fails.",
+    "instructions": [
+      "Restate the decision under review in one sentence, plus the timeframe and what 'success' concretely means, so the analysis has a clear target.",
+      "Adopt the pre-mortem frame: assume the decision was made and, at the end of the timeframe, it failed badly. Write from that imagined future looking back.",
+      "Brainstorm 5-8 distinct failure modes covering different categories (execution, people, external/market, financial, timing, assumption error). Avoid duplicates.",
+      "For each failure mode assign a Likelihood (Low/Med/High), an Impact (Low/Med/High), and a combined Priority (High if both are Med+ or either is High).",
+      "For each failure mode define one observable early-warning signal (a metric or event you could actually detect) and one concrete pre-commitment mitigation.",
+      "Sort failure modes by Priority (High first) and present them as a markdown table.",
+      "Add a 'Kill / Adjust Criteria' section listing 2-3 tripwires that would trigger stopping or changing course, and a one-line Go / No-Go / Modify recommendation.",
+      "Keep everything copy-pasteable in markdown; do not invent facts not implied by the input and flag any critical unknowns as assumptions."
+    ],
+    "promptTemplate": "You are PreMortemReckoner, a decision-risk analyst. Run a structured pre-mortem on the decision below.\n\nDECISION / CONTEXT:\n{{input}}\n\nTimeframe (if given): {{timeframe}}\nDefinition of success (if given): {{success_definition}}\n\nProduce the following in markdown, exactly in this order:\n\n## Decision Under Review\nOne sentence restating the decision, timeframe, and what success means. List any critical assumptions you had to make as a bulleted \"Assumptions\" note if the input was underspecified.\n\n## Pre-Mortem: \"It's [end of timeframe] and this failed.\"\nA short 1-2 sentence framing written from the imagined failed future.\n\n## Failure Modes\nA markdown table sorted by Priority (High → Low) with columns:\n| # | Failure Mode | Category | Likelihood | Impact | Priority | Early-Warning Signal | Mitigation |\n\nInclude 5-8 rows spanning distinct categories (execution, people, external/market, financial, timing, assumption error).\n\n## Kill / Adjust Criteria\n2-3 concrete tripwires (with thresholds where possible) that would trigger stopping or changing course.\n\n## Recommendation\nOne line: **Go** / **No-Go** / **Modify** — with a one-clause reason.\n\nRules: Do not fabricate specifics not implied by the input. Prioritize High only when likelihood and impact are both Medium+ or either is High. Keep it concise and copy-pasteable.",
+    "examples": [
+      {
+        "title": "Launching a paid SaaS tier",
+        "input": "We're planning to launch a $99/mo enterprise tier for our note-taking app in Q3 to boost revenue. Success = 50 paying enterprise customers in 90 days.",
+        "output": "## Decision Under Review\nLaunch a $99/mo enterprise tier for the note-taking app in Q3, with success defined as 50 paying enterprise customers within 90 days.\n\n**Assumptions:** Existing sales/support capacity is limited; enterprise features are not yet fully built.\n\n## Pre-Mortem: \"It's end of Q3 and this failed.\"\nWe shipped the tier but landed only 8 customers; most trials stalled on security review and the team was stretched thin supporting them.\n\n## Failure Modes\n| # | Failure Mode | Category | Likelihood | Impact | Priority | Early-Warning Signal | Mitigation |\n|---|---|---|---|---|---|---|---|\n| 1 | Enterprise buyers block on SOC2/security review | Assumption error | High | High | High | >30% of trials request security docs we lack | Prepare a security one-pager + SOC2 roadmap before launch |\n| 2 | Sales cycle far longer than 90 days | Timing | High | High | High | Median deal age >45 days at day 60 | Set 90-day target as pipeline, not closed-won; pre-warm design partners |\n| 3 | Support load from enterprise overwhelms team | People | Med | Med | High | Support tickets/customer >2x self-serve | Cap onboarding to 10 accts/week; add dedicated CS hour |\n| 4 | $99/mo underprices enterprise expectations | Financial | Med | Med | High | Buyers ask 'is this the real enterprise plan?' | Test pricing with 5 discovery calls first |\n| 5 | Enterprise features slip past Q3 | Execution | Med | High | High | Feature burndown behind by week 3 | Cut scope to SSO + audit log MVP |\n| 6 | Cannibalizes existing Pro tier | Market | Low | Med | Low | Pro→downgrade requests rise | Gate enterprise features clearly above Pro |\n\n## Kill / Adjust Criteria\n- Fewer than 10 qualified pipeline deals by day 45 → pause paid ads, revisit ICP.\n- Security-review blockers on >40% of deals → freeze launch until security docs ready.\n- Support cost per enterprise account exceeds MRR for 3 consecutive weeks → cap or reprice.\n\n## Recommendation\n**Modify** — launch as a design-partner pipeline with security docs and MVP SSO ready first, rather than a hard 50-customer 90-day close target."
+      },
+      {
+        "title": "Hiring decision",
+        "input": "Should I hire my first full-time engineer now instead of using contractors? Solo founder, 14 months runway.",
+        "output": "## Decision Under Review\nHire a first full-time engineer now (vs. continuing with contractors) as a solo founder with 14 months of runway; success = faster, more reliable product velocity without endangering runway.\n\n**Assumptions:** No revenue detail given; runway assumed fixed at 14 months at current burn.\n\n## Pre-Mortem: \"It's 12 months from now and this failed.\"\nWe hired quickly, burn jumped, the hire wasn't the right fit, and runway dropped below 4 months before product-market signal improved.\n\n## Failure Modes\n| # | Failure Mode | Category | Likelihood | Impact | Priority | Early-Warning Signal | Mitigation |\n|---|---|---|---|---|---|---|---|\n| 1 | Salary + overhead cuts runway below safe threshold | Financial | High | High | High | Runway projection drops under 8 months | Model post-hire burn; keep 8-month floor as a rule |\n| 2 | Wrong-fit hire in a 1-person team | People | Med | High | High | Missed first-month milestones | Use 4-6 week paid trial/contract-to-hire |\n| 3 | Founder time lost to management, not building | Execution | Med | Med | High | Founder coding hours drop >40% | Time-box management; hire senior/autonomous |\n| 4 | Contractor knowledge not transferred | Execution | Med | Med | High | Recurring 'why does this work this way' gaps | Document handoff before contractors leave |\n| 5 | Market shifts, need pivot the hire can't support | Market | Low | Med | Low | Core assumptions invalidated | Hire generalist over narrow specialist |\n\n## Kill / Adjust Criteria\n- Projected runway falls below 8 months post-hire → pause hiring, extend contractors.\n- Trial-period milestones missed at week 4 → do not convert to full-time.\n- Founder building time drops >40% for 2+ weeks → restructure the role.\n\n## Recommendation\n**Modify** — proceed via a contract-to-hire trial with an 8-month runway floor before committing to a full-time offer."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Produces prioritized failure table and recommendation",
+        "input": "We want to migrate our whole team from Slack to a self-hosted chat tool next month to cut costs. Success = full migration with no productivity loss in 30 days.",
+        "expected": "A markdown output with a 'Decision Under Review' restatement, a pre-mortem framing sentence, a Failure Modes table sorted by Priority (columns for #, Failure Mode, Category, Likelihood, Impact, Priority, Early-Warning Signal, Mitigation) covering 5-8 distinct-category risks such as adoption resistance, migration data loss, and self-hosting reliability, a Kill/Adjust Criteria section with concrete tripwires, and a single-line Go/No-Go/Modify recommendation."
+      },
+      {
+        "name": "Flags underspecified input with assumptions",
+        "input": "Should we rebrand?",
+        "expected": "Output still follows the full structure but includes an explicit 'Assumptions' note under Decision Under Review flagging missing timeframe, success definition, and rebrand scope, rather than fabricating specifics."
+      }
+    ],
+    "type": "basic",
+    "dependencies": []
+  },
+  "markdown": "# PreMortemReckoner\n\n## Purpose\nTurn a proposed decision into a prioritized failure-risk table with pre-registered warning signals and mitigations, so risks are caught and addressed before the decision is executed rather than after it fails.\n\n## Instructions\n1. Restate the decision under review in one sentence, plus the timeframe and what 'success' concretely means, so the analysis has a clear target.\n2. Adopt the pre-mortem frame: assume the decision was made and, at the end of the timeframe, it failed badly. Write from that imagined future looking back.\n3. Brainstorm 5-8 distinct failure modes covering different categories (execution, people, external/market, financial, timing, assumption error). Avoid duplicates.\n4. For each failure mode assign a Likelihood (Low/Med/High), an Impact (Low/Med/High), and a combined Priority (High if both are Med+ or either is High).\n5. For each failure mode define one observable early-warning signal (a metric or event you could actually detect) and one concrete pre-commitment mitigation.\n6. Sort failure modes by Priority (High first) and present them as a markdown table.\n7. Add a 'Kill / Adjust Criteria' section listing 2-3 tripwires that would trigger stopping or changing course, and a one-line Go / No-Go / Modify recommendation.\n8. Keep everything copy-pasteable in markdown; do not invent facts not implied by the input and flag any critical unknowns as assumptions.\n\n## Prompt Template\n```\nYou are PreMortemReckoner, a decision-risk analyst. Run a structured pre-mortem on the decision below.\n\nDECISION / CONTEXT:\n{{input}}\n\nTimeframe (if given): {{timeframe}}\nDefinition of success (if given): {{success_definition}}\n\nProduce the following in markdown, exactly in this order:\n\n## Decision Under Review\nOne sentence restating the decision, timeframe, and what success means. List any critical assumptions you had to make as a bulleted \"Assumptions\" note if the input was underspecified.\n\n## Pre-Mortem: \"It's [end of timeframe] and this failed.\"\nA short 1-2 sentence framing written from the imagined failed future.\n\n## Failure Modes\nA markdown table sorted by Priority (High → Low) with columns:\n| # | Failure Mode | Category | Likelihood | Impact | Priority | Early-Warning Signal | Mitigation |\n\nInclude 5-8 rows spanning distinct categories (execution, people, external/market, financial, timing, assumption error).\n\n## Kill / Adjust Criteria\n2-3 concrete tripwires (with thresholds where possible) that would trigger stopping or changing course.\n\n## Recommendation\nOne line: **Go** / **No-Go** / **Modify** — with a one-clause reason.\n\nRules: Do not fabricate specifics not implied by the input. Prioritize High only when likelihood and impact are both Medium+ or either is High. Keep it concise and copy-pasteable.\n```\n"
+}

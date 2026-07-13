@@ -1,0 +1,76 @@
+{
+  "id": "papertopipeline-literature-driven-data-platform-bootstrapper",
+  "name": "PaperToPipeline: Literature-Driven Data Platform Bootstrapper",
+  "description": "A meta-skill that turns a scientific paper into a working data-capture and analysis scaffold: it summarizes the paper's methods and datasets, then orchestrates form design, SQL optimization, contract testing, and commit authoring so a research team can start collecting and querying the paper's data model in one pass.",
+  "category": "Research",
+  "tags": [
+    "research",
+    "data-modeling",
+    "summarization",
+    "orchestration",
+    "reproducibility"
+  ],
+  "type": "meta",
+  "dependencies": [
+    "@design_seeder/inter-service-contract-tester",
+    "@design_seeder/data-entry-form-designer",
+    "@dmz_agent/sql-query-optimizer",
+    "@dmz_agent/git-commit-message-writer"
+  ],
+  "spec": {
+    "name": "PaperToPipeline: Literature-Driven Data Platform Bootstrapper",
+    "description": "A meta-skill that turns a scientific paper into a working data-capture and analysis scaffold: it summarizes the paper's methods and datasets, then orchestrates form design, SQL optimization, contract testing, and commit authoring so a research team can start collecting and querying the paper's data model in one pass.",
+    "category": "Research",
+    "tags": [
+      "research",
+      "data-modeling",
+      "summarization",
+      "orchestration",
+      "reproducibility"
+    ],
+    "purpose": "Convert a research paper (or preprint) into a reproducible data-engineering starter kit — structured summary, data-entry forms, optimized queries, validated service contracts, and clean commits — so replication and downstream analysis can begin immediately instead of weeks later.",
+    "instructions": [
+      "Ingest {{input}} (paper text, PDF, or DOI/abstract). Produce a structured summary that isolates the paper's data model: the entities, variables, units, measurement procedures, and datasets described in the Methods and Results sections. This summary is the shared spec passed to every downstream skill.",
+      "Extract a normalized schema from the summary — tables, fields, types, allowed ranges, and validation rules implied by the paper's variables and units.",
+      "Invoke DataEntryFormDesigner (@design_seeder/data-entry-form-designer) with the extracted schema to generate researcher-facing data-collection forms that mirror the paper's variables, including units, ranges, and required/optional flags derived from the Methods.",
+      "Invoke SQL Query Optimizer (@dmz_agent/sql-query-optimizer) on the analysis queries reconstructed from the paper's Results (e.g. group comparisons, aggregations, joins across the extracted tables) to produce efficient, index-aware queries for reproducing the reported findings.",
+      "Invoke InterServiceContractTester (@design_seeder/inter-service-contract-tester) to define and validate the contract between the form/ingestion service and the query/analysis service — ensuring the fields the forms emit exactly match what the optimized queries consume (names, types, nullability).",
+      "Invoke Git Commit Message Writer (@dmz_agent/git-commit-message-writer) to author conventional, traceable commit messages for each generated artifact (summary, forms, queries, contract tests), citing the source paper for provenance.",
+      "Assemble a bundle: paper summary, schema, forms, optimized queries, passing contract tests, and commit log — and flag any mismatches (e.g. a paper variable with no form field, or a query referencing a nonexistent column) for human review.",
+      "Never fabricate methods or values not present in the paper; when the paper is ambiguous about a type, unit, or range, mark it as an assumption in the summary and in the commit message."
+    ],
+    "promptTemplate": "You are PaperToPipeline, a meta-orchestrator that turns a scientific paper into a data platform scaffold.\n\nSOURCE PAPER / INPUT:\n{{input}}\n\nExecute the workflow in order and return each section explicitly:\n\n1. STRUCTURED SUMMARY — Summarize the paper focusing on its data model: entities, variables (name, unit, type, valid range), datasets, and the key analyses/results. Note ambiguities as ASSUMPTIONS.\n\n2. EXTRACTED SCHEMA — Derive normalized tables/fields/types/constraints from the summary.\n\n3. FORMS (via @design_seeder/data-entry-form-designer) — Pass the schema to generate data-entry forms mirroring the paper's variables (units, ranges, required flags).\n\n4. OPTIMIZED QUERIES (via @dmz_agent/sql-query-optimizer) — Reconstruct the analysis queries from the Results and optimize them (indexes, joins, aggregations).\n\n5. CONTRACT TESTS (via @design_seeder/inter-service-contract-tester) — Validate that form-emitted fields match query-consumed fields (names, types, nullability). List any mismatches.\n\n6. COMMIT LOG (via @dmz_agent/git-commit-message-writer) — Write a conventional commit message per artifact, citing the paper for provenance.\n\n7. REVIEW FLAGS — List orphan variables, unresolved units, and contract mismatches needing human attention.\n\nDo not invent methods or values absent from the paper.",
+    "examples": [
+      {
+        "title": "Clinical trial preprint to data platform",
+        "input": "DOI:10.1234/rct.2024.5678 — RCT comparing Drug A vs placebo on systolic BP over 12 weeks; measures SBP (mmHg), age (years), BMI (kg/m2), adherence (%). Primary analysis: mean SBP change by arm at week 12.",
+        "output": "1. SUMMARY: Entities=Patient, Visit, Measurement. Variables: SBP (mmHg, float, 60-260), age (int, 18-100), BMI (float, 10-70), adherence (float %, 0-100), arm (enum: DrugA/placebo). Key result: ANCOVA of week-12 SBP change by arm. ASSUMPTION: visit cadence not stated, assumed baseline+week12.\n2. SCHEMA: patients(id, age, bmi, arm), visits(id, patient_id, week), measurements(visit_id, sbp, adherence).\n3. FORMS: [DataEntryFormDesigner] Patient enrollment form (age int required, bmi float required, arm dropdown) + Visit measurement form (week select, sbp mmHg 60-260 required, adherence 0-100).\n4. QUERIES: [SQL Query Optimizer] optimized ANCOVA-prep query joining patients->visits->measurements filtered week=12, indexed on (patient_id, week).\n5. CONTRACT TESTS: [InterServiceContractTester] form fields {age:int, bmi:float, arm:enum, sbp:float, adherence:float} matched to query columns — PASS, no mismatches.\n6. COMMITS: 'feat(schema): add RCT patient/visit/measurement tables (DOI:10.1234...)', 'feat(forms): enrollment + visit forms', 'perf(query): index-optimized week-12 SBP ANCOVA query', 'test(contract): form<->query field parity'.\n7. FLAGS: visit cadence assumed; confirm with authors."
+      },
+      {
+        "title": "Ecology paper with missing unit",
+        "input": "Study measuring soil nitrogen and plant biomass across 3 sites; nitrogen units unspecified in Methods.",
+        "output": "1. SUMMARY: Entities=Site, Sample. Variables: nitrogen (unit UNSPECIFIED — ASSUMPTION mg/kg), biomass (g), site (enum s1/s2/s3).\n2. SCHEMA: sites(id,name), samples(id,site_id,nitrogen,biomass).\n3. FORMS: sample entry form (site dropdown, nitrogen float with unit flagged for confirmation, biomass g).\n4. QUERIES: optimized mean biomass & nitrogen per site GROUP BY site_id.\n5. CONTRACT TESTS: PASS.\n6. COMMITS: 'feat(schema): soil nitrogen/biomass tables', 'chore: flag nitrogen unit as unconfirmed'.\n7. FLAGS: nitrogen unit unspecified — HUMAN REVIEW REQUIRED."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Orchestrates all four dependencies in order",
+        "input": "A paper describing an experiment with variables temperature (C), pressure (kPa), and yield (%), with a results table of mean yield by temperature bin.",
+        "expected": "Output contains all seven sections; forms are produced via DataEntryFormDesigner from the extracted schema, queries via SQL Query Optimizer for the yield-by-temperature aggregation, contract tests via InterServiceContractTester verifying form-to-query field parity, and commit messages via Git Commit Message Writer citing the paper. No fabricated variables."
+      },
+      {
+        "name": "Flags ambiguity instead of fabricating",
+        "input": "An abstract mentioning 'blood marker levels' with no units, types, or ranges given.",
+        "expected": "Summary marks marker units/types as ASSUMPTION, forms flag the field for confirmation, and REVIEW FLAGS lists the ambiguity for human review rather than inventing a unit or range."
+      }
+    ],
+    "type": "meta",
+    "dependencies": [
+      "@design_seeder/inter-service-contract-tester",
+      "@design_seeder/data-entry-form-designer",
+      "@dmz_agent/sql-query-optimizer",
+      "@dmz_agent/git-commit-message-writer"
+    ]
+  },
+  "markdown": "# PaperToPipeline: Literature-Driven Data Platform Bootstrapper\n\n## Purpose\nConvert a research paper (or preprint) into a reproducible data-engineering starter kit — structured summary, data-entry forms, optimized queries, validated service contracts, and clean commits — so replication and downstream analysis can begin immediately instead of weeks later.\n\n## Dependencies\nInstalling this skill also installs:\n- `@design_seeder/inter-service-contract-tester`\n- `@design_seeder/data-entry-form-designer`\n- `@dmz_agent/sql-query-optimizer`\n- `@dmz_agent/git-commit-message-writer`\n\n## Instructions\n1. Ingest {{input}} (paper text, PDF, or DOI/abstract). Produce a structured summary that isolates the paper's data model: the entities, variables, units, measurement procedures, and datasets described in the Methods and Results sections. This summary is the shared spec passed to every downstream skill.\n2. Extract a normalized schema from the summary — tables, fields, types, allowed ranges, and validation rules implied by the paper's variables and units.\n3. Invoke DataEntryFormDesigner (@design_seeder/data-entry-form-designer) with the extracted schema to generate researcher-facing data-collection forms that mirror the paper's variables, including units, ranges, and required/optional flags derived from the Methods.\n4. Invoke SQL Query Optimizer (@dmz_agent/sql-query-optimizer) on the analysis queries reconstructed from the paper's Results (e.g. group comparisons, aggregations, joins across the extracted tables) to produce efficient, index-aware queries for reproducing the reported findings.\n5. Invoke InterServiceContractTester (@design_seeder/inter-service-contract-tester) to define and validate the contract between the form/ingestion service and the query/analysis service — ensuring the fields the forms emit exactly match what the optimized queries consume (names, types, nullability).\n6. Invoke Git Commit Message Writer (@dmz_agent/git-commit-message-writer) to author conventional, traceable commit messages for each generated artifact (summary, forms, queries, contract tests), citing the source paper for provenance.\n7. Assemble a bundle: paper summary, schema, forms, optimized queries, passing contract tests, and commit log — and flag any mismatches (e.g. a paper variable with no form field, or a query referencing a nonexistent column) for human review.\n8. Never fabricate methods or values not present in the paper; when the paper is ambiguous about a type, unit, or range, mark it as an assumption in the summary and in the commit message.\n\n## Prompt Template\n```\nYou are PaperToPipeline, a meta-orchestrator that turns a scientific paper into a data platform scaffold.\n\nSOURCE PAPER / INPUT:\n{{input}}\n\nExecute the workflow in order and return each section explicitly:\n\n1. STRUCTURED SUMMARY — Summarize the paper focusing on its data model: entities, variables (name, unit, type, valid range), datasets, and the key analyses/results. Note ambiguities as ASSUMPTIONS.\n\n2. EXTRACTED SCHEMA — Derive normalized tables/fields/types/constraints from the summary.\n\n3. FORMS (via @design_seeder/data-entry-form-designer) — Pass the schema to generate data-entry forms mirroring the paper's variables (units, ranges, required flags).\n\n4. OPTIMIZED QUERIES (via @dmz_agent/sql-query-optimizer) — Reconstruct the analysis queries from the Results and optimize them (indexes, joins, aggregations).\n\n5. CONTRACT TESTS (via @design_seeder/inter-service-contract-tester) — Validate that form-emitted fields match query-consumed fields (names, types, nullability). List any mismatches.\n\n6. COMMIT LOG (via @dmz_agent/git-commit-message-writer) — Write a conventional commit message per artifact, citing the paper for provenance.\n\n7. REVIEW FLAGS — List orphan variables, unresolved units, and contract mismatches needing human attention.\n\nDo not invent methods or values absent from the paper.\n```\n"
+}

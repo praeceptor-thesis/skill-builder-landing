@@ -1,0 +1,66 @@
+{
+  "id": "threadtocarouselconverter",
+  "name": "ThreadToCarouselConverter",
+  "description": "Converts a text-heavy Twitter/X thread or LinkedIn post into a slide-by-slide Instagram/LinkedIn carousel spec, with per-slide copy, headline, visual direction, and a caption. Use it when you have a long-form written post and want a scroll-stopping swipeable carousel.",
+  "category": "Productivity",
+  "tags": [
+    "carousel",
+    "repurposing",
+    "instagram",
+    "linkedin",
+    "content"
+  ],
+  "type": "basic",
+  "dependencies": [],
+  "spec": {
+    "name": "ThreadToCarouselConverter",
+    "description": "Converts a text-heavy Twitter/X thread or LinkedIn post into a slide-by-slide Instagram/LinkedIn carousel spec, with per-slide copy, headline, visual direction, and a caption. Use it when you have a long-form written post and want a scroll-stopping swipeable carousel.",
+    "category": "Productivity",
+    "tags": [
+      "carousel",
+      "repurposing",
+      "instagram",
+      "linkedin",
+      "content"
+    ],
+    "purpose": "Turn an existing written thread or post into a ready-to-design 6-10 slide carousel that maximizes swipe-through and saves, without rewriting from scratch.",
+    "instructions": [
+      "Parse the source post into its core argument, then extract 4-8 discrete ideas or steps that can each become one slide.",
+      "Design slide 1 as a hook: a bold claim, contrarian statement, or specific promise (with an implied 'swipe' cue) — never a generic title.",
+      "Assign each middle slide exactly ONE idea; keep slide copy under 40 words and lead with a scannable headline (max 7 words).",
+      "Add a visual direction line per slide (icon, chart, layout, or color emphasis) so a designer or template tool can execute it directly.",
+      "Make the final slide a clear call-to-action (follow, save, comment, or link) tied to the post's takeaway.",
+      "Number every slide, show the recommended slide count, and flag if the source has too little substance for a carousel (suggest a single graphic instead).",
+      "Write a platform caption (120-180 words) that teases the carousel value and includes 3-5 relevant hashtags.",
+      "Preserve the author's voice and any concrete numbers, names, or examples from the source verbatim."
+    ],
+    "promptTemplate": "You are ThreadToCarouselConverter. Convert the source post below into a swipeable carousel for {{platform}} (default: Instagram/LinkedIn).\n\nSOURCE POST:\n{{input}}\n\nTarget audience: {{audience}}\nDesired tone: {{tone}}\n\nDo the following:\n1. State the recommended slide count (6-10). If the source lacks substance for a carousel, say so and recommend a single graphic instead.\n2. Produce each slide as:\n   Slide N — [HEADLINE (max 7 words)]\n   Copy: <under 40 words, one idea>\n   Visual: <concrete design direction: icon/chart/layout/color>\n3. Slide 1 must be a hook (bold claim, number, or promise + swipe cue). Final slide must be a CTA.\n4. Preserve exact numbers, names, and examples from the source.\n5. End with a CAPTION (120-180 words) plus 3-5 hashtags.\n\nKeep the author's voice. Output only the carousel spec and caption.",
+    "examples": [
+      {
+        "title": "Productivity thread to Instagram carousel",
+        "input": "I wasted 2 years chasing productivity hacks. Here's what actually moved the needle: 1) I stopped multitasking — single-tasking cut my project time by 30%. 2) I time-blocked mornings for deep work, no meetings before 11am. 3) I did a weekly review every Friday to reset priorities. 4) I deleted 3 apps that ate 90 mins a day. That's it. No fancy tools.",
+        "output": "Recommended slide count: 7\n\nSlide 1 — I Wasted 2 Years On Hacks\nCopy: Then 4 boring changes did what 50 apps couldn't. Swipe →\nVisual: Bold white text on dark background, small arrow icon bottom-right.\n\nSlide 2 — Stop Multitasking\nCopy: Single-tasking cut my project time by 30%. One thing, start to finish.\nVisual: Split screen — chaotic tabs vs. one focused window; highlight '30%'.\n\nSlide 3 — Block Your Mornings\nCopy: Deep work before 11am. No meetings, no exceptions.\nVisual: Calendar graphic with a shaded 'deep work' block, meetings greyed out.\n\nSlide 4 — Friday Weekly Review\nCopy: 20 minutes to reset priorities. Enter Monday already decided.\nVisual: Clean checklist icon with a circled Friday on a mini-week strip.\n\nSlide 5 — Delete The Time Thieves\nCopy: I removed 3 apps eating 90 minutes a day. Instant time back.\nVisual: Three app icons with a red strike-through; '90 min/day' callout.\n\nSlide 6 — No Fancy Tools Needed\nCopy: That's the whole system. Boring beats shiny.\nVisual: Minimalist single-line statement, lots of whitespace.\n\nSlide 7 — Save This For Monday\nCopy: Follow for no-fluff productivity. Save so you actually use it.\nVisual: Bookmark + follow icons, brand color background.\n\nCAPTION:\nI spent two years buying every productivity app that promised to fix my focus. None of them did. What actually worked was embarrassingly simple — four changes, zero new tools. Single-tasking cut my project time by 30%. Time-blocking mornings gave me untouchable deep work. A 20-minute Friday review meant I never started the week confused. And deleting three apps handed me back 90 minutes a day. Swipe through the whole system, then pick ONE to try this week — not all four. Which one are you starting with? Drop it in the comments. Save this so it's waiting for you Monday morning.\n#productivity #deepwork #timeblocking #focus #worksmarter"
+      },
+      {
+        "title": "Thin source flagged",
+        "input": "Coffee is great. I love coffee. Coffee helps me work. Buy coffee.",
+        "output": "Not enough substance for a carousel. The source repeats one idea ('coffee is good') without distinct points, data, or steps to fill 6+ slides.\n\nRecommendation: Use a single graphic instead — a bold statement post like 'Coffee: my one non-negotiable productivity tool ☕' with a clean product/lifestyle photo. If you want a carousel, expand the source into concrete angles (e.g., best brew times, caffeine timing, a favorite routine, a cost breakdown)."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Enforces slide count and CTA structure",
+        "input": "3 lessons from my first year freelancing: 1) Raise rates every 3 months. 2) Never work without a 50% deposit. 3) Fire clients who haggle — they cost more than they pay.",
+        "expected": "Outputs a recommended slide count between 6 and 10, a hook Slide 1 with a swipe cue, one distinct middle slide per lesson preserving the '50% deposit' and '3 months' details, a final CTA slide, and a 120-180 word caption ending with 3-5 hashtags."
+      },
+      {
+        "name": "Flags thin content",
+        "input": "Mondays are hard. So hard. Ugh Mondays.",
+        "expected": "Declines to force a carousel, states there is not enough substance, and recommends a single graphic instead."
+      }
+    ],
+    "type": "basic",
+    "dependencies": []
+  },
+  "markdown": "# ThreadToCarouselConverter\n\n## Purpose\nTurn an existing written thread or post into a ready-to-design 6-10 slide carousel that maximizes swipe-through and saves, without rewriting from scratch.\n\n## Instructions\n1. Parse the source post into its core argument, then extract 4-8 discrete ideas or steps that can each become one slide.\n2. Design slide 1 as a hook: a bold claim, contrarian statement, or specific promise (with an implied 'swipe' cue) — never a generic title.\n3. Assign each middle slide exactly ONE idea; keep slide copy under 40 words and lead with a scannable headline (max 7 words).\n4. Add a visual direction line per slide (icon, chart, layout, or color emphasis) so a designer or template tool can execute it directly.\n5. Make the final slide a clear call-to-action (follow, save, comment, or link) tied to the post's takeaway.\n6. Number every slide, show the recommended slide count, and flag if the source has too little substance for a carousel (suggest a single graphic instead).\n7. Write a platform caption (120-180 words) that teases the carousel value and includes 3-5 relevant hashtags.\n8. Preserve the author's voice and any concrete numbers, names, or examples from the source verbatim.\n\n## Prompt Template\n```\nYou are ThreadToCarouselConverter. Convert the source post below into a swipeable carousel for {{platform}} (default: Instagram/LinkedIn).\n\nSOURCE POST:\n{{input}}\n\nTarget audience: {{audience}}\nDesired tone: {{tone}}\n\nDo the following:\n1. State the recommended slide count (6-10). If the source lacks substance for a carousel, say so and recommend a single graphic instead.\n2. Produce each slide as:\n   Slide N — [HEADLINE (max 7 words)]\n   Copy: <under 40 words, one idea>\n   Visual: <concrete design direction: icon/chart/layout/color>\n3. Slide 1 must be a hook (bold claim, number, or promise + swipe cue). Final slide must be a CTA.\n4. Preserve exact numbers, names, and examples from the source.\n5. End with a CAPTION (120-180 words) plus 3-5 hashtags.\n\nKeep the author's voice. Output only the carousel spec and caption.\n```\n"
+}

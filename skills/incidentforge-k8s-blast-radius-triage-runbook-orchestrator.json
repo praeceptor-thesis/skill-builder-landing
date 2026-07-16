@@ -1,0 +1,68 @@
+{
+  "id": "incidentforge-k8s-blast-radius-triage-runbook-orchestrator",
+  "name": "IncidentForge: K8s Blast-Radius Triage & Runbook Orchestrator",
+  "description": "An end-to-end Kubernetes/cloud incident response orchestrator that ingests heterogeneous alert/log/metric payloads, normalizes them, hardens any detection or log-parsing regexes against ReDoS, and rapidly onboards responders to the affected service repositories — producing a unified triage brief, blast-radius map, and remediation runbook.",
+  "category": "Automation",
+  "tags": [
+    "kubernetes",
+    "incident-response",
+    "orchestration",
+    "runbook",
+    "observability"
+  ],
+  "type": "meta",
+  "dependencies": [
+    "@design_seeder/data-format-transformer",
+    "@kmd_ai/regexredosguard",
+    "@kmd_ai/repository-onboarding-agent"
+  ],
+  "spec": {
+    "name": "IncidentForge: K8s Blast-Radius Triage & Runbook Orchestrator",
+    "description": "An end-to-end Kubernetes/cloud incident response orchestrator that ingests heterogeneous alert/log/metric payloads, normalizes them, hardens any detection or log-parsing regexes against ReDoS, and rapidly onboards responders to the affected service repositories — producing a unified triage brief, blast-radius map, and remediation runbook.",
+    "category": "Automation",
+    "tags": [
+      "kubernetes",
+      "incident-response",
+      "orchestration",
+      "runbook",
+      "observability"
+    ],
+    "purpose": "Turn a raw, mixed-format incident signal (Prometheus alerts, JSON events, YAML manifests, kubectl output, log lines) into a single actionable incident package — normalized evidence, safe log-matching patterns, contextual repo knowledge for the on-call engineer, a scoped blast-radius assessment, and an ordered remediation runbook — in one coordinated pass.",
+    "instructions": [
+      "Parse the {{input}} to identify the incident context: alerting payload(s), their source formats (Prometheus/Alertmanager JSON, YAML manifests, kubectl/log text), the affected cluster/namespace/service, and the target Git repository if provided.",
+      "STEP 1 — Normalize evidence: Invoke DataFormatTransformer (@design_seeder/data-format-transformer) on every heterogeneous payload to convert alerts, manifests, and log samples into one canonical incident schema (JSON with fields: source, severity, resource, namespace, timestamp, signal, raw). Merge all outputs into a single timeline-ordered evidence set.",
+      "STEP 2 — Harden detection patterns: Collect every regex used or proposed for log grepping, alert-routing, or anomaly matching (either supplied in the input or synthesized during triage). Invoke RegexReDoSGuard (@kmd_ai/regexredosguard) on each one; replace any flagged catastrophic-backtracking patterns with the safe rewrites it returns before running them against production log volumes.",
+      "STEP 3 — Onboard the responder: Invoke Repository Onboarding Agent (@kmd_ai/repository-onboarding-agent) against the affected service's repository to surface architecture, ownership/CODEOWNERS, deploy config, recent changes, and existing runbooks — giving the on-call engineer instant context for a codebase they may not own.",
+      "STEP 4 — Correlate & scope blast radius: Cross-reference the normalized evidence (Step 1) with the repo/deployment context (Step 3) to map which services, dependencies, and namespaces are impacted, and classify severity and likely root-cause area.",
+      "STEP 5 — Assemble the incident package: Output a structured brief containing (a) the incident summary and severity, (b) the normalized evidence timeline, (c) the validated/hardened detection patterns, (d) repo-derived context and owners, (e) the blast-radius map, and (f) an ordered, step-by-step remediation runbook with rollback and verification steps.",
+      "Always mark assumptions, missing data, and any regex that was rewritten for safety. Never emit an unvalidated regex or an unbounded remediation command; prefer reversible, least-privilege actions and explicit human-confirmation gates for destructive steps."
+    ],
+    "promptTemplate": "You are IncidentForge, a Kubernetes/cloud incident response orchestrator. Coordinate the following building-block skills in order and return one unified incident package.\n\nINCIDENT INPUT:\n{{input}}\n\nExecute this orchestration:\n1) NORMALIZE — Use DataFormatTransformer (@design_seeder/data-format-transformer) to convert each payload above into the canonical incident schema {source, severity, resource, namespace, timestamp, signal, raw}. Produce one timeline-ordered evidence set.\n2) HARDEN — Extract or synthesize all log/alert matching regexes. Run each through RegexReDoSGuard (@kmd_ai/regexredosguard); keep only safe patterns and substitute rewrites for any flagged as vulnerable. List each pattern with its verdict.\n3) ONBOARD — Run Repository Onboarding Agent (@kmd_ai/repository-onboarding-agent) on the affected repo (if given) to extract architecture, owners/CODEOWNERS, deploy config, recent commits, and existing runbooks.\n4) CORRELATE — Combine evidence + repo context to map blast radius (impacted services, namespaces, dependencies) and classify severity + probable root-cause area.\n5) DELIVER — Output the Incident Package with sections: Summary & Severity, Evidence Timeline, Validated Detection Patterns, Repo Context & Owners, Blast-Radius Map, Remediation Runbook (ordered, with rollback + verification), and Assumptions/Gaps.\n\nRules: flag every rewritten regex, mark all assumptions, and gate any destructive command behind explicit human confirmation.",
+    "examples": [
+      {
+        "title": "OOMKilled pods triage from mixed signals",
+        "input": "Alertmanager JSON: {\"alerts\":[{\"labels\":{\"alertname\":\"KubePodCrashLooping\",\"namespace\":\"payments\",\"pod\":\"checkout-7d9\"},\"annotations\":{\"summary\":\"restarts spiking\"},\"startsAt\":\"2024-06-01T14:02:00Z\"}]}\nkubectl output: checkout-7d9  0/1  CrashLoopBackOff  14  22m\nLog grep pattern in use: (OOM|OutOfMemory)+.*(killed)+\nRepo: github.com/acme/checkout-service",
+        "output": "INCIDENT PACKAGE\nSummary & Severity: checkout-service (ns: payments) in CrashLoopBackOff, 14 restarts — SEV-2, likely OOM.\nEvidence Timeline: [1] 14:02Z KubePodCrashLooping (Alertmanager) normalized -> {source:alertmanager,severity:critical,resource:pod/checkout-7d9,namespace:payments,signal:crashloop}. [2] kubectl -> 0/1 CrashLoopBackOff x14.\nValidated Detection Patterns: `(OOM|OutOfMemory)+.*(killed)+` -> FLAGGED by RegexReDoSGuard (nested quantifiers, catastrophic backtracking). Rewrite: `(OOM|OutOfMemory).*killed` [SAFE, use this].\nRepo Context & Owners: checkout-service — owner @payments-platform (CODEOWNERS). Deploy: memory limit 256Mi (Helm values). Recent commit abc123 raised cache size 2h before incident.\nBlast-Radius Map: checkout-service -> payments namespace; downstream order-api depends on it (degraded checkout latency expected).\nRemediation Runbook: 1) Confirm OOM via `kubectl describe pod checkout-7d9 -n payments` (grep with SAFE pattern). 2) [HUMAN CONFIRM] Rollback commit abc123 or raise memory limit to 512Mi. 3) `kubectl rollout status deploy/checkout -n payments` to verify. Rollback: revert Helm values, redeploy previous revision.\nAssumptions/Gaps: root cause tied to commit abc123 (unconfirmed); no metrics payload provided for memory graph."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Vulnerable regex is rewritten before use",
+        "input": "Log pattern for parsing: ^(a+)+$ against 50GB of nginx logs; alert: HighLatency in ns=web; repo: github.com/acme/web-gateway",
+        "expected": "The package must run RegexReDoSGuard, flag ^(a+)+$ as ReDoS-vulnerable, provide a safe rewrite, and explicitly refuse to run the original pattern against the 50GB log volume."
+      },
+      {
+        "name": "Missing repo still produces a package",
+        "input": "Prometheus alert only: {alertname: TargetDown, namespace: infra}; no repo provided",
+        "expected": "The package normalizes the alert via DataFormatTransformer, notes in Assumptions/Gaps that no repository was supplied so the onboarding step was skipped, and still delivers a summary, evidence timeline, and a generic blast-radius/runbook."
+      }
+    ],
+    "type": "meta",
+    "dependencies": [
+      "@design_seeder/data-format-transformer",
+      "@kmd_ai/regexredosguard",
+      "@kmd_ai/repository-onboarding-agent"
+    ]
+  },
+  "markdown": "# IncidentForge: K8s Blast-Radius Triage & Runbook Orchestrator\n\n## Purpose\nTurn a raw, mixed-format incident signal (Prometheus alerts, JSON events, YAML manifests, kubectl output, log lines) into a single actionable incident package — normalized evidence, safe log-matching patterns, contextual repo knowledge for the on-call engineer, a scoped blast-radius assessment, and an ordered remediation runbook — in one coordinated pass.\n\n## Dependencies\nInstalling this skill also installs:\n- `@design_seeder/data-format-transformer`\n- `@kmd_ai/regexredosguard`\n- `@kmd_ai/repository-onboarding-agent`\n\n## Instructions\n1. Parse the {{input}} to identify the incident context: alerting payload(s), their source formats (Prometheus/Alertmanager JSON, YAML manifests, kubectl/log text), the affected cluster/namespace/service, and the target Git repository if provided.\n2. STEP 1 — Normalize evidence: Invoke DataFormatTransformer (@design_seeder/data-format-transformer) on every heterogeneous payload to convert alerts, manifests, and log samples into one canonical incident schema (JSON with fields: source, severity, resource, namespace, timestamp, signal, raw). Merge all outputs into a single timeline-ordered evidence set.\n3. STEP 2 — Harden detection patterns: Collect every regex used or proposed for log grepping, alert-routing, or anomaly matching (either supplied in the input or synthesized during triage). Invoke RegexReDoSGuard (@kmd_ai/regexredosguard) on each one; replace any flagged catastrophic-backtracking patterns with the safe rewrites it returns before running them against production log volumes.\n4. STEP 3 — Onboard the responder: Invoke Repository Onboarding Agent (@kmd_ai/repository-onboarding-agent) against the affected service's repository to surface architecture, ownership/CODEOWNERS, deploy config, recent changes, and existing runbooks — giving the on-call engineer instant context for a codebase they may not own.\n5. STEP 4 — Correlate & scope blast radius: Cross-reference the normalized evidence (Step 1) with the repo/deployment context (Step 3) to map which services, dependencies, and namespaces are impacted, and classify severity and likely root-cause area.\n6. STEP 5 — Assemble the incident package: Output a structured brief containing (a) the incident summary and severity, (b) the normalized evidence timeline, (c) the validated/hardened detection patterns, (d) repo-derived context and owners, (e) the blast-radius map, and (f) an ordered, step-by-step remediation runbook with rollback and verification steps.\n7. Always mark assumptions, missing data, and any regex that was rewritten for safety. Never emit an unvalidated regex or an unbounded remediation command; prefer reversible, least-privilege actions and explicit human-confirmation gates for destructive steps.\n\n## Prompt Template\n```\nYou are IncidentForge, a Kubernetes/cloud incident response orchestrator. Coordinate the following building-block skills in order and return one unified incident package.\n\nINCIDENT INPUT:\n{{input}}\n\nExecute this orchestration:\n1) NORMALIZE — Use DataFormatTransformer (@design_seeder/data-format-transformer) to convert each payload above into the canonical incident schema {source, severity, resource, namespace, timestamp, signal, raw}. Produce one timeline-ordered evidence set.\n2) HARDEN — Extract or synthesize all log/alert matching regexes. Run each through RegexReDoSGuard (@kmd_ai/regexredosguard); keep only safe patterns and substitute rewrites for any flagged as vulnerable. List each pattern with its verdict.\n3) ONBOARD — Run Repository Onboarding Agent (@kmd_ai/repository-onboarding-agent) on the affected repo (if given) to extract architecture, owners/CODEOWNERS, deploy config, recent commits, and existing runbooks.\n4) CORRELATE — Combine evidence + repo context to map blast radius (impacted services, namespaces, dependencies) and classify severity + probable root-cause area.\n5) DELIVER — Output the Incident Package with sections: Summary & Severity, Evidence Timeline, Validated Detection Patterns, Repo Context & Owners, Blast-Radius Map, Remediation Runbook (ordered, with rollback + verification), and Assumptions/Gaps.\n\nRules: flag every rewritten regex, mark all assumptions, and gate any destructive command behind explicit human confirmation.\n```\n"
+}

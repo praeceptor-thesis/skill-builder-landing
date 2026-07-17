@@ -1,0 +1,66 @@
+{
+  "id": "specificaimssharpener",
+  "name": "SpecificAimsSharpener",
+  "description": "Rapidly drafts and tightens the one-page Specific Aims section of a grant proposal (NIH/NSF style) into a punchy, funder-ready structure.",
+  "category": "Research",
+  "tags": [
+    "grants",
+    "research",
+    "specific-aims",
+    "nih",
+    "proposal"
+  ],
+  "type": "basic",
+  "dependencies": [],
+  "spec": {
+    "name": "SpecificAimsSharpener",
+    "description": "Rapidly drafts and tightens the one-page Specific Aims section of a grant proposal (NIH/NSF style) into a punchy, funder-ready structure.",
+    "category": "Research",
+    "tags": [
+      "grants",
+      "research",
+      "specific-aims",
+      "nih",
+      "proposal"
+    ],
+    "purpose": "Produce a compelling, correctly structured one-page Specific Aims section that hooks reviewers, states the gap, central hypothesis, and 2-3 discrete aims with expected outcomes and impact.",
+    "instructions": [
+      "Extract the research problem, gap, long-term goal, hypothesis, and preliminary data from {{input}}; if any are missing, infer a reasonable placeholder and flag it in [brackets].",
+      "Open with a 2-3 sentence hook establishing significance and the critical gap in current knowledge.",
+      "State the long-term goal, the overall objective of THIS application, and a single testable central hypothesis in one tight paragraph.",
+      "Draft 2-3 Specific Aims, each with a bolded action-verb title, a one-line rationale, working hypothesis, and expected outcome.",
+      "Close with a 2-3 sentence Impact statement describing how success shifts the field or enables next steps.",
+      "Keep total length to roughly 500-600 words (one page); cut hedging, jargon, and redundancy.",
+      "Ensure aims are independent (not sequentially dependent) unless the user explicitly wants a dependent structure.",
+      "Output plain text with clear headers; end with a short list of any [flagged] assumptions the user should verify."
+    ],
+    "promptTemplate": "You are an expert grant writer specializing in NIH/NSF Specific Aims pages. Using the project details below, write a one-page Specific Aims section (~500-600 words).\n\nPROJECT DETAILS:\n{{input}}\n\nProduce, in this order:\n1. HOOK & GAP — 2-3 sentences on significance and the critical knowledge gap.\n2. GOAL & HYPOTHESIS — long-term goal, objective of this application, and one testable central hypothesis.\n3. SPECIFIC AIMS — 2-3 aims, each formatted as:\n   **Aim N. [Action-verb title].** Rationale. Working hypothesis. Expected outcome.\n4. IMPACT — 2-3 sentences on how success advances the field.\n\nRules: independent aims unless told otherwise; no hedging or filler; bracket [assumptions] where details were missing. After the section, list any [assumptions] to verify.",
+    "examples": [
+      {
+        "title": "Microbiome cancer proposal",
+        "input": "Topic: gut microbiome and colorectal cancer immunotherapy response. Gap: unclear which bacterial species predict anti-PD1 response. Long-term goal: personalize immunotherapy. Preliminary data: pilot of 30 patients showed Faecalibacterium enrichment in responders. Have mouse models and 200-patient cohort access.",
+        "output": "SPECIFIC AIMS\n\nImmune checkpoint inhibitors have transformed colorectal cancer care, yet fewer than half of patients respond, and clinicians lack reliable predictors of benefit. Emerging evidence links the gut microbiome to anti-PD1 efficacy, but the specific bacterial taxa that drive or predict response remain undefined, preventing microbiome-informed treatment selection.\n\nOur long-term goal is to personalize immunotherapy using the gut microbiome. The objective of this application is to identify and functionally validate bacterial species that predict and enhance anti-PD1 response in colorectal cancer. Guided by pilot data showing Faecalibacterium enrichment in responders (n=30), our central hypothesis is that defined commensal taxa causally augment anti-tumor immunity and can be leveraged as biomarkers and adjuncts.\n\n**Aim 1. Define microbiome signatures predictive of anti-PD1 response.** Response prediction requires validated, prospective biomarkers. We hypothesize that a Faecalibacterium-anchored taxa panel predicts response with clinically useful accuracy. Using our 200-patient cohort with metagenomic sequencing, we will derive and validate a predictive signature (expected AUC >0.75).\n\n**Aim 2. Establish causality in humanized mouse models.** Correlation cannot justify intervention. We hypothesize that colonization with candidate taxa causally increases anti-PD1 efficacy. We will transplant responder vs. non-responder microbiota into gnotobiotic tumor-bearing mice and measure tumor control and intratumoral CD8+ T-cell infiltration.\n\n**Aim 3. Identify the immunologic mechanism of benefit.** Rational therapy needs a mechanism. We hypothesize that candidate taxa enhance response via metabolite-driven dendritic cell activation. We will profile microbial metabolites and immune cell states, expecting to pinpoint at least one actionable pathway.\n\nIMPACT: Success will deliver a validated microbiome biomarker to guide immunotherapy and a mechanistic basis for live-biotherapeutic adjuncts, directly advancing personalized oncology.\n\n[Assumptions to verify]: 200-patient cohort has matched response outcomes; gnotobiotic facility access; pilot AUC threshold is realistic for your data."
+      },
+      {
+        "title": "Education intervention (thin input)",
+        "input": "Want to study whether an AI tutoring tool improves middle school math scores in low-income districts.",
+        "output": "SPECIFIC AIMS\n\nMiddle school math achievement gaps in low-income districts persist despite decades of intervention, and scalable, affordable tutoring remains out of reach for most students. AI-based tutoring tools promise personalized support at low cost, but [rigorous evidence] on their impact in under-resourced settings is lacking, leaving districts unable to justify adoption.\n\nOur long-term goal is to close math achievement gaps through scalable technology. The objective of this application is to evaluate whether an AI tutoring tool improves math outcomes for middle schoolers in low-income districts. Our central hypothesis is that structured AI tutoring produces measurable gains in standardized math scores relative to standard instruction.\n\n**Aim 1. Measure the effect of AI tutoring on math achievement.** Adoption decisions need causal evidence. We hypothesize that students using the tool outperform controls. We will run a [cluster-randomized] trial across [8-10 schools], measuring standardized score change over one year.\n\n**Aim 2. Identify which students benefit most.** Uniform rollout may misallocate resources. We hypothesize that gains vary by baseline proficiency and usage intensity. We will model heterogeneous effects to target future deployment.\n\nIMPACT: Success will give districts actionable evidence on if, how, and for whom AI tutoring works, informing equitable, cost-effective scaling.\n\n[Assumptions to verify]: number and consent of participating schools; randomization feasibility; access to standardized score data; the specific tutoring tool and outcome measure."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Structure and length compliance",
+        "input": "Topic: wearable sensor for early sepsis detection in ICU. Gap: current alerts too late. Preliminary: pilot ROC 0.82. Have ICU dataset and clinical partner.",
+        "expected": "A ~500-600 word Specific Aims section containing a hook/gap opener, a goal-and-central-hypothesis paragraph, 2-3 bolded action-verb aims each with rationale/hypothesis/expected outcome, an Impact closer, and a trailing list of [assumptions to verify]."
+      },
+      {
+        "name": "Flags missing details",
+        "input": "I want a grant about clean water.",
+        "expected": "A structured Specific Aims draft that fills gaps with clearly [bracketed] placeholders and ends with an [assumptions to verify] list prompting the user to supply the gap, hypothesis, target population, and outcome measures."
+      }
+    ],
+    "type": "basic",
+    "dependencies": []
+  },
+  "markdown": "# SpecificAimsSharpener\n\n## Purpose\nProduce a compelling, correctly structured one-page Specific Aims section that hooks reviewers, states the gap, central hypothesis, and 2-3 discrete aims with expected outcomes and impact.\n\n## Instructions\n1. Extract the research problem, gap, long-term goal, hypothesis, and preliminary data from {{input}}; if any are missing, infer a reasonable placeholder and flag it in [brackets].\n2. Open with a 2-3 sentence hook establishing significance and the critical gap in current knowledge.\n3. State the long-term goal, the overall objective of THIS application, and a single testable central hypothesis in one tight paragraph.\n4. Draft 2-3 Specific Aims, each with a bolded action-verb title, a one-line rationale, working hypothesis, and expected outcome.\n5. Close with a 2-3 sentence Impact statement describing how success shifts the field or enables next steps.\n6. Keep total length to roughly 500-600 words (one page); cut hedging, jargon, and redundancy.\n7. Ensure aims are independent (not sequentially dependent) unless the user explicitly wants a dependent structure.\n8. Output plain text with clear headers; end with a short list of any [flagged] assumptions the user should verify.\n\n## Prompt Template\n```\nYou are an expert grant writer specializing in NIH/NSF Specific Aims pages. Using the project details below, write a one-page Specific Aims section (~500-600 words).\n\nPROJECT DETAILS:\n{{input}}\n\nProduce, in this order:\n1. HOOK & GAP — 2-3 sentences on significance and the critical knowledge gap.\n2. GOAL & HYPOTHESIS — long-term goal, objective of this application, and one testable central hypothesis.\n3. SPECIFIC AIMS — 2-3 aims, each formatted as:\n   **Aim N. [Action-verb title].** Rationale. Working hypothesis. Expected outcome.\n4. IMPACT — 2-3 sentences on how success advances the field.\n\nRules: independent aims unless told otherwise; no hedging or filler; bracket [assumptions] where details were missing. After the section, list any [assumptions] to verify.\n```\n"
+}

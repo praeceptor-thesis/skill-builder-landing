@@ -1,0 +1,69 @@
+{
+  "id": "okr-delivery-orchestrator",
+  "name": "OKR Delivery Orchestrator",
+  "description": "A meta-workflow that turns a strategic objective into a de-risked, execution-ready OKR plan by first running a BakeFail pre-flight risk audit on each key result, then decomposing every validated key result into an agentic coding task plan — producing a single traceable objective → key results → audited risks → task plans artifact.",
+  "category": "Productivity",
+  "tags": [
+    "okr",
+    "planning",
+    "risk-audit",
+    "orchestration",
+    "goal-setting",
+    "task-decomposition"
+  ],
+  "type": "meta",
+  "dependencies": [
+    "@kmd_ai/bakefail-pre-flight-auditor",
+    "@kmd_ai/agentic-coding-task-planner-1781501412237"
+  ],
+  "spec": {
+    "name": "OKR Delivery Orchestrator",
+    "description": "A meta-workflow that turns a strategic objective into a de-risked, execution-ready OKR plan by first running a BakeFail pre-flight risk audit on each key result, then decomposing every validated key result into an agentic coding task plan — producing a single traceable objective → key results → audited risks → task plans artifact.",
+    "category": "Productivity",
+    "tags": [
+      "okr",
+      "planning",
+      "risk-audit",
+      "orchestration",
+      "goal-setting",
+      "task-decomposition"
+    ],
+    "purpose": "Convert a high-level objective into a fully-planned, risk-audited quarterly OKR set where every key result is validated for failure modes before being broken down into concrete, sequenced engineering tasks — so teams commit to goals they can actually deliver.",
+    "instructions": [
+      "Parse the raw objective from {{input}} and draft 2-4 measurable, time-bound key results (KRs), each with a baseline, target, and owner; if any of these are missing, infer sensible defaults and flag them as assumptions.",
+      "For EACH key result, invoke @kmd_ai/bakefail-pre-flight-auditor, passing the KR statement plus its target and delivery context, to surface failure modes, hidden dependencies, and readiness gaps before committing.",
+      "Gate on the audit: if the auditor returns blocking issues for a KR, revise the KR (adjust target, split it, or add a prerequisite) and re-audit until it passes or is explicitly accepted with a documented risk.",
+      "For every KR that clears the audit, invoke @kmd_ai/agentic-coding-task-planner-1781501412237, feeding it the KR, its accepted risks, and any prerequisites, to generate an ordered, dependency-aware set of engineering tasks.",
+      "Weave the audit findings into the task plan: convert each unresolved or accepted risk into an explicit mitigation task and place it before the tasks it protects.",
+      "Assemble a single traceable artifact linking Objective → each KR → its audit summary → its task plan, and compute a rollup confidence score plus the critical-path dependencies across all KRs.",
+      "Emit a prioritized next-actions list (top 5 tasks to start this week) and call out any KRs that remain risk-accepted so leadership can sign off.",
+      "Return the plan in a structured, review-ready format with sections for Objective, KRs, Risk Audit, Task Plans, Cross-KR Dependencies, and Confidence."
+    ],
+    "promptTemplate": "You are the OKR Delivery Orchestrator. Transform the objective below into a de-risked, execution-ready OKR plan.\n\nOBJECTIVE / CONTEXT:\n{{input}}\n\nFollow this orchestration:\n1. DRAFT KRs: Write 2-4 measurable, time-bound key results with baseline, target, and owner. Mark any inferred values as [ASSUMPTION].\n2. RISK AUDIT (per KR): Run @kmd_ai/bakefail-pre-flight-auditor on each KR. Capture failure modes, dependencies, and readiness gaps. If a KR has blocking issues, revise it and re-audit; note the revision.\n3. TASK PLAN (per passing KR): Run @kmd_ai/agentic-coding-task-planner-1781501412237 on each audited KR, injecting accepted/unresolved risks as mitigation tasks sequenced before the work they protect.\n4. INTEGRATE: Link Objective → KR → Audit Summary → Task Plan. Identify cross-KR dependencies and the critical path.\n5. SCORE & PRIORITIZE: Compute a rollup delivery-confidence (0-100), list the top 5 next actions for this week, and flag any risk-accepted KRs needing sign-off.\n\nOUTPUT SECTIONS:\n- Objective\n- Key Results (with baselines/targets/owners)\n- Risk Audit Summary (per KR)\n- Task Plans (per KR, with mitigation tasks inline)\n- Cross-KR Dependencies & Critical Path\n- Delivery Confidence & Top-5 Next Actions\n- Risk-Accepted Items Requiring Sign-off",
+    "examples": [
+      {
+        "title": "SaaS onboarding activation objective",
+        "input": "Objective: Dramatically improve new-user activation for our B2B analytics SaaS this quarter. Team of 4 engineers, current activation (users reaching first dashboard within 24h) is 28%.",
+        "output": "Objective: Lift new-user activation to a best-in-class rate this quarter.\n\nKey Results:\n- KR1: Increase 24h activation from 28% → 45% (owner: PM). \n- KR2: Cut time-to-first-dashboard median from 41min → 12min (owner: Eng Lead).\n- KR3: Ship guided setup wizard to 100% of new orgs [ASSUMPTION: staged rollout acceptable] (owner: Frontend).\n\nRisk Audit Summary (BakeFail):\n- KR1: BLOCKING → activation metric not instrumented consistently; revised to add a KR0 prerequisite 'ship reliable activation event pipeline'. Re-audit: PASS with accepted risk (seasonality may skew Q data).\n- KR2: PASS → dependency on backend query caching flagged.\n- KR3: PASS → risk: content authoring bottleneck, no writer assigned (accepted, needs sign-off).\n\nTask Plans (Agentic Coding Task Planner):\n- KR1: [MITIGATION] Build activation event schema + backfill → validate pipeline in staging → dashboard for activation funnel → A/B framework hook.\n- KR2: [MITIGATION] Add query result cache → lazy-load dashboard widgets → precompute default view server-side → measure p50/p95.\n- KR3: Wizard state machine → step components → org-scoped feature flag → staged rollout 10%→50%→100%.\n\nCross-KR Dependencies & Critical Path: KR1 pipeline → all measurement; KR2 caching precedes KR3 wizard load target. Critical path: activation pipeline → caching → wizard rollout.\n\nDelivery Confidence: 72/100. Top-5 Next Actions: (1) define activation event schema, (2) assign content writer for KR3, (3) spike query cache, (4) instrument funnel dashboard, (5) build wizard state machine skeleton.\n\nRisk-Accepted Items Requiring Sign-off: KR1 seasonality skew; KR3 unassigned content author."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Every KR is audited before it is planned",
+        "input": "Objective: Reduce checkout abandonment for our e-commerce app from 68% to 55% this quarter with 3 engineers.",
+        "expected": "Output drafts measurable KRs, runs a BakeFail risk audit on each KR (surfacing failure modes/dependencies), only generates agentic coding task plans for KRs that pass or are risk-accepted, injects mitigation tasks derived from the audit, and ends with cross-KR dependencies, a delivery-confidence score, top-5 next actions, and any sign-off items."
+      },
+      {
+        "name": "Blocking audit forces KR revision",
+        "input": "Objective: Launch AI-powered support chatbot achieving 90% auto-resolution next month, no baseline data available.",
+        "expected": "Output flags the missing baseline as an [ASSUMPTION], the BakeFail audit returns blocking readiness gaps (no baseline, aggressive target/timeline), and the workflow revises or splits the KR (e.g., add instrumentation prerequisite, lower target, or extend timeline) and re-audits before producing any task plan."
+      }
+    ],
+    "type": "meta",
+    "dependencies": [
+      "@kmd_ai/bakefail-pre-flight-auditor",
+      "@kmd_ai/agentic-coding-task-planner-1781501412237"
+    ]
+  },
+  "markdown": "# OKR Delivery Orchestrator\n\n## Purpose\nConvert a high-level objective into a fully-planned, risk-audited quarterly OKR set where every key result is validated for failure modes before being broken down into concrete, sequenced engineering tasks — so teams commit to goals they can actually deliver.\n\n## Dependencies\nInstalling this skill also installs:\n- `@kmd_ai/bakefail-pre-flight-auditor`\n- `@kmd_ai/agentic-coding-task-planner-1781501412237`\n\n## Instructions\n1. Parse the raw objective from {{input}} and draft 2-4 measurable, time-bound key results (KRs), each with a baseline, target, and owner; if any of these are missing, infer sensible defaults and flag them as assumptions.\n2. For EACH key result, invoke @kmd_ai/bakefail-pre-flight-auditor, passing the KR statement plus its target and delivery context, to surface failure modes, hidden dependencies, and readiness gaps before committing.\n3. Gate on the audit: if the auditor returns blocking issues for a KR, revise the KR (adjust target, split it, or add a prerequisite) and re-audit until it passes or is explicitly accepted with a documented risk.\n4. For every KR that clears the audit, invoke @kmd_ai/agentic-coding-task-planner-1781501412237, feeding it the KR, its accepted risks, and any prerequisites, to generate an ordered, dependency-aware set of engineering tasks.\n5. Weave the audit findings into the task plan: convert each unresolved or accepted risk into an explicit mitigation task and place it before the tasks it protects.\n6. Assemble a single traceable artifact linking Objective → each KR → its audit summary → its task plan, and compute a rollup confidence score plus the critical-path dependencies across all KRs.\n7. Emit a prioritized next-actions list (top 5 tasks to start this week) and call out any KRs that remain risk-accepted so leadership can sign off.\n8. Return the plan in a structured, review-ready format with sections for Objective, KRs, Risk Audit, Task Plans, Cross-KR Dependencies, and Confidence.\n\n## Prompt Template\n```\nYou are the OKR Delivery Orchestrator. Transform the objective below into a de-risked, execution-ready OKR plan.\n\nOBJECTIVE / CONTEXT:\n{{input}}\n\nFollow this orchestration:\n1. DRAFT KRs: Write 2-4 measurable, time-bound key results with baseline, target, and owner. Mark any inferred values as [ASSUMPTION].\n2. RISK AUDIT (per KR): Run @kmd_ai/bakefail-pre-flight-auditor on each KR. Capture failure modes, dependencies, and readiness gaps. If a KR has blocking issues, revise it and re-audit; note the revision.\n3. TASK PLAN (per passing KR): Run @kmd_ai/agentic-coding-task-planner-1781501412237 on each audited KR, injecting accepted/unresolved risks as mitigation tasks sequenced before the work they protect.\n4. INTEGRATE: Link Objective → KR → Audit Summary → Task Plan. Identify cross-KR dependencies and the critical path.\n5. SCORE & PRIORITIZE: Compute a rollup delivery-confidence (0-100), list the top 5 next actions for this week, and flag any risk-accepted KRs needing sign-off.\n\nOUTPUT SECTIONS:\n- Objective\n- Key Results (with baselines/targets/owners)\n- Risk Audit Summary (per KR)\n- Task Plans (per KR, with mitigation tasks inline)\n- Cross-KR Dependencies & Critical Path\n- Delivery Confidence & Top-5 Next Actions\n- Risk-Accepted Items Requiring Sign-off\n```\n"
+}

@@ -1,0 +1,69 @@
+{
+  "id": "okrgrantmissionconductor",
+  "name": "OKRGrantMissionConductor",
+  "description": "A meta-workflow that turns a strategic mission into fundable, trackable OKRs by cascading objectives into grant-ready proposals (GrantForge Orchestrator), templated planning artifacts (DocumentTemplateArchitect), and multi-quarter execution tracking (LongRunningWorkflowManager) — delivering an end-to-end path from ambition to funded, measured outcomes.",
+  "category": "Productivity",
+  "tags": [
+    "okrs",
+    "planning",
+    "grant-funding",
+    "orchestration",
+    "goal-setting"
+  ],
+  "type": "meta",
+  "dependencies": [
+    "@kmd_ai/grantforge-orchestrator",
+    "@design_seeder/long-running-workflow-manager",
+    "@design_seeder/document-template-architect"
+  ],
+  "spec": {
+    "name": "OKRGrantMissionConductor",
+    "description": "A meta-workflow that turns a strategic mission into fundable, trackable OKRs by cascading objectives into grant-ready proposals (GrantForge Orchestrator), templated planning artifacts (DocumentTemplateArchitect), and multi-quarter execution tracking (LongRunningWorkflowManager) — delivering an end-to-end path from ambition to funded, measured outcomes.",
+    "category": "Productivity",
+    "tags": [
+      "okrs",
+      "planning",
+      "grant-funding",
+      "orchestration",
+      "goal-setting"
+    ],
+    "purpose": "Convert a high-level organizational mission or annual goal into a fully instrumented OKR program in which each key result is backed by a resourcing plan, funded via grant proposals where applicable, documented in reusable planning templates, and tracked to completion across quarters — so leaders get one orchestrated pipeline from strategy to funded, measurable delivery.",
+    "instructions": [
+      "Parse {{input}} to extract the mission statement, time horizon, funding constraints, and any existing objectives; if objectives are absent, draft 2-4 outcome-oriented Objectives and 2-5 measurable Key Results each (baseline, target, unit, owner) before proceeding.",
+      "Call DocumentTemplateArchitect to generate the canonical planning artifacts for this program: an OKR charter, a per-KR resourcing brief, and a quarterly review template — establishing consistent structure that every downstream step will populate.",
+      "Classify each Key Result by funding need. For KRs requiring external funding, invoke GrantForge Orchestrator, passing the KR's measurable target and resourcing brief as the objective so it produces aligned grant proposals, eligibility fit, and submission timelines.",
+      "Merge GrantForge outputs back into the DocumentTemplateArchitect resourcing briefs so each funded KR shows its grant name, request amount, deadline, and probability — keeping funding and outcomes in one linked view.",
+      "Hand the complete OKR set (with funded and self-funded KRs, owners, and grant deadlines) to LongRunningWorkflowManager to instantiate a multi-quarter execution workflow with milestones, dependency gates on grant decisions, and scheduled check-ins.",
+      "Configure LongRunningWorkflowManager checkpoints to emit the DocumentTemplateArchitect quarterly review template pre-filled with current KR progress and grant status at each review cadence.",
+      "Produce a single orchestration summary: the OKR tree, funding coverage per KR, workflow timeline with critical grant-decision gates, and the next three concrete actions with owners and dates.",
+      "Flag orchestration risks explicitly: KRs with no funding path, grant deadlines that precede required milestones, and objectives with no measurable KR — and recommend a remediation for each."
+    ],
+    "promptTemplate": "You are OKRGrantMissionConductor, orchestrating three sub-skills to turn a mission into a funded, tracked OKR program.\n\nMISSION & CONTEXT:\n{{input}}\n\nExecute the orchestration in order:\n\n1. STRUCTURE OKRs — Extract or draft Objectives and measurable Key Results (baseline, target, unit, owner, time horizon).\n\n2. TEMPLATES [DocumentTemplateArchitect] — Generate: (a) OKR Charter, (b) per-KR Resourcing Brief, (c) Quarterly Review template.\n\n3. FUNDING [GrantForge Orchestrator] — For each KR needing external funding, produce aligned grant proposal(s) with request amount, eligibility fit, and deadline, seeded from the KR target + resourcing brief.\n\n4. LINK — Fold grant results into the resourcing briefs (grant name, amount, deadline, win probability per funded KR).\n\n5. EXECUTION [LongRunningWorkflowManager] — Instantiate a multi-quarter workflow with milestones, grant-decision dependency gates, and review cadence; wire each checkpoint to emit the pre-filled Quarterly Review template.\n\n6. SUMMARY — Output: OKR tree, funding coverage matrix, workflow timeline with grant-decision gates, next 3 actions (owner + date).\n\n7. RISKS — List KRs lacking funding paths, deadline/milestone conflicts, and objectives without measurable KRs, each with a remediation.\n\nReturn clearly sectioned output labeled by step. State any assumptions.",
+    "examples": [
+      {
+        "title": "Nonprofit annual mission to funded OKRs",
+        "input": "Mission: Expand our literacy nonprofit to serve 3 new counties within 12 months. Constraints: only ~$40k internal budget; open to external grants. Existing goal: reach 5,000 new learners.",
+        "output": "STEP 1 — OKRs\nObjective A: Establish literacy programs in 3 new counties.\n  KR1: Sign MOUs with 9 partner schools (0 -> 9). Owner: Partnerships Lead.\n  KR2: Enroll 5,000 new learners (0 -> 5,000). Owner: Programs Director.\nObjective B: Secure sustainable funding for expansion.\n  KR3: Raise $250k in program grants (0 -> $250k). Owner: Development Lead.\n\nSTEP 2 — Templates [DocumentTemplateArchitect]\n- OKR Charter (mission, objectives, KRs, owners, horizon).\n- Resourcing Brief per KR (activities, cost, funding source, status).\n- Quarterly Review template (KR progress %, blockers, grant status).\n\nSTEP 3 — Funding [GrantForge Orchestrator]\n- KR2 & KR3 flagged for external funding. Generated proposals: 'Rural Literacy Access Grant' ($150k, deadline Mar 15, high fit), 'Community Education Foundation' ($100k, deadline Apr 30, medium fit) — seeded from KR targets.\n\nSTEP 4 — Link\n- KR2 resourcing brief now shows: Rural Literacy Access Grant, $150k, due Mar 15, ~65% win prob.\n- KR3 brief: both grants totaling $250k target coverage.\n\nSTEP 5 — Execution [LongRunningWorkflowManager]\nQ1: Draft/submit both grants (gate: submissions before deadlines); begin MOU outreach.\nQ2: Grant-decision gate (Apr-May) -> unlocks county launch milestone; sign first 5 MOUs.\nQ3: Launch programs, enroll first 2,000 learners.\nQ4: Scale to 5,000; final MOUs. Reviews auto-emit pre-filled Quarterly template each quarter-end.\n\nSTEP 6 — Summary\nFunding coverage: KR1 internal, KR2 grant-dependent, KR3 100% grant-target. Timeline critical gate: grant decisions (Q2) precede launch. Next 3 actions: (1) Development Lead finalize Rural Literacy proposal by Mar 1; (2) Partnerships Lead list target schools by Feb 15; (3) Programs Director draft enrollment plan by Feb 28.\n\nSTEP 7 — Risks\n- KR2 launch depends on grants not decided until Q2 -> remediation: stage a $40k internal pilot in 1 county to de-risk.\n- If both grants lost, KR2/KR3 unfunded -> remediation: add a small-donor campaign backup KR.\n- All objectives have measurable KRs. OK."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Orchestrates all three sub-skills in correct order",
+        "input": "Mission: Launch a new open-source developer tools initiative this year. We have engineering time but need external funding for a community manager. Goal: 10,000 GitHub stars and a sustainable maintainer fund.",
+        "expected": "Output contains labeled steps that (1) draft Objectives with measurable KRs (e.g., 10,000 stars, maintainer fund amount), (2) invoke DocumentTemplateArchitect for OKR charter/resourcing brief/quarterly review, (3) invoke GrantForge Orchestrator for the funding-dependent KR (community manager / maintainer fund), (4) link grant results into briefs, (5) invoke LongRunningWorkflowManager for a multi-quarter workflow with a grant-decision gate, (6) a summary with next 3 actions and owners, and (7) a risk list including any unfunded KR or deadline/milestone conflict."
+      },
+      {
+        "name": "Flags objective lacking measurable KR",
+        "input": "Objective: Become more innovative. Horizon: this year. No budget details.",
+        "expected": "Output flags the objective as lacking a measurable Key Result, drafts at least one measurable KR to remediate it, notes missing funding context as an assumption, and still runs the template and workflow steps."
+      }
+    ],
+    "type": "meta",
+    "dependencies": [
+      "@kmd_ai/grantforge-orchestrator",
+      "@design_seeder/long-running-workflow-manager",
+      "@design_seeder/document-template-architect"
+    ]
+  },
+  "markdown": "# OKRGrantMissionConductor\n\n## Purpose\nConvert a high-level organizational mission or annual goal into a fully instrumented OKR program in which each key result is backed by a resourcing plan, funded via grant proposals where applicable, documented in reusable planning templates, and tracked to completion across quarters — so leaders get one orchestrated pipeline from strategy to funded, measurable delivery.\n\n## Dependencies\nInstalling this skill also installs:\n- `@kmd_ai/grantforge-orchestrator`\n- `@design_seeder/long-running-workflow-manager`\n- `@design_seeder/document-template-architect`\n\n## Instructions\n1. Parse {{input}} to extract the mission statement, time horizon, funding constraints, and any existing objectives; if objectives are absent, draft 2-4 outcome-oriented Objectives and 2-5 measurable Key Results each (baseline, target, unit, owner) before proceeding.\n2. Call DocumentTemplateArchitect to generate the canonical planning artifacts for this program: an OKR charter, a per-KR resourcing brief, and a quarterly review template — establishing consistent structure that every downstream step will populate.\n3. Classify each Key Result by funding need. For KRs requiring external funding, invoke GrantForge Orchestrator, passing the KR's measurable target and resourcing brief as the objective so it produces aligned grant proposals, eligibility fit, and submission timelines.\n4. Merge GrantForge outputs back into the DocumentTemplateArchitect resourcing briefs so each funded KR shows its grant name, request amount, deadline, and probability — keeping funding and outcomes in one linked view.\n5. Hand the complete OKR set (with funded and self-funded KRs, owners, and grant deadlines) to LongRunningWorkflowManager to instantiate a multi-quarter execution workflow with milestones, dependency gates on grant decisions, and scheduled check-ins.\n6. Configure LongRunningWorkflowManager checkpoints to emit the DocumentTemplateArchitect quarterly review template pre-filled with current KR progress and grant status at each review cadence.\n7. Produce a single orchestration summary: the OKR tree, funding coverage per KR, workflow timeline with critical grant-decision gates, and the next three concrete actions with owners and dates.\n8. Flag orchestration risks explicitly: KRs with no funding path, grant deadlines that precede required milestones, and objectives with no measurable KR — and recommend a remediation for each.\n\n## Prompt Template\n```\nYou are OKRGrantMissionConductor, orchestrating three sub-skills to turn a mission into a funded, tracked OKR program.\n\nMISSION & CONTEXT:\n{{input}}\n\nExecute the orchestration in order:\n\n1. STRUCTURE OKRs — Extract or draft Objectives and measurable Key Results (baseline, target, unit, owner, time horizon).\n\n2. TEMPLATES [DocumentTemplateArchitect] — Generate: (a) OKR Charter, (b) per-KR Resourcing Brief, (c) Quarterly Review template.\n\n3. FUNDING [GrantForge Orchestrator] — For each KR needing external funding, produce aligned grant proposal(s) with request amount, eligibility fit, and deadline, seeded from the KR target + resourcing brief.\n\n4. LINK — Fold grant results into the resourcing briefs (grant name, amount, deadline, win probability per funded KR).\n\n5. EXECUTION [LongRunningWorkflowManager] — Instantiate a multi-quarter workflow with milestones, grant-decision dependency gates, and review cadence; wire each checkpoint to emit the pre-filled Quarterly Review template.\n\n6. SUMMARY — Output: OKR tree, funding coverage matrix, workflow timeline with grant-decision gates, next 3 actions (owner + date).\n\n7. RISKS — List KRs lacking funding paths, deadline/milestone conflicts, and objectives without measurable KRs, each with a remediation.\n\nReturn clearly sectioned output labeled by step. State any assumptions.\n```\n"
+}

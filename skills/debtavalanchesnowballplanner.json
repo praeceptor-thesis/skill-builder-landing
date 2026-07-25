@@ -1,0 +1,68 @@
+{
+  "id": "debtavalanchesnowballplanner",
+  "name": "DebtAvalancheSnowballPlanner",
+  "description": "Turns a list of debts and a monthly extra-payment budget into a month-by-month payoff schedule comparing avalanche and snowball strategies, so you can pick the cheapest or most motivating path to debt-free.",
+  "category": "Finance",
+  "tags": [
+    "debt",
+    "budgeting",
+    "payoff",
+    "avalanche",
+    "snowball",
+    "personal-finance"
+  ],
+  "type": "basic",
+  "dependencies": [],
+  "spec": {
+    "name": "DebtAvalancheSnowballPlanner",
+    "description": "Turns a list of debts and a monthly extra-payment budget into a month-by-month payoff schedule comparing avalanche and snowball strategies, so you can pick the cheapest or most motivating path to debt-free.",
+    "category": "Finance",
+    "tags": [
+      "debt",
+      "budgeting",
+      "payoff",
+      "avalanche",
+      "snowball",
+      "personal-finance"
+    ],
+    "purpose": "Produce a concrete, copy-pasteable debt-elimination plan that shows exact payoff order, monthly payment allocation, total interest paid, and debt-free date under both the avalanche (highest-interest-first) and snowball (smallest-balance-first) methods.",
+    "instructions": [
+      "Parse each debt from {{input}} capturing name, balance, APR, and minimum monthly payment; parse the total extra monthly amount available beyond all minimums (the 'snowball budget').",
+      "Validate inputs: flag any debt with a minimum payment too low to cover monthly interest, and confirm the extra budget is non-negative. If data is missing, state the assumption you made.",
+      "Simulate the AVALANCHE method: pay all minimums, then direct all extra to the highest-APR debt; when a debt is cleared, roll its freed payment into the next-highest APR debt. Compound interest monthly.",
+      "Simulate the SNOWBALL method identically but target the smallest remaining balance first, rolling freed payments forward as debts clear.",
+      "For each method report: payoff order, months to debt-free (and calendar month if a start date is given), total interest paid, and total amount paid.",
+      "Show a compact month-by-month allocation table for at least the first 6 months of the recommended method, then summarize milestones (each debt's payoff month).",
+      "Recommend a method: avalanche when interest savings are meaningful, snowball when early wins matter or savings are small; state the dollar difference in total interest and months.",
+      "End with 2-3 concrete acceleration tips (e.g., specific windfall targeting) and the exact next payment to make this month. Format all money with currency symbols and round to whole dollars."
+    ],
+    "promptTemplate": "You are DebtAvalancheSnowballPlanner. Build a debt payoff plan from the details below.\n\nDEBTS AND BUDGET:\n{{input}}\n\nOptional start month (default: this month): {{start_month}}\nCurrency (default: USD $): {{currency}}\n\nDo the following:\n1. Restate each debt (name, balance, APR, minimum). Note any validation issues or assumptions.\n2. Simulate AVALANCHE (highest APR first) and SNOWBALL (smallest balance first), paying minimums on all debts and applying the extra budget to the target debt, rolling freed payments forward as debts clear. Compound interest monthly.\n3. Report for BOTH methods: payoff order, months-to-debt-free (with calendar month), total interest paid, total paid.\n4. Show a month-by-month allocation table for the first 6 months of the RECOMMENDED method, then list each debt's payoff milestone month.\n5. Recommend a method and state the exact difference in interest ($) and time (months).\n6. Give 2-3 acceleration tips and the exact payment to make this month.\n\nOutput in clean, copy-pasteable Markdown with headers: ## Debts, ## Avalanche vs Snowball Summary, ## Recommended Plan (First 6 Months), ## Milestones, ## Recommendation, ## Do This Month.",
+    "examples": [
+      {
+        "title": "Three-debt mix with $300 extra",
+        "input": "Credit Card A: $4,000 balance, 22% APR, $80 min\nCredit Card B: $2,000 balance, 18% APR, $50 min\nCar Loan: $6,000 balance, 6% APR, $200 min\nExtra budget: $300/month. Start: Jan 2025.",
+        "output": "## Debts\n- Credit Card A — $4,000 @ 22% APR, min $80\n- Credit Card B — $2,000 @ 18% APR, min $50\n- Car Loan — $6,000 @ 6% APR, min $200\nExtra budget: $300/mo. All minimums cover interest — OK.\n\n## Avalanche vs Snowball Summary\n| Method | Payoff Order | Debt-Free | Total Interest | Total Paid |\n|---|---|---|---|---|\n| Avalanche | Card A → Card B → Car | ~23 mo (Nov 2026) | ~$1,590 | ~$13,590 |\n| Snowball | Card B → Card A → Car | ~23 mo (Nov 2026) | ~$1,660 | ~$13,660 |\n\n## Recommended Plan (First 6 Months) — Avalanche\n| Month | Card A | Card B | Car | Target |\n|---|---|---|---|---|\n| Jan | $380 | $50 | $200 | Card A |\n| Feb | $380 | $50 | $200 | Card A |\n| Mar | $380 | $50 | $200 | Card A |\n| Apr | $380 | $50 | $200 | Card A |\n| May | $380 | $50 | $200 | Card A |\n| Jun | $380 | $50 | $200 | Card A |\n\n## Milestones\n- Card A paid off ~Dec 2025\n- Card B paid off ~Jun 2026\n- Car paid off ~Nov 2026\n\n## Recommendation\nChoose AVALANCHE — saves ~$70 in interest vs snowball with the same payoff time. If early wins keep you motivated, snowball costs little extra.\n\n## Do This Month\nPay minimums on Card B ($50) and Car ($200), then put $380 on Credit Card A."
+      },
+      {
+        "title": "Two cards, small budget",
+        "input": "Store Card: $900, 26% APR, $35 min\nVisa: $1,500, 15% APR, $40 min\nExtra: $100/month.",
+        "output": "## Debts\n- Store Card — $900 @ 26% APR, min $35\n- Visa — $1,500 @ 15% APR, min $40\nExtra budget: $100/mo. Minimums cover interest — OK. No start month given; using Month 1..N.\n\n## Avalanche vs Snowball Summary\n| Method | Payoff Order | Debt-Free | Total Interest | Total Paid |\n|---|---|---|---|---|\n| Avalanche | Store → Visa | ~15 mo | ~$260 | ~$2,660 |\n| Snowball | Store → Visa | ~15 mo | ~$260 | ~$2,660 |\n\nBoth methods agree here (Store Card is both highest APR and smallest balance).\n\n## Recommended Plan (First 6 Months) — Avalanche/Snowball (identical)\n| Month | Store | Visa | Target |\n|---|---|---|---|\n| 1 | $135 | $40 | Store |\n| 2 | $135 | $40 | Store |\n| 3 | $135 | $40 | Store |\n| 4 | $135 | $40 | Store |\n| 5 | $135 | $40 | Store |\n| 6 | $135 | $40 | Store |\n\n## Milestones\n- Store Card paid off ~Month 7\n- Visa paid off ~Month 15\n\n## Recommendation\nEither method — they're identical. Attack the Store Card first.\n\n## Do This Month\nPay $40 minimum on Visa, then put $135 on the Store Card."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Chooses avalanche target by highest APR",
+        "input": "Loan X: $3,000, 12% APR, $60 min\nLoan Y: $1,000, 25% APR, $30 min\nExtra: $200/month.",
+        "expected": "Avalanche directs the $200 extra to Loan Y first (25% APR, highest), pays only minimums on Loan X, and reports Loan Y in the payoff order before Loan X. Output includes both method summaries and a 'Do This Month' line putting the extra on Loan Y."
+      },
+      {
+        "name": "Flags insufficient minimum payment",
+        "input": "Card Z: $5,000, 30% APR, $80 min\nExtra: $0/month.",
+        "expected": "Validation notes that the $80 minimum barely covers or fails to cover the ~$125 monthly interest, warns the balance may grow, and recommends increasing the payment rather than producing a normal payoff schedule."
+      }
+    ],
+    "type": "basic",
+    "dependencies": []
+  },
+  "markdown": "# DebtAvalancheSnowballPlanner\n\n## Purpose\nProduce a concrete, copy-pasteable debt-elimination plan that shows exact payoff order, monthly payment allocation, total interest paid, and debt-free date under both the avalanche (highest-interest-first) and snowball (smallest-balance-first) methods.\n\n## Instructions\n1. Parse each debt from {{input}} capturing name, balance, APR, and minimum monthly payment; parse the total extra monthly amount available beyond all minimums (the 'snowball budget').\n2. Validate inputs: flag any debt with a minimum payment too low to cover monthly interest, and confirm the extra budget is non-negative. If data is missing, state the assumption you made.\n3. Simulate the AVALANCHE method: pay all minimums, then direct all extra to the highest-APR debt; when a debt is cleared, roll its freed payment into the next-highest APR debt. Compound interest monthly.\n4. Simulate the SNOWBALL method identically but target the smallest remaining balance first, rolling freed payments forward as debts clear.\n5. For each method report: payoff order, months to debt-free (and calendar month if a start date is given), total interest paid, and total amount paid.\n6. Show a compact month-by-month allocation table for at least the first 6 months of the recommended method, then summarize milestones (each debt's payoff month).\n7. Recommend a method: avalanche when interest savings are meaningful, snowball when early wins matter or savings are small; state the dollar difference in total interest and months.\n8. End with 2-3 concrete acceleration tips (e.g., specific windfall targeting) and the exact next payment to make this month. Format all money with currency symbols and round to whole dollars.\n\n## Prompt Template\n```\nYou are DebtAvalancheSnowballPlanner. Build a debt payoff plan from the details below.\n\nDEBTS AND BUDGET:\n{{input}}\n\nOptional start month (default: this month): {{start_month}}\nCurrency (default: USD $): {{currency}}\n\nDo the following:\n1. Restate each debt (name, balance, APR, minimum). Note any validation issues or assumptions.\n2. Simulate AVALANCHE (highest APR first) and SNOWBALL (smallest balance first), paying minimums on all debts and applying the extra budget to the target debt, rolling freed payments forward as debts clear. Compound interest monthly.\n3. Report for BOTH methods: payoff order, months-to-debt-free (with calendar month), total interest paid, total paid.\n4. Show a month-by-month allocation table for the first 6 months of the RECOMMENDED method, then list each debt's payoff milestone month.\n5. Recommend a method and state the exact difference in interest ($) and time (months).\n6. Give 2-3 acceleration tips and the exact payment to make this month.\n\nOutput in clean, copy-pasteable Markdown with headers: ## Debts, ## Avalanche vs Snowball Summary, ## Recommended Plan (First 6 Months), ## Milestones, ## Recommendation, ## Do This Month.\n```\n"
+}

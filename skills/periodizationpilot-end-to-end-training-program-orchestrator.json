@@ -1,0 +1,76 @@
+{
+  "id": "periodizationpilot-end-to-end-training-program-orchestrator",
+  "name": "PeriodizationPilot: End-to-End Training Program Orchestrator",
+  "description": "A meta-skill that turns raw client intake data into a safe, validated, multi-phase training program by orchestrating Roadmap for periodization planning, DataEntryValidator for cleaning intake data, RegexReDoSGuard for hardening any pattern-matching used in wearable/log parsing, and LongRunningWorkflowManager for tracking the multi-week program lifecycle — use it whenever you need to build and maintain a full fitness training program from client input.",
+  "category": "Productivity",
+  "tags": [
+    "fitness",
+    "periodization",
+    "orchestration",
+    "workflow",
+    "meta-skill"
+  ],
+  "type": "meta",
+  "dependencies": [
+    "@dmz_agent/roadmap",
+    "@design_seeder/data-entry-validator",
+    "@kmd_ai/regexredosguard",
+    "@design_seeder/long-running-workflow-manager"
+  ],
+  "spec": {
+    "name": "PeriodizationPilot: End-to-End Training Program Orchestrator",
+    "description": "A meta-skill that turns raw client intake data into a safe, validated, multi-phase training program by orchestrating Roadmap for periodization planning, DataEntryValidator for cleaning intake data, RegexReDoSGuard for hardening any pattern-matching used in wearable/log parsing, and LongRunningWorkflowManager for tracking the multi-week program lifecycle — use it whenever you need to build and maintain a full fitness training program from client input.",
+    "category": "Productivity",
+    "tags": [
+      "fitness",
+      "periodization",
+      "orchestration",
+      "workflow",
+      "meta-skill"
+    ],
+    "purpose": "Deliver a fully-planned, data-validated, and safely-parsed multi-phase training program with a durable execution lifecycle, so a coach can go from messy client intake to an actionable, trackable periodized plan without manual glue work between validation, planning, parsing, and long-term tracking.",
+    "instructions": [
+      "Ingest the client intake payload ({{input}}) and immediately pass all fields (age, bodyweight, 1RMs, injury flags, availability, goal dates) through DataEntryValidator to normalize units, reject impossible values, and produce a clean, typed athlete profile — halt and return validation errors if any hard constraint fails.",
+      "Extract any user-supplied parsing patterns (e.g. regexes for reading wearable exports, set/rep log formats, or CSV column matchers) and run them through RegexReDoSGuard to reject catastrophic-backtracking patterns before they touch real data; substitute a safe linear-time equivalent or fail closed with a warning.",
+      "Feed the validated profile plus goal timeline into Roadmap to generate a periodized macrocycle: sequence phases (accumulation, intensification, peaking, deload) with milestones, dependencies, and target dates, respecting availability and injury constraints from step 1.",
+      "Convert each Roadmap phase into a LongRunningWorkflowManager job with checkpoints per mesocycle, so weekly sessions, progression checks, and re-test milestones become durable, resumable tasks with state persisted across the program's multi-week span.",
+      "During execution, route incoming training logs and wearable data through the RegexReDoSGuard-approved parsers, re-validate parsed metrics with DataEntryValidator, and write results back to the active LongRunningWorkflowManager checkpoint.",
+      "At each mesocycle boundary, ask LongRunningWorkflowManager for progress state; if a milestone is missed or a metric regresses, trigger a Roadmap re-plan of the remaining phases and update the workflow's downstream checkpoints accordingly.",
+      "Emit a single consolidated program artifact: the validated profile, the guarded parser set, the Roadmap periodization plan, and the LongRunningWorkflowManager job ID with current status, so the whole program is reproducible and auditable.",
+      "On any dependency failure, fail closed with a clear, actionable message identifying which building block rejected the input and why, never producing an unsafe or unvalidated program."
+    ],
+    "promptTemplate": "You are PeriodizationPilot, orchestrating four skills to build and maintain a training program.\n\nCLIENT INTAKE + PARSING RULES:\n{{input}}\n\nExecute in order:\n1) VALIDATE PROFILE — Call DataEntryValidator on all intake fields. Output the cleaned athlete profile or the blocking validation errors.\n2) GUARD PARSERS — Call RegexReDoSGuard on every supplied log/wearable pattern. Output which patterns are safe, rewritten, or rejected.\n3) PLAN PERIODIZATION — Call Roadmap with the validated profile + goal date. Output the phased macrocycle (phases, milestones, target dates, dependencies).\n4) INSTANTIATE LIFECYCLE — Call LongRunningWorkflowManager to turn each phase into resumable checkpoints. Output the job ID and checkpoint schedule.\n5) DELIVER — Emit the consolidated artifact {validated_profile, guarded_parsers, roadmap_plan, workflow_job}.\n\nIf any step fails, stop and report which building block failed and why. Never output an unvalidated or unsafe program.",
+    "examples": [
+      {
+        "title": "12-week strength client from messy intake",
+        "input": "Goal: increase back squat 1RM before meet on 2024-09-01. Intake: age '32yrs', bodyweight '84.5 kg', squat 1RM '140', bench '100kg', deadlift '180', trains 4 days/wk, right knee tendinopathy (healing). Wearable log regex to parse Garmin export: ^(\\d+(\\s*)+)+kg$",
+        "output": "1) VALIDATE: Profile normalized — age=32, bw=84.5kg, squat1RM=140kg (unit inferred), bench=100kg, deadlift=180kg, availability=4/wk, injury=knee_tendinopathy(active). No hard failures.\n2) GUARD: Pattern `^(\\d+(\\s*)+)+kg$` REJECTED by RegexReDoSGuard (nested quantifier, catastrophic backtracking). Substituted safe linear pattern `^\\d+\\s*kg$`.\n3) PLAN (Roadmap): Macrocycle 12wk → Accumulation(wk1-4, knee-safe volume), Intensification(wk5-8), Peaking(wk9-11), Taper/Test(wk12, target 2024-09-01). Milestones: wk4 re-test squat, wk8 top single, wk12 meet.\n4) LIFECYCLE (LongRunningWorkflowManager): job_id=pp-4831, 4 phase checkpoints + weekly session sub-tasks, resumable, state persisted.\n5) ARTIFACT: {validated_profile, guarded_parsers:[safe_squat_regex], roadmap_plan:12wk, workflow_job:pp-4831 (status: active, at wk1)}."
+      },
+      {
+        "title": "Blocking validation failure",
+        "input": "Intake: bodyweight '-70', goal date '2020-01-01' (past), squat 1RM 'heavy'. Parser: none.",
+        "output": "1) VALIDATE: FAILED — DataEntryValidator rejected: bodyweight=-70 (must be >0), goal_date in past, squat1RM non-numeric ('heavy'). Program NOT generated. Fix these fields and resubmit. Steps 2-5 skipped (fail closed)."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Rejects catastrophic parser and still plans program",
+        "input": "Goal: hypertrophy in 8 weeks. Age 25, bodyweight 70kg, trains 5/wk, no injuries. Log regex: ^(a+)+$",
+        "expected": "DataEntryValidator passes the profile; RegexReDoSGuard rejects ^(a+)+$ as ReDoS-vulnerable and substitutes/flags it; Roadmap produces an 8-week hypertrophy macrocycle; LongRunningWorkflowManager returns a job id with per-mesocycle checkpoints; final consolidated artifact is emitted."
+      },
+      {
+        "name": "Fails closed on invalid intake",
+        "input": "Intake: bodyweight 'abc', goal date '1999-01-01'.",
+        "expected": "DataEntryValidator returns blocking errors for non-numeric bodyweight and past goal date; workflow stops before Roadmap and LongRunningWorkflowManager are invoked; response names DataEntryValidator as the failing building block and requests corrected input."
+      }
+    ],
+    "type": "meta",
+    "dependencies": [
+      "@dmz_agent/roadmap",
+      "@design_seeder/data-entry-validator",
+      "@kmd_ai/regexredosguard",
+      "@design_seeder/long-running-workflow-manager"
+    ]
+  },
+  "markdown": "# PeriodizationPilot: End-to-End Training Program Orchestrator\n\n## Purpose\nDeliver a fully-planned, data-validated, and safely-parsed multi-phase training program with a durable execution lifecycle, so a coach can go from messy client intake to an actionable, trackable periodized plan without manual glue work between validation, planning, parsing, and long-term tracking.\n\n## Dependencies\nInstalling this skill also installs:\n- `@dmz_agent/roadmap`\n- `@design_seeder/data-entry-validator`\n- `@kmd_ai/regexredosguard`\n- `@design_seeder/long-running-workflow-manager`\n\n## Instructions\n1. Ingest the client intake payload ({{input}}) and immediately pass all fields (age, bodyweight, 1RMs, injury flags, availability, goal dates) through DataEntryValidator to normalize units, reject impossible values, and produce a clean, typed athlete profile — halt and return validation errors if any hard constraint fails.\n2. Extract any user-supplied parsing patterns (e.g. regexes for reading wearable exports, set/rep log formats, or CSV column matchers) and run them through RegexReDoSGuard to reject catastrophic-backtracking patterns before they touch real data; substitute a safe linear-time equivalent or fail closed with a warning.\n3. Feed the validated profile plus goal timeline into Roadmap to generate a periodized macrocycle: sequence phases (accumulation, intensification, peaking, deload) with milestones, dependencies, and target dates, respecting availability and injury constraints from step 1.\n4. Convert each Roadmap phase into a LongRunningWorkflowManager job with checkpoints per mesocycle, so weekly sessions, progression checks, and re-test milestones become durable, resumable tasks with state persisted across the program's multi-week span.\n5. During execution, route incoming training logs and wearable data through the RegexReDoSGuard-approved parsers, re-validate parsed metrics with DataEntryValidator, and write results back to the active LongRunningWorkflowManager checkpoint.\n6. At each mesocycle boundary, ask LongRunningWorkflowManager for progress state; if a milestone is missed or a metric regresses, trigger a Roadmap re-plan of the remaining phases and update the workflow's downstream checkpoints accordingly.\n7. Emit a single consolidated program artifact: the validated profile, the guarded parser set, the Roadmap periodization plan, and the LongRunningWorkflowManager job ID with current status, so the whole program is reproducible and auditable.\n8. On any dependency failure, fail closed with a clear, actionable message identifying which building block rejected the input and why, never producing an unsafe or unvalidated program.\n\n## Prompt Template\n```\nYou are PeriodizationPilot, orchestrating four skills to build and maintain a training program.\n\nCLIENT INTAKE + PARSING RULES:\n{{input}}\n\nExecute in order:\n1) VALIDATE PROFILE — Call DataEntryValidator on all intake fields. Output the cleaned athlete profile or the blocking validation errors.\n2) GUARD PARSERS — Call RegexReDoSGuard on every supplied log/wearable pattern. Output which patterns are safe, rewritten, or rejected.\n3) PLAN PERIODIZATION — Call Roadmap with the validated profile + goal date. Output the phased macrocycle (phases, milestones, target dates, dependencies).\n4) INSTANTIATE LIFECYCLE — Call LongRunningWorkflowManager to turn each phase into resumable checkpoints. Output the job ID and checkpoint schedule.\n5) DELIVER — Emit the consolidated artifact {validated_profile, guarded_parsers, roadmap_plan, workflow_job}.\n\nIf any step fails, stop and report which building block failed and why. Never output an unvalidated or unsafe program.\n```\n"
+}

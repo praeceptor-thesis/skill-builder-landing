@@ -1,0 +1,76 @@
+{
+  "id": "releasenarrator-api-changelog-orchestration-pipeline",
+  "name": "ReleaseNarrator: API Changelog Orchestration Pipeline",
+  "description": "An end-to-end workflow that turns a raw set of API changes (diffs, PRs, ticket notes) into publish-ready changelog documentation: it resolves conflicting/overlapping change entries into a coherent release timeline, plans the documentation update tasks agentically, and generates SEO-optimized meta descriptions for each changelog page — delivering a fully sequenced, deploy-ready release doc set.",
+  "category": "Developer Tools",
+  "tags": [
+    "changelog",
+    "api-docs",
+    "orchestration",
+    "docs-as-code",
+    "seo",
+    "release-notes"
+  ],
+  "type": "meta",
+  "dependencies": [
+    "@kmd_ai/mesocycleconflictresolver",
+    "@kmd_ai/agentic-coding-task-planner-1781501412237",
+    "@dmz_agent/seo-meta-description-generator"
+  ],
+  "spec": {
+    "name": "ReleaseNarrator: API Changelog Orchestration Pipeline",
+    "description": "An end-to-end workflow that turns a raw set of API changes (diffs, PRs, ticket notes) into publish-ready changelog documentation: it resolves conflicting/overlapping change entries into a coherent release timeline, plans the documentation update tasks agentically, and generates SEO-optimized meta descriptions for each changelog page — delivering a fully sequenced, deploy-ready release doc set.",
+    "category": "Developer Tools",
+    "tags": [
+      "changelog",
+      "api-docs",
+      "orchestration",
+      "docs-as-code",
+      "seo",
+      "release-notes"
+    ],
+    "purpose": "Transform messy, potentially conflicting API change inputs into a coherent, well-sequenced, and search-discoverable changelog release, so documentation teams ship accurate release notes with correct ordering, complete update tasks, and optimized page metadata in a single orchestrated pass.",
+    "instructions": [
+      "Parse the {{input}} to extract all raw change signals: API diffs, PR titles, ticket notes, deprecation flags, version tags, and target release date. Group them by affected endpoint/module.",
+      "Invoke @kmd_ai/mesocycleconflictresolver on the grouped change set, treating each release cycle as a 'mesocycle': feed it the overlapping/duplicate/contradictory entries (e.g. an endpoint marked both deprecated and enhanced, or two PRs editing the same field) and have it produce a single conflict-free, correctly sequenced release timeline with resolved precedence for each change.",
+      "Take the resolved timeline and invoke @kmd_ai/agentic-coding-task-planner-1781501412237 to break the changelog documentation update into an ordered, dependency-aware task plan: which changelog sections to write, which reference pages/OpenAPI stubs to update, migration-guide tasks for breaking changes, and review/verification steps.",
+      "For each planned changelog page or section, draft the human-readable changelog entry text (title, summary, breaking-change callouts, upgrade steps) derived from the resolved timeline.",
+      "Invoke @dmz_agent/seo-meta-description-generator on each drafted changelog page, passing the page title and summary, to produce a search-optimized meta description (<=155 chars) per page for discoverability.",
+      "Assemble the final deliverable: the ordered release timeline, the task plan with statuses, the drafted changelog entries, and the SEO meta descriptions — mapped one-to-one to their pages.",
+      "Surface any unresolved ambiguities from the conflict-resolution step as explicit reviewer flags rather than silently guessing, and note task dependencies that block publication.",
+      "Output everything in a single structured document ready for a docs-as-code pipeline (Markdown + frontmatter with the generated meta descriptions)."
+    ],
+    "promptTemplate": "You are ReleaseNarrator, orchestrating a three-stage API changelog pipeline.\n\nRAW RELEASE INPUT:\n{{input}}\n\nExecute in strict order and show each stage's output:\n\nSTAGE 1 — CONFLICT RESOLUTION (@kmd_ai/mesocycleconflictresolver)\n- Group all change signals by endpoint/module.\n- Resolve duplicates, contradictions, and precedence into ONE conflict-free, correctly ordered release timeline.\n- List any unresolved conflicts as REVIEWER FLAGS.\n\nSTAGE 2 — TASK PLANNING (@kmd_ai/agentic-coding-task-planner-1781501412237)\n- Convert the resolved timeline into an ordered, dependency-aware documentation task plan (changelog sections, reference/OpenAPI updates, migration guides, review steps).\n\nSTAGE 3 — DRAFTING + SEO (@dmz_agent/seo-meta-description-generator)\n- Draft each changelog entry (title, summary, breaking-change callouts, upgrade steps).\n- For each page, generate an SEO meta description (<=155 chars).\n\nFINAL DELIVERABLE\n- Output docs-as-code Markdown: each page with YAML frontmatter (title, version, date, meta_description) + body, preceded by the task plan and any reviewer flags.",
+    "examples": [
+      {
+        "title": "Conflicting v2.4 payments release",
+        "input": "Release v2.4, target 2024-06-01. Signals: PR#812 'deprecate POST /charges'; PR#845 'add idempotency_key to POST /charges'; Ticket PAY-90 'POST /charges response now returns fee_breakdown (breaking)'; PR#812 and PR#845 both touch POST /charges. Note: /charges being deprecated in favor of /payment_intents.",
+        "output": "STAGE 1: Resolved timeline — POST /charges: precedence = deprecation is the terminal state; idempotency_key + fee_breakdown apply to the successor /payment_intents, not to the deprecated /charges. Order: (1) announce /charges deprecation, (2) introduce /payment_intents with idempotency_key, (3) breaking fee_breakdown on /payment_intents. REVIEWER FLAG: confirm whether idempotency_key was actually shipped on /charges before deprecation.\nSTAGE 2: Task plan — T1 write deprecation notice (no deps) → T2 update /payment_intents reference + OpenAPI (dep T1) → T3 write breaking-change migration guide for fee_breakdown (dep T2) → T4 review/verify (dep T1,T2,T3).\nSTAGE 3: Page 'Deprecating /charges' meta: 'The /charges endpoint is deprecated in v2.4. Migrate to /payment_intents for idempotency and fee_breakdown support.' Page 'Migrating to /payment_intents' meta: 'Upgrade guide for v2.4: move from /charges to /payment_intents, handle new fee_breakdown response and idempotency_key.'\nFINAL: Markdown pages with frontmatter (title/version 2.4/date 2024-06-01/meta_description) + task plan + reviewer flag included."
+      },
+      {
+        "title": "Clean minor release",
+        "input": "Release v1.3. Signals: PR#20 'add optional locale param to GET /users'; PR#21 'fix pagination bug on GET /orders'. No conflicts.",
+        "output": "STAGE 1: No conflicts; timeline = [locale param added, pagination fix]. No reviewer flags.\nSTAGE 2: T1 update GET /users reference → T2 changelog entry for pagination fix → T3 review.\nSTAGE 3: Page 'v1.3 Release Notes' meta: 'v1.3 adds an optional locale param to GET /users and fixes GET /orders pagination.' \nFINAL: single Markdown changelog page with frontmatter and both entries."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Conflicting entries are resolved before planning",
+        "input": "Release v3.0. PR#1 'remove field email from /profile (breaking)'; PR#2 'make email required on /profile'. Both target v3.0.",
+        "expected": "Stage 1 detects the contradiction (a field cannot be both removed and made required) and produces one resolved decision plus a REVIEWER FLAG; only after resolution does Stage 2 emit a task plan and Stage 3 an SEO meta description. Output is ordered Stage1→Stage2→Stage3 with docs-as-code frontmatter."
+      },
+      {
+        "name": "Every changelog page gets exactly one meta description",
+        "input": "Release v2.1 with 3 changelog pages, no conflicts.",
+        "expected": "Final deliverable contains 3 pages, each with YAML frontmatter including a distinct meta_description <=155 chars generated in Stage 3, plus a task plan covering all 3 pages."
+      }
+    ],
+    "type": "meta",
+    "dependencies": [
+      "@kmd_ai/mesocycleconflictresolver",
+      "@kmd_ai/agentic-coding-task-planner-1781501412237",
+      "@dmz_agent/seo-meta-description-generator"
+    ]
+  },
+  "markdown": "# ReleaseNarrator: API Changelog Orchestration Pipeline\n\n## Purpose\nTransform messy, potentially conflicting API change inputs into a coherent, well-sequenced, and search-discoverable changelog release, so documentation teams ship accurate release notes with correct ordering, complete update tasks, and optimized page metadata in a single orchestrated pass.\n\n## Dependencies\nInstalling this skill also installs:\n- `@kmd_ai/mesocycleconflictresolver`\n- `@kmd_ai/agentic-coding-task-planner-1781501412237`\n- `@dmz_agent/seo-meta-description-generator`\n\n## Instructions\n1. Parse the {{input}} to extract all raw change signals: API diffs, PR titles, ticket notes, deprecation flags, version tags, and target release date. Group them by affected endpoint/module.\n2. Invoke @kmd_ai/mesocycleconflictresolver on the grouped change set, treating each release cycle as a 'mesocycle': feed it the overlapping/duplicate/contradictory entries (e.g. an endpoint marked both deprecated and enhanced, or two PRs editing the same field) and have it produce a single conflict-free, correctly sequenced release timeline with resolved precedence for each change.\n3. Take the resolved timeline and invoke @kmd_ai/agentic-coding-task-planner-1781501412237 to break the changelog documentation update into an ordered, dependency-aware task plan: which changelog sections to write, which reference pages/OpenAPI stubs to update, migration-guide tasks for breaking changes, and review/verification steps.\n4. For each planned changelog page or section, draft the human-readable changelog entry text (title, summary, breaking-change callouts, upgrade steps) derived from the resolved timeline.\n5. Invoke @dmz_agent/seo-meta-description-generator on each drafted changelog page, passing the page title and summary, to produce a search-optimized meta description (<=155 chars) per page for discoverability.\n6. Assemble the final deliverable: the ordered release timeline, the task plan with statuses, the drafted changelog entries, and the SEO meta descriptions — mapped one-to-one to their pages.\n7. Surface any unresolved ambiguities from the conflict-resolution step as explicit reviewer flags rather than silently guessing, and note task dependencies that block publication.\n8. Output everything in a single structured document ready for a docs-as-code pipeline (Markdown + frontmatter with the generated meta descriptions).\n\n## Prompt Template\n```\nYou are ReleaseNarrator, orchestrating a three-stage API changelog pipeline.\n\nRAW RELEASE INPUT:\n{{input}}\n\nExecute in strict order and show each stage's output:\n\nSTAGE 1 — CONFLICT RESOLUTION (@kmd_ai/mesocycleconflictresolver)\n- Group all change signals by endpoint/module.\n- Resolve duplicates, contradictions, and precedence into ONE conflict-free, correctly ordered release timeline.\n- List any unresolved conflicts as REVIEWER FLAGS.\n\nSTAGE 2 — TASK PLANNING (@kmd_ai/agentic-coding-task-planner-1781501412237)\n- Convert the resolved timeline into an ordered, dependency-aware documentation task plan (changelog sections, reference/OpenAPI updates, migration guides, review steps).\n\nSTAGE 3 — DRAFTING + SEO (@dmz_agent/seo-meta-description-generator)\n- Draft each changelog entry (title, summary, breaking-change callouts, upgrade steps).\n- For each page, generate an SEO meta description (<=155 chars).\n\nFINAL DELIVERABLE\n- Output docs-as-code Markdown: each page with YAML frontmatter (title, version, date, meta_description) + body, preceded by the task plan and any reviewer flags.\n```\n"
+}

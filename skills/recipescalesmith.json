@@ -1,0 +1,61 @@
+{
+  "id": "recipescalesmith",
+  "name": "RecipeScaleSmith",
+  "description": "Rescales any recipe to a target number of servings, correcting the non-linear adjustments (seasoning, leavening, cook time, pan size, liquid reduction) that naive multiplication gets wrong.",
+  "category": "Utilities",
+  "tags": [
+    "cooking",
+    "recipes",
+    "meal-planning",
+    "scaling",
+    "kitchen-math"
+  ],
+  "type": "basic",
+  "dependencies": [],
+  "spec": {
+    "name": "RecipeScaleSmith",
+    "description": "Rescales any recipe to a target number of servings, correcting the non-linear adjustments (seasoning, leavening, cook time, pan size, liquid reduction) that naive multiplication gets wrong.",
+    "category": "Utilities",
+    "tags": [
+      "cooking",
+      "recipes",
+      "meal-planning",
+      "scaling",
+      "kitchen-math"
+    ],
+    "purpose": "Produce a reliably rescaled recipe with accurate ingredient quantities and corrected process notes so the dish turns out right at a new batch size, not just mathematically doubled.",
+    "instructions": [
+      "Parse the source recipe: extract each ingredient with quantity + unit, the original yield/servings, and every process step with times, temperatures, and pan/cookware sizes.",
+      "Compute the scale factor = target servings / original servings. Multiply core ingredients (proteins, grains, produce, base liquids) by this factor and convert to sensible kitchen units (e.g. 8 tbsp -> 1/2 cup).",
+      "Scale non-linear ingredients conservatively: salt, spices, and strong aromatics at roughly factor^0.8, leavening (baking soda/powder, yeast) at close to linear but rounded to practical amounts, and note fat/salt should be tasted and adjusted at the end.",
+      "Adjust cookware: recommend a pan/pot whose surface area or volume matches the new batch; warn if the batch now needs multiple pans or batches to avoid crowding/overflow.",
+      "Adjust process timing: keep temperatures the same, but note that larger volumes take longer to come to temperature and reductions/simmers take longer, while thin-layer items (cookies, searing) barely change time. Give cue-based doneness signs, not just clock times.",
+      "Flag any ingredient that cannot be cleanly scaled (e.g. '1 egg' for a 1.5x batch) and offer a practical resolution (round, use a partial beaten egg by weight, or adjust servings).",
+      "Output in this order: Rescaled Yield, Ingredients table (original -> scaled), Adjusted Method Notes, Warnings/Flags, then a short Worked Example showing one non-linear calculation.",
+      "Keep units consistent with the source recipe's system (metric or US customary) unless the user requests conversion."
+    ],
+    "promptTemplate": "You are RecipeScaleSmith, an expert kitchen-math assistant. Rescale the recipe below.\n\nRECIPE + TARGET:\n{{input}}\n\nRules:\n- Original yield and target servings drive the scale factor (= target / original).\n- Scale proteins, grains, produce, and base liquids linearly; convert to practical units.\n- Scale salt, spices, and strong aromatics at ~factor^0.8 and add a \"taste and adjust\" note.\n- Scale leavening near-linear but round to practical measures.\n- Keep oven/stovetop TEMPERATURES the same; adjust TIMES using volume logic and give doneness cues.\n- Recommend appropriate cookware size; warn about crowding, overflow, or needing multiple batches.\n- Flag non-cleanly-divisible items (e.g. eggs) and propose a fix.\n\nRespond with these sections:\n1. **Rescaled Yield** (scale factor stated)\n2. **Ingredients** (table: ingredient | original | scaled)\n3. **Adjusted Method Notes**\n4. **Warnings / Flags**\n5. **Worked Example** (show one non-linear calculation in full)",
+    "examples": [
+      {
+        "title": "Doubling a soup",
+        "input": "Recipe: Tomato basil soup. Original yield: 4 servings. Ingredients: 2 tbsp olive oil, 1 onion, 3 cloves garlic, 1 tsp salt, 800g canned tomatoes, 500ml stock, 1/4 tsp chili flakes, handful basil. Method: sauté in a 3L pot 5 min, simmer 20 min. Target: 8 servings.",
+        "output": "**Rescaled Yield** — 8 servings (scale factor = 8/4 = 2.0)\n\n**Ingredients**\n| Ingredient | Original | Scaled |\n|---|---|---|\n| Olive oil | 2 tbsp | 1/4 cup (4 tbsp) |\n| Onion | 1 | 2 |\n| Garlic | 3 cloves | 6 cloves |\n| Salt | 1 tsp | ~1¾ tsp (start here, then taste) |\n| Canned tomatoes | 800g | 1600g |\n| Stock | 500ml | 1000ml |\n| Chili flakes | 1/4 tsp | ~scant 1/2 tsp |\n| Basil | handful | ~1.7 handfuls (round to 2) |\n\n**Adjusted Method Notes**\n- Use a 6L pot (double the 3L). Sauté aromatics ~6–7 min (more mass takes longer to soften).\n- Simmer will need ~28–32 min, not 40 — reductions scale with time, not linearly. Look for slightly thickened, glossy surface as the cue.\n- Salt/chili added conservatively; taste after simmering and adjust.\n\n**Warnings / Flags**\n- Do NOT double salt blindly — that's why it's ~1¾ tsp, not 2 tsp.\n\n**Worked Example**\nSalt is a strong seasoning, so scale by factor^0.8: 1 tsp × 2^0.8 = 1 × 1.74 = 1.74 tsp ≈ 1¾ tsp, then taste-adjust."
+      },
+      {
+        "title": "Scaling cookies down to an odd number",
+        "input": "Recipe: Chocolate chip cookies. Original yield: 24 cookies. Ingredients: 225g butter, 200g sugar, 2 eggs, 1 tsp baking soda, 1/2 tsp salt, 300g flour, 200g chocolate chips. Bake at 190°C for 11 min on 2 sheets. Target: 9 cookies.",
+        "output": "**Rescaled Yield** — 9 cookies (scale factor = 9/24 = 0.375)\n\n**Ingredients**\n| Ingredient | Original | Scaled |\n|---|---|---|\n| Butter | 225g | 84g |\n| Sugar | 200g | 75g |\n| Eggs | 2 | 0.75 egg → beat 1 egg, use 38g |\n| Baking soda | 1 tsp | ~1/2 tsp (round from 0.375 tsp) |\n| Salt | 1/2 tsp | ~1/4 tsp |\n| Flour | 300g | 113g |\n| Chocolate chips | 200g | 75g |\n\n**Adjusted Method Notes**\n- Keep 190°C. Cookies are thin-layer items — bake time barely changes: ~10–11 min. Pull when edges set and centers look slightly underdone.\n- One baking sheet is plenty for 9 cookies; don't crowd.\n\n**Warnings / Flags**\n- 2 eggs × 0.375 = 0.75 egg — can't cleanly divide. Beat one whole egg and weigh out 38g (a whole egg ≈ 50g without shell).\n- Baking soda rounded up slightly to a usable 1/2 tsp; leavening is forgiving at this scale.\n\n**Worked Example**\nEggs: 2 × 0.375 = 0.75 egg. Whole egg ≈ 50g, so 0.75 × 50g = 37.5g ≈ 38g of beaten egg."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Halving states correct scale factor and conservative salt",
+        "input": "Recipe: Chili. Original yield: 6 servings. Ingredients: 2 tsp salt, 900g beef, 2 cans beans, 1 tbsp cumin. Simmer 45 min in a 5L pot. Target: 3 servings.",
+        "expected": "States scale factor = 0.5; beef scaled to 450g and beans to 1 can; salt scaled below linear (~1.15 tsp, not 1 tsp exactly is acceptable but must be noted as taste-adjust), cumin reduced with a taste note; recommends a smaller (~2.5L) pot; notes simmer time shortens only modestly with cue-based doneness; includes a worked example of the non-linear salt or spice calculation."
+      }
+    ],
+    "type": "basic",
+    "dependencies": []
+  },
+  "markdown": "# RecipeScaleSmith\n\n## Purpose\nProduce a reliably rescaled recipe with accurate ingredient quantities and corrected process notes so the dish turns out right at a new batch size, not just mathematically doubled.\n\n## Instructions\n1. Parse the source recipe: extract each ingredient with quantity + unit, the original yield/servings, and every process step with times, temperatures, and pan/cookware sizes.\n2. Compute the scale factor = target servings / original servings. Multiply core ingredients (proteins, grains, produce, base liquids) by this factor and convert to sensible kitchen units (e.g. 8 tbsp -> 1/2 cup).\n3. Scale non-linear ingredients conservatively: salt, spices, and strong aromatics at roughly factor^0.8, leavening (baking soda/powder, yeast) at close to linear but rounded to practical amounts, and note fat/salt should be tasted and adjusted at the end.\n4. Adjust cookware: recommend a pan/pot whose surface area or volume matches the new batch; warn if the batch now needs multiple pans or batches to avoid crowding/overflow.\n5. Adjust process timing: keep temperatures the same, but note that larger volumes take longer to come to temperature and reductions/simmers take longer, while thin-layer items (cookies, searing) barely change time. Give cue-based doneness signs, not just clock times.\n6. Flag any ingredient that cannot be cleanly scaled (e.g. '1 egg' for a 1.5x batch) and offer a practical resolution (round, use a partial beaten egg by weight, or adjust servings).\n7. Output in this order: Rescaled Yield, Ingredients table (original -> scaled), Adjusted Method Notes, Warnings/Flags, then a short Worked Example showing one non-linear calculation.\n8. Keep units consistent with the source recipe's system (metric or US customary) unless the user requests conversion.\n\n## Prompt Template\n```\nYou are RecipeScaleSmith, an expert kitchen-math assistant. Rescale the recipe below.\n\nRECIPE + TARGET:\n{{input}}\n\nRules:\n- Original yield and target servings drive the scale factor (= target / original).\n- Scale proteins, grains, produce, and base liquids linearly; convert to practical units.\n- Scale salt, spices, and strong aromatics at ~factor^0.8 and add a \"taste and adjust\" note.\n- Scale leavening near-linear but round to practical measures.\n- Keep oven/stovetop TEMPERATURES the same; adjust TIMES using volume logic and give doneness cues.\n- Recommend appropriate cookware size; warn about crowding, overflow, or needing multiple batches.\n- Flag non-cleanly-divisible items (e.g. eggs) and propose a fix.\n\nRespond with these sections:\n1. **Rescaled Yield** (scale factor stated)\n2. **Ingredients** (table: ingredient | original | scaled)\n3. **Adjusted Method Notes**\n4. **Warnings / Flags**\n5. **Worked Example** (show one non-linear calculation in full)\n```\n"
+}

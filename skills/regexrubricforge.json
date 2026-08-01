@@ -1,0 +1,69 @@
+{
+  "id": "regexrubricforge",
+  "name": "RegexRubricForge",
+  "description": "An end-to-end pipeline that converts messy, free-text educational answer logs into a clean, regex-canonicalized, auto-graded dataset with sharpened remediation objectives — orchestrating MathMisstepDiagnostician, CategoryValueCanonicalizer, and SpecificAimsSharpener so that raw student submissions become structured diagnostics, normalized error categories, and actionable learning aims in a single run.",
+  "category": "Education",
+  "tags": [
+    "education",
+    "regex",
+    "grading",
+    "orchestration",
+    "remediation"
+  ],
+  "type": "meta",
+  "dependencies": [
+    "@kmd_ai/mathmisstepdiagnostician",
+    "@kmd_ai/categoryvaluecanonicalizer",
+    "@kmd_ai/specificaimssharpener"
+  ],
+  "spec": {
+    "name": "RegexRubricForge",
+    "description": "An end-to-end pipeline that converts messy, free-text educational answer logs into a clean, regex-canonicalized, auto-graded dataset with sharpened remediation objectives — orchestrating MathMisstepDiagnostician, CategoryValueCanonicalizer, and SpecificAimsSharpener so that raw student submissions become structured diagnostics, normalized error categories, and actionable learning aims in a single run.",
+    "category": "Education",
+    "tags": [
+      "education",
+      "regex",
+      "grading",
+      "orchestration",
+      "remediation"
+    ],
+    "purpose": "Transform a batch of raw, inconsistently formatted math answer logs into a fully structured, deduplicated, and pedagogically actionable report: each answer is regex-extracted and diagnosed for its specific misstep, the resulting error labels are canonicalized into a stable controlled vocabulary, and the aggregated error profile is turned into sharp, measurable remediation objectives — all without a human manually cleaning, tagging, or planning.",
+    "instructions": [
+      "Ingest {{input}} as a raw text blob of one-or-more answer records. Apply a regex tokenizer to split records (default delimiter: lines matching /^\\s*(?:Q\\d+|Item\\s*\\d+|---)/) and, within each record, capture the fields `student`, `problem`, and `work` using named capture groups; normalize whitespace and Unicode math symbols (e.g. ×→*, ÷→/, −→-) before any downstream call.",
+      "For every extracted `work` field, invoke MathMisstepDiagnostician (@kmd_ai/mathmisstepdiagnostician) to pinpoint the specific mathematical misstep and its raw error label. Collect the returned label, the step index where it occurred, and a one-line explanation into a per-record diagnosis object.",
+      "Feed the full list of raw error labels produced in step 2 into CategoryValueCanonicalizer (@kmd_ai/categoryvaluecanonicalizer) as a single batch, so synonymous or misspelled labels (e.g. 'sign flip error', 'wrong sign', 'neg sign mistake') collapse into one canonical category. Map each record's raw label back to its canonical value using the returned crosswalk.",
+      "Aggregate the canonicalized categories: compute counts, percentage of affected students, and rank the top error categories. Emit an interim regex-friendly summary table (pipe-delimited) that a downstream tool or spreadsheet can re-parse.",
+      "For each of the top-N canonical error categories (default N=3), synthesize a short 'aim seed' sentence describing the intended learning fix, then pass the seed(s) to SpecificAimsSharpener (@kmd_ai/specificaimssharpener) to convert each vague goal into a sharp, measurable, time-bound remediation objective.",
+      "Assemble the final report with three sections: (A) a per-record diagnostic table [student | problem | canonical_error | step | note], (B) the aggregated error-frequency ranking, and (C) the sharpened remediation objectives, each linked to the category it addresses.",
+      "Validate the pipeline: ensure every input record produced exactly one diagnosis, every raw label has a canonical mapping, and every top-N category has at least one sharpened objective; if any linkage is missing, flag it in a 'gaps' subsection rather than silently dropping it.",
+      "Return the report as clean Markdown, keeping all machine-parseable tables pipe-delimited so the output itself can be re-ingested by regex in future runs."
+    ],
+    "promptTemplate": "You are RegexRubricForge, a meta-orchestrator for grading and remediation.\n\nRAW ANSWER LOG:\n{{input}}\n\nExecute this pipeline in order, showing no internal chatter — only the final report:\n\n1) REGEX EXTRACTION: Split records and capture named groups (student, problem, work). Normalize math symbols (×→*, ÷→/, −→-) and whitespace.\n2) DIAGNOSE: For each `work`, call MathMisstepDiagnostician to get {raw_error_label, step_index, note}.\n3) CANONICALIZE: Batch all raw_error_labels through CategoryValueCanonicalizer; map each record to its canonical_error.\n4) AGGREGATE: Rank canonical errors by frequency and % of students affected.\n5) SHARPEN: For the top {{top_n|default 3}} categories, form an aim seed and run it through SpecificAimsSharpener to produce a measurable, time-bound remediation objective.\n6) VALIDATE: Confirm 1 diagnosis/record, every label mapped, every top category has an objective. List any gaps.\n\nOUTPUT (Markdown, pipe-delimited tables only):\n### A. Per-Record Diagnostics\n| student | problem | canonical_error | step | note |\n### B. Error Frequency Ranking\n| rank | canonical_error | count | %_students |\n### C. Sharpened Remediation Objectives\n| canonical_error | objective |\n### D. Gaps\n(list missing linkages, or \"none\")",
+    "examples": [
+      {
+        "title": "Small class batch",
+        "input": "Q1 | student=Ana | problem=-3x=12 | work: -3x=12 -> x = 12/-3 -> x = -4 ... wait x=4\nQ2 | student=Ben | problem=2(x+3)=10 | work: 2x+3=10 -> 2x=7 -> x=3.5\nQ3 | student=Ana | problem=5-2*4 | work: 5-2*4 = 3*4 = 12",
+        "output": "### A. Per-Record Diagnostics\n| student | problem | canonical_error | step | note |\n| Ana | -3x=12 | sign_error | 3 | Correct division but flipped final sign |\n| Ben | 2(x+3)=10 | distribution_error | 1 | Failed to distribute 2 across (x+3) |\n| Ana | 5-2*4 | order_of_operations_error | 1 | Subtracted before multiplying |\n\n### B. Error Frequency Ranking\n| rank | canonical_error | count | %_students |\n| 1 | sign_error | 1 | 50% |\n| 1 | distribution_error | 1 | 50% |\n| 1 | order_of_operations_error | 1 | 50% |\n\n### C. Sharpened Remediation Objectives\n| canonical_error | objective |\n| sign_error | By end of week, Ana will correctly determine the sign of the solution in 9/10 single-variable equations involving negative coefficients. |\n| distribution_error | Within 3 practice sessions, Ben will correctly apply the distributive property in 8/10 expressions of the form a(b+c). |\n| order_of_operations_error | By next quiz, Ana will apply PEMDAS to evaluate 10/10 mixed-operation expressions without regrouping. |\n\n### D. Gaps\nnone"
+      }
+    ],
+    "tests": [
+      {
+        "name": "Full three-stage linkage",
+        "input": "Q1 | student=Lee | problem=4/2+6 | work: 4/2+6 = 4/8 = 0.5",
+        "expected": "Report has A/B/C/D sections; the record maps to a canonicalized order/operations-style error, Section C contains one measurable, time-bound objective for that canonical category, and Section D reports 'none'."
+      },
+      {
+        "name": "Unmapped label triggers gap flag",
+        "input": "Q1 | student=Kai | problem=??? | work: (unreadable scribble)",
+        "expected": "MathMisstepDiagnostician yields no clear misstep; the pipeline still emits Section A with the record and lists the missing diagnosis/canonical mapping under Section D. Gaps rather than silently dropping the record."
+      }
+    ],
+    "type": "meta",
+    "dependencies": [
+      "@kmd_ai/mathmisstepdiagnostician",
+      "@kmd_ai/categoryvaluecanonicalizer",
+      "@kmd_ai/specificaimssharpener"
+    ]
+  },
+  "markdown": "# RegexRubricForge\n\n## Purpose\nTransform a batch of raw, inconsistently formatted math answer logs into a fully structured, deduplicated, and pedagogically actionable report: each answer is regex-extracted and diagnosed for its specific misstep, the resulting error labels are canonicalized into a stable controlled vocabulary, and the aggregated error profile is turned into sharp, measurable remediation objectives — all without a human manually cleaning, tagging, or planning.\n\n## Dependencies\nInstalling this skill also installs:\n- `@kmd_ai/mathmisstepdiagnostician`\n- `@kmd_ai/categoryvaluecanonicalizer`\n- `@kmd_ai/specificaimssharpener`\n\n## Instructions\n1. Ingest {{input}} as a raw text blob of one-or-more answer records. Apply a regex tokenizer to split records (default delimiter: lines matching /^\\s*(?:Q\\d+|Item\\s*\\d+|---)/) and, within each record, capture the fields `student`, `problem`, and `work` using named capture groups; normalize whitespace and Unicode math symbols (e.g. ×→*, ÷→/, −→-) before any downstream call.\n2. For every extracted `work` field, invoke MathMisstepDiagnostician (@kmd_ai/mathmisstepdiagnostician) to pinpoint the specific mathematical misstep and its raw error label. Collect the returned label, the step index where it occurred, and a one-line explanation into a per-record diagnosis object.\n3. Feed the full list of raw error labels produced in step 2 into CategoryValueCanonicalizer (@kmd_ai/categoryvaluecanonicalizer) as a single batch, so synonymous or misspelled labels (e.g. 'sign flip error', 'wrong sign', 'neg sign mistake') collapse into one canonical category. Map each record's raw label back to its canonical value using the returned crosswalk.\n4. Aggregate the canonicalized categories: compute counts, percentage of affected students, and rank the top error categories. Emit an interim regex-friendly summary table (pipe-delimited) that a downstream tool or spreadsheet can re-parse.\n5. For each of the top-N canonical error categories (default N=3), synthesize a short 'aim seed' sentence describing the intended learning fix, then pass the seed(s) to SpecificAimsSharpener (@kmd_ai/specificaimssharpener) to convert each vague goal into a sharp, measurable, time-bound remediation objective.\n6. Assemble the final report with three sections: (A) a per-record diagnostic table [student | problem | canonical_error | step | note], (B) the aggregated error-frequency ranking, and (C) the sharpened remediation objectives, each linked to the category it addresses.\n7. Validate the pipeline: ensure every input record produced exactly one diagnosis, every raw label has a canonical mapping, and every top-N category has at least one sharpened objective; if any linkage is missing, flag it in a 'gaps' subsection rather than silently dropping it.\n8. Return the report as clean Markdown, keeping all machine-parseable tables pipe-delimited so the output itself can be re-ingested by regex in future runs.\n\n## Prompt Template\n```\nYou are RegexRubricForge, a meta-orchestrator for grading and remediation.\n\nRAW ANSWER LOG:\n{{input}}\n\nExecute this pipeline in order, showing no internal chatter — only the final report:\n\n1) REGEX EXTRACTION: Split records and capture named groups (student, problem, work). Normalize math symbols (×→*, ÷→/, −→-) and whitespace.\n2) DIAGNOSE: For each `work`, call MathMisstepDiagnostician to get {raw_error_label, step_index, note}.\n3) CANONICALIZE: Batch all raw_error_labels through CategoryValueCanonicalizer; map each record to its canonical_error.\n4) AGGREGATE: Rank canonical errors by frequency and % of students affected.\n5) SHARPEN: For the top {{top_n|default 3}} categories, form an aim seed and run it through SpecificAimsSharpener to produce a measurable, time-bound remediation objective.\n6) VALIDATE: Confirm 1 diagnosis/record, every label mapped, every top category has an objective. List any gaps.\n\nOUTPUT (Markdown, pipe-delimited tables only):\n### A. Per-Record Diagnostics\n| student | problem | canonical_error | step | note |\n### B. Error Frequency Ranking\n| rank | canonical_error | count | %_students |\n### C. Sharpened Remediation Objectives\n| canonical_error | objective |\n### D. Gaps\n(list missing linkages, or \"none\")\n```\n"
+}

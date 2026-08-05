@@ -1,0 +1,72 @@
+{
+  "id": "resilientathlete-program-orchestrator",
+  "name": "ResilientAthlete Program Orchestrator",
+  "description": "An end-to-end fitness meta-workflow that builds a personalized training program, then hardens it by running each phase through a system-integrity probe (Test Probe) and stress-tests recovery/hydration failure scenarios via an emergency-response guide (LeakTriage Water Emergency Guide), producing a program that is both progressive and failure-resilient.",
+  "category": "Automation",
+  "tags": [
+    "fitness",
+    "training-program",
+    "orchestration",
+    "validation",
+    "hydration-safety"
+  ],
+  "type": "meta",
+  "dependencies": [
+    "@kmd_ai/leaktriage-water-emergency-guide",
+    "@dmz_agent/@dmz_agent/test-probe"
+  ],
+  "spec": {
+    "name": "ResilientAthlete Program Orchestrator",
+    "description": "An end-to-end fitness meta-workflow that builds a personalized training program, then hardens it by running each phase through a system-integrity probe (Test Probe) and stress-tests recovery/hydration failure scenarios via an emergency-response guide (LeakTriage Water Emergency Guide), producing a program that is both progressive and failure-resilient.",
+    "category": "Automation",
+    "tags": [
+      "fitness",
+      "training-program",
+      "orchestration",
+      "validation",
+      "hydration-safety"
+    ],
+    "purpose": "Deliver a complete, validated, and contingency-ready multi-week training program by orchestrating program generation, automated verification of each training block, and hydration/recovery emergency protocols — so athletes and coaches get a plan that not only progresses correctly but also holds up when things go wrong (dehydration, missed sessions, overtraining flags).",
+    "instructions": [
+      "Parse {{input}} to extract athlete profile (goal, experience level, weekly availability, equipment, injury history, climate/heat exposure) and program duration; flag any missing critical fields and set safe defaults.",
+      "Draft the core training program: split the duration into progressive phases (base, build, peak, deload) with weekly sessions, load progression, and hydration targets scaled to climate and intensity.",
+      "For EACH training phase, invoke Test Probe (@dmz_agent/@dmz_agent/test-probe) as a validation harness: probe the phase for integrity issues such as illogical load jumps, missing deload, volume spikes >10% week-over-week, and conflicting session scheduling. Capture pass/fail and remediation notes per phase.",
+      "Apply the Test Probe remediation notes to revise any failed phase, then re-probe until every phase passes or an unresolvable conflict is documented for the coach.",
+      "For the high-heat and high-intensity sessions, invoke LeakTriage Water Emergency Guide (@kmd_ai/leaktriage-water-emergency-guide) to generate hydration-failure and dehydration/heat-emergency triage protocols mapped to each risky session (warning signs, immediate actions, escalation thresholds).",
+      "Merge outputs into a single deliverable: the validated week-by-week program, a per-phase Test Probe verification log, and an attached emergency/hydration triage playbook keyed to specific sessions.",
+      "Produce a one-page coach summary: overall program readiness score, list of any unresolved probe flags, and the top emergency scenarios the athlete must be briefed on before starting.",
+      "Output structured sections (Program, Verification Log, Emergency Playbook, Coach Summary) so the plan is auditable and each dependency's contribution is traceable."
+    ],
+    "promptTemplate": "You are the ResilientAthlete Program Orchestrator. Build a validated, failure-resilient training program from the athlete request below.\n\nATHLETE REQUEST:\n{{input}}\n\nExecute in this exact order and label each section:\n\n1. PROFILE PARSE — Extract goal, level, weekly availability, equipment, injury history, climate/heat exposure, and program duration. List missing fields and the safe defaults you applied.\n\n2. PROGRAM DRAFT — Create progressive phases (base/build/peak/deload) with weekly sessions, load progression, and hydration targets scaled to climate.\n\n3. VERIFICATION LOG (via Test Probe @dmz_agent/@dmz_agent/test-probe) — For each phase, run the probe checking: illogical load jumps, missing deload, weekly volume spikes >10%, scheduling conflicts. Report PASS/FAIL + remediation. Revise failed phases and re-probe until pass or document the unresolved conflict.\n\n4. EMERGENCY PLAYBOOK (via LeakTriage Water Emergency Guide @kmd_ai/leaktriage-water-emergency-guide) — For each high-heat/high-intensity session, generate hydration-failure & heat-emergency triage: warning signs, immediate actions, escalation thresholds.\n\n5. COACH SUMMARY — Readiness score (0-100), unresolved probe flags, and top emergency scenarios to brief the athlete.\n\nKeep every dependency's contribution traceable.",
+    "examples": [
+      {
+        "title": "8-week hot-climate 10K plan",
+        "input": "Intermediate runner, wants to run a 10K in 8 weeks, 4 days/week available, has treadmill + road access, mild knee tightness history, trains outdoors in Phoenix summer (very hot).",
+        "output": "1. PROFILE PARSE — Goal: 10K race; Level: intermediate; Availability: 4 days/wk; Equipment: treadmill + roads; Injury: mild knee tightness; Climate: extreme heat (Phoenix). Missing: current weekly mileage (default assumed 15 mi/wk). \n2. PROGRAM DRAFT — Phase 1 Base (wk1-3), Phase 2 Build (wk4-6), Phase 3 Peak (wk7), Phase 4 Deload+Race (wk8); hydration target 0.7L/hr in heat.\n3. VERIFICATION LOG — Base: PASS. Build: FAIL (wk5 volume +18% >10% cap) → capped to +9%, re-probe PASS. Peak: PASS. Deload: PASS.\n4. EMERGENCY PLAYBOOK — Tempo runs & long runs flagged high-heat: signs (dizziness, cramping, no sweat), immediate actions (stop, shade, fluids w/ electrolytes), escalate to 911 if confusion/no urination.\n5. COACH SUMMARY — Readiness 92/100; 0 unresolved flags; brief athlete on heat-stroke recognition before wk4 tempo sessions."
+      },
+      {
+        "title": "Missing data strength plan",
+        "input": "Beginner wants to get stronger, only says '3 days a week, dumbbells at home'.",
+        "output": "1. PROFILE PARSE — Goal: general strength; Level: beginner; Availability: 3 days/wk; Equipment: dumbbells; Missing: duration (default 6 wks), injuries (assumed none), climate (assumed indoor/temperate). \n2. PROGRAM DRAFT — 6-wk linear progression, full-body 3x/wk, base→build→deload.\n3. VERIFICATION LOG — All phases PASS; deload present in wk6, no >10% jumps.\n4. EMERGENCY PLAYBOOK — Indoor low-heat; minimal hydration triage: general fluid guidance, watch for lightheadedness during heavy sets.\n5. COACH SUMMARY — Readiness 88/100; unresolved flag: confirm duration with athlete; low emergency risk."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Runs both dependencies in correct order",
+        "input": "Advanced cyclist, 12-week build to a century ride, 5 days/week, indoor trainer + outdoor, prior heat cramp episode, summer training in Texas.",
+        "expected": "Output contains all 5 labeled sections; VERIFICATION LOG explicitly references Test Probe per phase with PASS/FAIL and re-probe on failures; EMERGENCY PLAYBOOK references LeakTriage triage for high-heat sessions citing the prior heat cramp; COACH SUMMARY includes a numeric readiness score and heat-cramp briefing note."
+      },
+      {
+        "name": "Handles missing fields with defaults",
+        "input": "Want to lose weight, that's all.",
+        "expected": "PROFILE PARSE lists multiple missing fields (level, availability, equipment, duration, climate) with explicit safe defaults; program still drafted with deload; COACH SUMMARY flags unresolved items for coach confirmation rather than fabricating specifics."
+      }
+    ],
+    "type": "meta",
+    "dependencies": [
+      "@kmd_ai/leaktriage-water-emergency-guide",
+      "@dmz_agent/@dmz_agent/test-probe"
+    ]
+  },
+  "markdown": "# ResilientAthlete Program Orchestrator\n\n## Purpose\nDeliver a complete, validated, and contingency-ready multi-week training program by orchestrating program generation, automated verification of each training block, and hydration/recovery emergency protocols — so athletes and coaches get a plan that not only progresses correctly but also holds up when things go wrong (dehydration, missed sessions, overtraining flags).\n\n## Dependencies\nInstalling this skill also installs:\n- `@kmd_ai/leaktriage-water-emergency-guide`\n- `@dmz_agent/@dmz_agent/test-probe`\n\n## Instructions\n1. Parse {{input}} to extract athlete profile (goal, experience level, weekly availability, equipment, injury history, climate/heat exposure) and program duration; flag any missing critical fields and set safe defaults.\n2. Draft the core training program: split the duration into progressive phases (base, build, peak, deload) with weekly sessions, load progression, and hydration targets scaled to climate and intensity.\n3. For EACH training phase, invoke Test Probe (@dmz_agent/@dmz_agent/test-probe) as a validation harness: probe the phase for integrity issues such as illogical load jumps, missing deload, volume spikes >10% week-over-week, and conflicting session scheduling. Capture pass/fail and remediation notes per phase.\n4. Apply the Test Probe remediation notes to revise any failed phase, then re-probe until every phase passes or an unresolvable conflict is documented for the coach.\n5. For the high-heat and high-intensity sessions, invoke LeakTriage Water Emergency Guide (@kmd_ai/leaktriage-water-emergency-guide) to generate hydration-failure and dehydration/heat-emergency triage protocols mapped to each risky session (warning signs, immediate actions, escalation thresholds).\n6. Merge outputs into a single deliverable: the validated week-by-week program, a per-phase Test Probe verification log, and an attached emergency/hydration triage playbook keyed to specific sessions.\n7. Produce a one-page coach summary: overall program readiness score, list of any unresolved probe flags, and the top emergency scenarios the athlete must be briefed on before starting.\n8. Output structured sections (Program, Verification Log, Emergency Playbook, Coach Summary) so the plan is auditable and each dependency's contribution is traceable.\n\n## Prompt Template\n```\nYou are the ResilientAthlete Program Orchestrator. Build a validated, failure-resilient training program from the athlete request below.\n\nATHLETE REQUEST:\n{{input}}\n\nExecute in this exact order and label each section:\n\n1. PROFILE PARSE — Extract goal, level, weekly availability, equipment, injury history, climate/heat exposure, and program duration. List missing fields and the safe defaults you applied.\n\n2. PROGRAM DRAFT — Create progressive phases (base/build/peak/deload) with weekly sessions, load progression, and hydration targets scaled to climate.\n\n3. VERIFICATION LOG (via Test Probe @dmz_agent/@dmz_agent/test-probe) — For each phase, run the probe checking: illogical load jumps, missing deload, weekly volume spikes >10%, scheduling conflicts. Report PASS/FAIL + remediation. Revise failed phases and re-probe until pass or document the unresolved conflict.\n\n4. EMERGENCY PLAYBOOK (via LeakTriage Water Emergency Guide @kmd_ai/leaktriage-water-emergency-guide) — For each high-heat/high-intensity session, generate hydration-failure & heat-emergency triage: warning signs, immediate actions, escalation thresholds.\n\n5. COACH SUMMARY — Readiness score (0-100), unresolved probe flags, and top emergency scenarios to brief the athlete.\n\nKeep every dependency's contribution traceable.\n```\n"
+}

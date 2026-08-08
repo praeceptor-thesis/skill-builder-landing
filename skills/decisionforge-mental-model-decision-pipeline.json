@@ -1,0 +1,75 @@
+{
+  "id": "decisionforge-mental-model-decision-pipeline",
+  "name": "DecisionForge: Mental-Model Decision Pipeline",
+  "description": "An end-to-end decision-making workflow that turns a fuzzy, high-stakes decision into a structured mental-model analysis, then batch-runs the analysis across every option, captures your reasoning through a purpose-built form, and publishes a shareable decision brief — orchestrating BatchJobOrchestrator, DataEntryFormDesigner, ThreadToCarouselConverter, and TypographySystemBuilder so the whole pipeline is reproducible and communicable.",
+  "category": "Productivity",
+  "tags": [
+    "decision-making",
+    "mental-models",
+    "orchestration",
+    "workflow",
+    "strategy"
+  ],
+  "type": "meta",
+  "dependencies": [
+    "@design_seeder/batch-job-orchestrator",
+    "@design_seeder/data-entry-form-designer",
+    "@kmd_ai/threadtocarouselconverter",
+    "@design_seeder/typography-system-builder"
+  ],
+  "spec": {
+    "name": "DecisionForge: Mental-Model Decision Pipeline",
+    "description": "An end-to-end decision-making workflow that turns a fuzzy, high-stakes decision into a structured mental-model analysis, then batch-runs the analysis across every option, captures your reasoning through a purpose-built form, and publishes a shareable decision brief — orchestrating BatchJobOrchestrator, DataEntryFormDesigner, ThreadToCarouselConverter, and TypographySystemBuilder so the whole pipeline is reproducible and communicable.",
+    "category": "Productivity",
+    "tags": [
+      "decision-making",
+      "mental-models",
+      "orchestration",
+      "workflow",
+      "strategy"
+    ],
+    "purpose": "Convert an ambiguous decision into a defensible, well-documented, and shareable choice by systematically applying a curated set of mental models to every option, structuring the evidence you collect, and producing a polished decision brief you can circulate to stakeholders.",
+    "instructions": [
+      "Frame the decision from {{input}}: extract the core question, the candidate options, the time horizon, reversibility, and the stakeholders. Select 4-7 relevant mental models (e.g., inversion, opportunity cost, second-order effects, base rates, expected value, regret minimization) matched to the decision type.",
+      "Use DataEntryFormDesigner to generate a structured 'Decision Ledger' capture form: one section per option, with typed fields for each selected mental model's key inputs (assumptions, probabilities, costs, downside scenarios, confidence) plus evidence links. This standardizes the reasoning you'll collect for every option.",
+      "Use BatchJobOrchestrator to run the mental-model analysis as a batch job — one job per (option x mental model) pair — so each combination is scored independently and in parallel, then aggregate the results into a weighted decision matrix with a recommended option and a sensitivity note on what would change the answer.",
+      "Use TypographySystemBuilder to define a compact typographic system for the decision brief (hierarchy for verdict, option headers, model labels, risk callouts, and footnotes) so the output reads clearly whether on slide, doc, or mobile.",
+      "Use ThreadToCarouselConverter to transform the narrative recommendation into a stakeholder-ready carousel: a slide per major finding (the verdict, the top trade-off, the key risks, the tripwires that would reverse the decision), applying the typography system from the prior step.",
+      "Assemble the final deliverable: the completed Decision Ledger form spec, the batch-scored decision matrix, and the shareable carousel, plus a one-paragraph plain-language recommendation with explicit confidence and a pre-mortem.",
+      "Surface reversibility and a review trigger: state when this decision should be revisited and which single metric or event would flip the recommendation."
+    ],
+    "promptTemplate": "You are DecisionForge, a mental-model decision pipeline that orchestrates four sub-skills.\n\nDECISION INPUT:\n{{input}}\n\nExecute the pipeline in order and label each stage:\n\nSTAGE 1 — FRAME & SELECT MODELS\n- Restate the core decision, options, time horizon, reversibility, stakeholders.\n- Select 4-7 mental models fit for this decision type; justify each in one line.\n\nSTAGE 2 — CAPTURE (via DataEntryFormDesigner)\n- Produce a Decision Ledger form spec: one section per option; per selected model include typed fields (assumptions, probability, cost/EV, downside, confidence 1-5, evidence URL). Note field types and validation.\n\nSTAGE 3 — ANALYZE (via BatchJobOrchestrator)\n- Define the batch: one job per (option x model) pair. Specify inputs, scoring rule, and how results aggregate.\n- Output a weighted decision matrix (options as rows, models as columns, weighted total) and name the recommended option + sensitivity note.\n\nSTAGE 4 — STYLE (via TypographySystemBuilder)\n- Define type roles: verdict, option header, model label, risk callout, footnote (sizes, weights, spacing intent).\n\nSTAGE 5 — PUBLISH (via ThreadToCarouselConverter)\n- Convert the recommendation narrative into a carousel: slide-by-slide (verdict, top trade-off, key risks, tripwires), using the STAGE 4 type roles.\n\nSTAGE 6 — DELIVER\n- One-paragraph plain-language recommendation with explicit confidence, a pre-mortem, reversibility, and a review trigger (the single metric/event that flips the call).",
+    "examples": [
+      {
+        "title": "Choosing a startup pricing model",
+        "input": "Should our SaaS switch from per-seat pricing to usage-based pricing next quarter? Options: stay per-seat, full usage-based, hybrid. Stakeholders: sales, finance, existing customers. Horizon: 12 months, hard to reverse within 6 months.",
+        "output": "STAGE 1 — Frame: Core question = revenue model change; options = per-seat / usage-based / hybrid; horizon 12mo; low reversibility (6mo lock-in); stakeholders sales, finance, customers. Models: expected value (revenue impact), inversion (what guarantees churn?), second-order effects (sales comp, forecasting), base rates (peer SaaS transitions), regret minimization.\nSTAGE 2 — Decision Ledger: 3 option sections; per model fields — assumptions (text), probability (0-1 number, validated), 12mo revenue delta (currency), downside scenario (text), confidence (1-5 select), evidence URL (url).\nSTAGE 3 — Batch: 3 options x 5 models = 15 jobs; score each 1-5 weighted by model importance (EV .3, second-order .25, base rates .2, inversion .15, regret .1). Matrix yields Hybrid = highest weighted total (3.9) vs per-seat 3.2, usage 3.4. Recommend HYBRID. Sensitivity: if usage-based churn base rate exceeds 12%, per-seat wins.\nSTAGE 4 — Type roles: Verdict 32/bold; option header 20/semibold; model label 13/medium uppercase tracking; risk callout 15/bold accent; footnote 11/regular.\nSTAGE 5 — Carousel: S1 Verdict 'Go Hybrid'; S2 Trade-off (predictable revenue vs upside); S3 Risks (sales comp confusion, billing complexity); S4 Tripwires (churn >12% or NRR <105%).\nSTAGE 6 — Recommendation: Adopt hybrid pricing next quarter (confidence 3/5). Pre-mortem: failure most likely from sales comp misalignment and billing bugs. Reversible only after 6mo. Review trigger: revisit if 90-day churn crosses 12% or usage-revenue share stalls below 20%."
+      },
+      {
+        "title": "Personal: accept a remote job offer",
+        "input": "Should I accept a fully-remote job offer at a bigger company or stay at my current in-office startup? Just me deciding, horizon 2-3 years, reversible-ish.",
+        "output": "STAGE 1 — Frame: options = accept / stay / renegotiate current; horizon 2-3yr; moderate reversibility. Models: opportunity cost, regret minimization, expected value (comp+growth), inversion (what would make me quit either?), 10-10-10.\nSTAGE 2 — Ledger: 3 sections; per model fields assumptions/text, confidence 1-5, evidence link. \nSTAGE 3 — Batch: 3x5=15 scored jobs; weights regret .3, opportunity cost .25, EV .2, inversion .15, 10-10-10 .1. Matrix: Accept 4.1, Renegotiate 3.6, Stay 3.0. Recommend ACCEPT. Sensitivity: if renegotiation yields +25% comp AND promotion path, Renegotiate ties.\nSTAGE 4 — Type roles defined for a mobile-first one-pager.\nSTAGE 5 — Carousel: S1 Verdict 'Accept'; S2 Trade-off (autonomy vs in-person mentorship); S3 Risks (remote isolation, culture fit); S4 Tripwire (if current employer counters with promotion + 25%).\nSTAGE 6 — Recommendation: Accept the remote offer (confidence 4/5). Pre-mortem: main risk is isolation eroding growth. Review trigger: reassess at 6 months if you feel disconnected from mentorship."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Runs all four sub-skills in order",
+        "input": "Should we migrate our infra to Kubernetes this year? Options: migrate now, wait 6mo, hybrid lift-and-shift.",
+        "expected": "Output contains all six labeled stages, explicitly invokes DataEntryFormDesigner (Decision Ledger), BatchJobOrchestrator (option x model batch matrix), TypographySystemBuilder (type roles), and ThreadToCarouselConverter (carousel), and ends with a recommendation including confidence, pre-mortem, reversibility, and a review trigger."
+      },
+      {
+        "name": "Selects appropriate mental models and a decision matrix",
+        "input": "Should I invest my bonus in index funds, pay off my mortgage early, or start a side business?",
+        "expected": "Stage 1 selects 4-7 named mental models suited to a personal finance choice (e.g., expected value, opportunity cost, regret minimization); Stage 3 produces a weighted decision matrix with options as rows and a single recommended option plus a sensitivity note."
+      }
+    ],
+    "type": "meta",
+    "dependencies": [
+      "@design_seeder/batch-job-orchestrator",
+      "@design_seeder/data-entry-form-designer",
+      "@kmd_ai/threadtocarouselconverter",
+      "@design_seeder/typography-system-builder"
+    ]
+  },
+  "markdown": "# DecisionForge: Mental-Model Decision Pipeline\n\n## Purpose\nConvert an ambiguous decision into a defensible, well-documented, and shareable choice by systematically applying a curated set of mental models to every option, structuring the evidence you collect, and producing a polished decision brief you can circulate to stakeholders.\n\n## Dependencies\nInstalling this skill also installs:\n- `@design_seeder/batch-job-orchestrator`\n- `@design_seeder/data-entry-form-designer`\n- `@kmd_ai/threadtocarouselconverter`\n- `@design_seeder/typography-system-builder`\n\n## Instructions\n1. Frame the decision from {{input}}: extract the core question, the candidate options, the time horizon, reversibility, and the stakeholders. Select 4-7 relevant mental models (e.g., inversion, opportunity cost, second-order effects, base rates, expected value, regret minimization) matched to the decision type.\n2. Use DataEntryFormDesigner to generate a structured 'Decision Ledger' capture form: one section per option, with typed fields for each selected mental model's key inputs (assumptions, probabilities, costs, downside scenarios, confidence) plus evidence links. This standardizes the reasoning you'll collect for every option.\n3. Use BatchJobOrchestrator to run the mental-model analysis as a batch job — one job per (option x mental model) pair — so each combination is scored independently and in parallel, then aggregate the results into a weighted decision matrix with a recommended option and a sensitivity note on what would change the answer.\n4. Use TypographySystemBuilder to define a compact typographic system for the decision brief (hierarchy for verdict, option headers, model labels, risk callouts, and footnotes) so the output reads clearly whether on slide, doc, or mobile.\n5. Use ThreadToCarouselConverter to transform the narrative recommendation into a stakeholder-ready carousel: a slide per major finding (the verdict, the top trade-off, the key risks, the tripwires that would reverse the decision), applying the typography system from the prior step.\n6. Assemble the final deliverable: the completed Decision Ledger form spec, the batch-scored decision matrix, and the shareable carousel, plus a one-paragraph plain-language recommendation with explicit confidence and a pre-mortem.\n7. Surface reversibility and a review trigger: state when this decision should be revisited and which single metric or event would flip the recommendation.\n\n## Prompt Template\n```\nYou are DecisionForge, a mental-model decision pipeline that orchestrates four sub-skills.\n\nDECISION INPUT:\n{{input}}\n\nExecute the pipeline in order and label each stage:\n\nSTAGE 1 — FRAME & SELECT MODELS\n- Restate the core decision, options, time horizon, reversibility, stakeholders.\n- Select 4-7 mental models fit for this decision type; justify each in one line.\n\nSTAGE 2 — CAPTURE (via DataEntryFormDesigner)\n- Produce a Decision Ledger form spec: one section per option; per selected model include typed fields (assumptions, probability, cost/EV, downside, confidence 1-5, evidence URL). Note field types and validation.\n\nSTAGE 3 — ANALYZE (via BatchJobOrchestrator)\n- Define the batch: one job per (option x model) pair. Specify inputs, scoring rule, and how results aggregate.\n- Output a weighted decision matrix (options as rows, models as columns, weighted total) and name the recommended option + sensitivity note.\n\nSTAGE 4 — STYLE (via TypographySystemBuilder)\n- Define type roles: verdict, option header, model label, risk callout, footnote (sizes, weights, spacing intent).\n\nSTAGE 5 — PUBLISH (via ThreadToCarouselConverter)\n- Convert the recommendation narrative into a carousel: slide-by-slide (verdict, top trade-off, key risks, tripwires), using the STAGE 4 type roles.\n\nSTAGE 6 — DELIVER\n- One-paragraph plain-language recommendation with explicit confidence, a pre-mortem, reversibility, and a review trigger (the single metric/event that flips the call).\n```\n"
+}

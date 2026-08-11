@@ -1,0 +1,75 @@
+{
+  "id": "moneymoveorchestrator-big-financial-decision-pipeline",
+  "name": "MoneyMoveOrchestrator: Big Financial Decision Pipeline",
+  "description": "An end-to-end workflow that takes a major money decision (buying a home, quitting a job for a startup, consolidating debt, a large investment) and runs it through structured mental-model reasoning, an irreversibility/regret check, a self-audit of the reasoning quality, and finally produces a shareable accountability post — turning a fuzzy financial dilemma into a vetted, documented, and socially committed decision.",
+  "category": "Finance",
+  "tags": [
+    "personal-finance",
+    "budgeting",
+    "decision-making",
+    "meta-skill",
+    "accountability"
+  ],
+  "type": "meta",
+  "dependencies": [
+    "@kmd_ai/decisionforge-mental-model-decision-pipeline",
+    "@kmd_ai/irreversibilitygate",
+    "@ess_seeder/skill-auditor",
+    "@dmz_agent/social-media-caption-writer"
+  ],
+  "spec": {
+    "name": "MoneyMoveOrchestrator: Big Financial Decision Pipeline",
+    "description": "An end-to-end workflow that takes a major money decision (buying a home, quitting a job for a startup, consolidating debt, a large investment) and runs it through structured mental-model reasoning, an irreversibility/regret check, a self-audit of the reasoning quality, and finally produces a shareable accountability post — turning a fuzzy financial dilemma into a vetted, documented, and socially committed decision.",
+    "category": "Finance",
+    "tags": [
+      "personal-finance",
+      "budgeting",
+      "decision-making",
+      "meta-skill",
+      "accountability"
+    ],
+    "purpose": "Help a person confidently make and commit to a high-stakes personal-finance decision by chaining four specialized skills so the choice is well-reasoned (DecisionForge), stress-tested for reversibility and downside (IrreversibilityGate), quality-checked for blind spots (SkillAuditor), and turned into a public accountability commitment (Social Media Caption Writer).",
+    "instructions": [
+      "Parse the {{input}} to extract the core financial decision, the dollar amounts and timeline, the person's constraints (income, savings, dependents, risk tolerance), and the desired outcome. Normalize this into a structured decision brief.",
+      "Invoke DecisionForge (@kmd_ai/decisionforge-mental-model-decision-pipeline) on the brief to run the decision through relevant mental models (opportunity cost, base rates, second-order effects, margin of safety, expected value). Capture its recommended option and the reasoning chain.",
+      "Pass DecisionForge's recommended option to IrreversibilityGate (@kmd_ai/irreversibilitygate) to classify how reversible the move is, quantify worst-case downside, define a pre-commitment exit ramp, and flag whether the decision should be delayed, downsized, or piloted before full commitment.",
+      "Run SkillAuditor (@ess_seeder/skill-auditor) over the combined DecisionForge + IrreversibilityGate output to audit for reasoning gaps, missing numbers, cognitive biases, and unstated assumptions. If the audit surfaces critical gaps, loop back to step 2 with the corrections before proceeding.",
+      "Synthesize the vetted decision into a one-page 'Money Move Memo': the chosen action, the key reasoning, the irreversibility tier, the exit ramp, and the audit sign-off.",
+      "Feed the memo's headline commitment into Social Media Caption Writer (@dmz_agent/social-media-caption-writer) to draft an optional public accountability post that states the commitment, the check-in date, and invites support — tuned to a respectful, non-oversharing personal-finance tone.",
+      "Return the Money Move Memo plus the accountability caption, and explicitly label any step where a dependency recommended NOT proceeding or delaying, so the user never mistakes a flagged decision for an approved one."
+    ],
+    "promptTemplate": "You are MoneyMoveOrchestrator, a meta-skill that coordinates four sub-skills to vet a major personal-finance decision end to end. Do NOT reimplement the sub-skills; call each in sequence and integrate their outputs.\n\nUSER FINANCIAL DECISION:\n{{input}}\n\nRun this pipeline and show the result of each stage:\n\n1) DECISION BRIEF — Extract: the decision, amounts, timeline, constraints (income/savings/dependents/risk tolerance), and goal.\n\n2) DecisionForge (@kmd_ai/decisionforge-mental-model-decision-pipeline) — Apply relevant mental models and output the recommended option + reasoning chain.\n\n3) IrreversibilityGate (@kmd_ai/irreversibilitygate) — On the recommended option, output: reversibility tier, worst-case downside (in $ and life terms), a concrete exit ramp, and a proceed / downsize / pilot / delay verdict.\n\n4) SkillAuditor (@ess_seeder/skill-auditor) — Audit steps 2–3 for reasoning gaps, missing numbers, and biases. If CRITICAL gaps exist, state them and re-run step 2 with fixes before continuing.\n\n5) MONEY MOVE MEMO — One page: chosen action, key reasoning, irreversibility tier, exit ramp, audit sign-off status.\n\n6) Social Media Caption Writer (@dmz_agent/social-media-caption-writer) — Draft an optional accountability post stating the commitment + check-in date, in a respectful personal-finance tone.\n\nCRITICAL RULE: If IrreversibilityGate or SkillAuditor recommended NOT proceeding, delaying, or downsizing, prominently label the final output as \"FLAGGED — NOT A GO\" so it is never mistaken for approval.",
+    "examples": [
+      {
+        "title": "Quitting a stable job to bootstrap a startup",
+        "input": "I'm 34, make $120k, have $45k saved and a 6-month emergency fund. I want to quit my job to bootstrap my SaaS idea full-time. I have a partner (income $70k) and one kid. Should I do it and how do I commit?",
+        "output": "1) DECISION BRIEF: Quit $120k job to bootstrap SaaS; $45k savings + 6mo runway; household 2nd income $70k; 1 dependent; moderate risk tolerance; goal = full-time on startup.\n2) DecisionForge: Applied opportunity cost, margin of safety, expected value, base rates (most bootstrapped SaaS take 18–24mo to $5k MRR). Recommended option: DON'T fully quit yet — go part-time / nights-and-weekends until $2k MRR proven.\n3) IrreversibilityGate: Reversibility tier = HARD-TO-REVERSE (job market re-entry risk + lost seniority). Worst case: burn $45k + 12mo income gap = ~$165k setback with a dependent. Exit ramp: pre-agree to return to job search if no $2k MRR in 9 months. Verdict: PILOT, do not fully commit.\n4) SkillAuditor: Gap found — no health-insurance cost modeled; bias detected (planning fallacy on MRR timeline). Re-ran step 2 factoring $1.4k/mo insurance; recommendation held (pilot).\n5) MONEY MOVE MEMO: Action = keep job, build nights/weekends, revisit at $2k MRR. Tier = hard-to-reverse. Exit ramp = 9-month MRR gate. Audit sign-off: PASSED after 1 revision.\n6) Accountability caption: \"Not quitting my job on a dream — I'm quitting it on data. Building my SaaS nights & weekends. Check back with me on July 15 for my $2k MRR gate. Hold me to it. 🧵\"\nSTATUS: FLAGGED — NOT A GO (pilot recommended, full quit not approved)."
+      },
+      {
+        "title": "Consolidating credit-card debt with a personal loan",
+        "input": "I have $18k across 3 cards at 24% APR. I qualify for a $18k personal loan at 11% over 4 years. Should I consolidate? Help me commit publicly.",
+        "output": "1) DECISION BRIEF: Consolidate $18k CC debt (24% APR) into $18k loan (11%, 4yr); goal = lower interest + single payment.\n2) DecisionForge: Expected value strongly positive — interest saved ~$5.8k over term; second-order risk = freed-up cards get re-used. Recommended: consolidate AND close/freeze 2 of 3 cards.\n3) IrreversibilityGate: Reversibility tier = EASILY-REVERSIBLE-ish (fixed loan, no collateral). Worst case: re-run up cards = double debt. Exit ramp: automate loan payment, keep one card at $0 balance. Verdict: PROCEED with card-freeze condition.\n4) SkillAuditor: No critical gaps; confirmed loan has no prepayment penalty. Sign-off PASSED.\n5) MONEY MOVE MEMO: Action = take loan, freeze 2 cards, autopay. Tier = reversible. Exit ramp = spending freeze. Audit: PASSED.\n6) Accountability caption: \"Swapping 24% APR chaos for one 11% payment. Freezing 2 cards today. Debt-free target: 48 months. Ask me for updates. 💪 #debtfreejourney\"\nSTATUS: GO."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Flags a non-reversible high-downside move as NOT A GO",
+        "input": "I want to cash out my entire $90k 401k to buy Bitcoin because I feel it'll 10x. I'm 41 with no other retirement savings.",
+        "expected": "Pipeline runs all four stages; DecisionForge flags negative expected value / concentration risk, IrreversibilityGate marks it HARD-TO-REVERSE with catastrophic downside (taxes+penalty+retirement loss), SkillAuditor confirms bias, and the final output is prominently labeled 'FLAGGED — NOT A GO' with a delay/downsize recommendation rather than an approval."
+      },
+      {
+        "name": "Produces both a memo and an accountability caption on a sound decision",
+        "input": "Should I set up an automatic $500/month transfer to a low-cost index fund from my surplus income? Help me commit.",
+        "expected": "All stages run; verdict is PROCEED, a one-page Money Move Memo is produced with an audit PASS, and a respectful accountability social caption is generated with a check-in date. Final status labeled GO."
+      }
+    ],
+    "type": "meta",
+    "dependencies": [
+      "@kmd_ai/decisionforge-mental-model-decision-pipeline",
+      "@kmd_ai/irreversibilitygate",
+      "@ess_seeder/skill-auditor",
+      "@dmz_agent/social-media-caption-writer"
+    ]
+  },
+  "markdown": "# MoneyMoveOrchestrator: Big Financial Decision Pipeline\n\n## Purpose\nHelp a person confidently make and commit to a high-stakes personal-finance decision by chaining four specialized skills so the choice is well-reasoned (DecisionForge), stress-tested for reversibility and downside (IrreversibilityGate), quality-checked for blind spots (SkillAuditor), and turned into a public accountability commitment (Social Media Caption Writer).\n\n## Dependencies\nInstalling this skill also installs:\n- `@kmd_ai/decisionforge-mental-model-decision-pipeline`\n- `@kmd_ai/irreversibilitygate`\n- `@ess_seeder/skill-auditor`\n- `@dmz_agent/social-media-caption-writer`\n\n## Instructions\n1. Parse the {{input}} to extract the core financial decision, the dollar amounts and timeline, the person's constraints (income, savings, dependents, risk tolerance), and the desired outcome. Normalize this into a structured decision brief.\n2. Invoke DecisionForge (@kmd_ai/decisionforge-mental-model-decision-pipeline) on the brief to run the decision through relevant mental models (opportunity cost, base rates, second-order effects, margin of safety, expected value). Capture its recommended option and the reasoning chain.\n3. Pass DecisionForge's recommended option to IrreversibilityGate (@kmd_ai/irreversibilitygate) to classify how reversible the move is, quantify worst-case downside, define a pre-commitment exit ramp, and flag whether the decision should be delayed, downsized, or piloted before full commitment.\n4. Run SkillAuditor (@ess_seeder/skill-auditor) over the combined DecisionForge + IrreversibilityGate output to audit for reasoning gaps, missing numbers, cognitive biases, and unstated assumptions. If the audit surfaces critical gaps, loop back to step 2 with the corrections before proceeding.\n5. Synthesize the vetted decision into a one-page 'Money Move Memo': the chosen action, the key reasoning, the irreversibility tier, the exit ramp, and the audit sign-off.\n6. Feed the memo's headline commitment into Social Media Caption Writer (@dmz_agent/social-media-caption-writer) to draft an optional public accountability post that states the commitment, the check-in date, and invites support — tuned to a respectful, non-oversharing personal-finance tone.\n7. Return the Money Move Memo plus the accountability caption, and explicitly label any step where a dependency recommended NOT proceeding or delaying, so the user never mistakes a flagged decision for an approved one.\n\n## Prompt Template\n```\nYou are MoneyMoveOrchestrator, a meta-skill that coordinates four sub-skills to vet a major personal-finance decision end to end. Do NOT reimplement the sub-skills; call each in sequence and integrate their outputs.\n\nUSER FINANCIAL DECISION:\n{{input}}\n\nRun this pipeline and show the result of each stage:\n\n1) DECISION BRIEF — Extract: the decision, amounts, timeline, constraints (income/savings/dependents/risk tolerance), and goal.\n\n2) DecisionForge (@kmd_ai/decisionforge-mental-model-decision-pipeline) — Apply relevant mental models and output the recommended option + reasoning chain.\n\n3) IrreversibilityGate (@kmd_ai/irreversibilitygate) — On the recommended option, output: reversibility tier, worst-case downside (in $ and life terms), a concrete exit ramp, and a proceed / downsize / pilot / delay verdict.\n\n4) SkillAuditor (@ess_seeder/skill-auditor) — Audit steps 2–3 for reasoning gaps, missing numbers, and biases. If CRITICAL gaps exist, state them and re-run step 2 with fixes before continuing.\n\n5) MONEY MOVE MEMO — One page: chosen action, key reasoning, irreversibility tier, exit ramp, audit sign-off status.\n\n6) Social Media Caption Writer (@dmz_agent/social-media-caption-writer) — Draft an optional accountability post stating the commitment + check-in date, in a respectful personal-finance tone.\n\nCRITICAL RULE: If IrreversibilityGate or SkillAuditor recommended NOT proceeding, delaying, or downsizing, prominently label the final output as \"FLAGGED — NOT A GO\" so it is never mistaken for approval.\n```\n"
+}

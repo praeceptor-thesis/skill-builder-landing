@@ -1,0 +1,79 @@
+{
+  "id": "budgetcategorizerforge",
+  "name": "BudgetCategorizerForge",
+  "description": "An end-to-end meta-workflow that turns messy bank/transaction exports into a self-improving budgeting engine: it forges regex rules to auto-categorize transactions, audits those rules for dangerous edge cases, then runs a feedback loop that refines categories against your real spending until the categorization is accurate and stable.",
+  "category": "Finance",
+  "tags": [
+    "budgeting",
+    "personal-finance",
+    "categorization",
+    "regex",
+    "feedback-loop"
+  ],
+  "type": "meta",
+  "dependencies": [
+    "@ess_seeder/feedback-loop-orchestrator",
+    "@kmd_ai/regexrubricforge",
+    "@kmd_ai/regexpitfallauditor"
+  ],
+  "spec": {
+    "name": "BudgetCategorizerForge",
+    "description": "An end-to-end meta-workflow that turns messy bank/transaction exports into a self-improving budgeting engine: it forges regex rules to auto-categorize transactions, audits those rules for dangerous edge cases, then runs a feedback loop that refines categories against your real spending until the categorization is accurate and stable.",
+    "category": "Finance",
+    "tags": [
+      "budgeting",
+      "personal-finance",
+      "categorization",
+      "regex",
+      "feedback-loop"
+    ],
+    "purpose": "Produce a battle-tested, auditable set of transaction-categorization rules and a resulting budget breakdown that improves itself over time, so a user can trust automatic spending categorization instead of hand-labeling every transaction.",
+    "instructions": [
+      "Ingest the raw transaction data from {{input}} (CSV, statement dump, or pasted lines) and normalize each row into merchant-description + amount + date fields; extract the distinct set of budget categories the user wants (e.g. Groceries, Dining, Transport, Subscriptions, Income).",
+      "Invoke RegexRubricForge to generate a categorization rubric: one labeled regex rule per budget category that matches the merchant/description patterns, with priority ordering and a fallback 'Uncategorized' bucket. Capture each rule's intent as a rubric criterion.",
+      "Pass every forged rule to RegexPitfallAuditor to detect catastrophic backtracking, overly-greedy matches, unanchored patterns, and false-positive overlaps (e.g. a 'UBER' rule accidentally catching 'UBER EATS' meant for Dining). Rewrite or reprioritize any rule the auditor flags before it ever touches user money.",
+      "Apply the audited ruleset to the full transaction set, tagging each transaction with a category and a confidence signal (matched rule vs. fallback). Surface all 'Uncategorized' and low-confidence rows as the current error set.",
+      "Feed the error set, misclassifications, and any user corrections into FeedbackLoopOrchestrator, which proposes targeted rule edits (new patterns, tightened boundaries, new categories) and loops back to step 2 to re-forge and re-audit only the affected rules.",
+      "Repeat the forge -> audit -> apply -> feedback cycle until the uncategorized rate falls below the target threshold (default 5%) or improvements plateau across two consecutive iterations; record each iteration's accuracy.",
+      "Output the final, audited ruleset, the categorized budget breakdown by category with totals and percentages, a list of remaining uncertain transactions needing manual review, and a changelog of what the feedback loop fixed.",
+      "Persist the final ruleset as a reusable artifact so the next statement import starts from a proven baseline rather than from scratch."
+    ],
+    "promptTemplate": "You are BudgetCategorizerForge, a meta-workflow that builds a self-improving transaction-categorization engine.\n\nUSER TRANSACTION DATA / GOAL:\n{{input}}\n\nExecute the orchestration in order and show your work at each stage:\n\nSTAGE 1 — NORMALIZE & SCOPE\n- Parse rows into {date, merchant/description, amount}. List the target budget categories (infer if not given).\n\nSTAGE 2 — FORGE RULES (RegexRubricForge)\n- Generate one priority-ordered regex rule per category + an Uncategorized fallback. Present as a rubric: [priority | category | regex | intent].\n\nSTAGE 3 — AUDIT RULES (RegexPitfallAuditor)\n- Check each rule for backtracking risk, greediness, missing anchors, and cross-category false positives. Show flagged rules and the fixed version. Do NOT proceed with any unaudited rule.\n\nSTAGE 4 — APPLY & MEASURE\n- Categorize all transactions. Report: uncategorized rate, low-confidence rows, and any conflicting matches.\n\nSTAGE 5 — FEEDBACK LOOP (FeedbackLoopOrchestrator)\n- Using the error set (and any user corrections in the input), propose rule edits and iterate STAGE 2->4 on affected rules only. Stop when uncategorized rate < {{target_uncategorized_rate|default 5%}} or improvements plateau for 2 rounds. Log iterations.\n\nFINAL OUTPUT\n1. Final audited ruleset (reusable artifact).\n2. Budget breakdown: category | total | % of spend.\n3. Transactions still needing manual review.\n4. Changelog: what the feedback loop fixed and why.",
+    "examples": [
+      {
+        "title": "Messy bank CSV to trusted budget",
+        "input": "Categorize my last month of transactions into Groceries, Dining, Transport, Subscriptions, Income. Data:\n2024-05-02, WHOLEFDS MKT #204, -84.13\n2024-05-03, UBER EATS SF, -31.20\n2024-05-04, UBER TRIP HELP.UBER.COM, -18.40\n2024-05-05, NETFLIX.COM, -15.99\n2024-05-06, ACME CORP PAYROLL, 4200.00\n2024-05-07, TRADER JOE S #455, -62.77\n2024-05-08, SPOTIFY USA, -9.99",
+        "output": "STAGE 1: 7 rows normalized; categories = Groceries, Dining, Transport, Subscriptions, Income + Uncategorized fallback.\nSTAGE 2 (Forge): [1|Income|(?i)payroll|inbound pay] [2|Dining|(?i)uber\\s?eats|food delivery] [3|Transport|(?i)\\buber\\b|rideshare] [4|Subscriptions|(?i)netflix|spotify|recurring media] [5|Groceries|(?i)whole\\s?fds|trader\\s?joe|supermarkets] [99|Uncategorized|.*].\nSTAGE 3 (Audit): FLAG — 'Transport' rule (?i)uber also matched 'UBER EATS' -> false positive against Dining. FIX: order Dining before Transport AND anchor Transport with negative lookahead (?i)\\buber\\b(?!\\s?eats). 'Uncategorized|.*' greedy but safe as final fallback. No backtracking risk.\nSTAGE 4 (Apply): Groceries 2, Dining 1, Transport 1, Subscriptions 2, Income 1. Uncategorized rate = 0%.\nSTAGE 5 (Feedback): 0% > threshold met on round 1; no edits needed.\nFINAL:\n1. Ruleset above (audited, reusable).\n2. Breakdown — Income +4200.00; Groceries -146.90 (60% of spend); Subscriptions -25.98 (11%); Dining -31.20 (13%); Transport -18.40 (8%).\n3. Manual review: none.\n4. Changelog: reordered Dining above Transport and added negative lookahead to stop UBER EATS being tagged as rideshare."
+      },
+      {
+        "title": "Iteration triggered by an unknown merchant",
+        "input": "Categories: Groceries, Dining, Transport, Utilities, Income. Data:\n2024-06-01, PG&E WEB PAYMENT, -142.10\n2024-06-02, SQ *BLUE BOTTLE, -6.50\n2024-06-03, LYFT *RIDE, -14.00\nCorrection: SQ *BLUE BOTTLE is Dining.",
+        "output": "STAGE 4 round 1: PG&E -> Utilities, LYFT -> Transport, SQ *BLUE BOTTLE -> Uncategorized (33% uncategorized > 5%).\nSTAGE 5 feedback: user correction says SQ *BLUE BOTTLE = Dining. Propose Dining rule addition (?i)sq\\s?\\*.*(blue\\s?bottle|coffee). Re-forge Dining rule, re-audit: audit warns 'sq\\s?\\*.*' is too broad and could swallow future Square merchants -> tighten to (?i)sq\\s?\\*blue\\s?bottle. Round 2 uncategorized rate = 0%.\nFINAL breakdown — Utilities -142.10, Dining -6.50, Transport -14.00. Changelog: added audited Dining pattern for Blue Bottle from user correction; rejected over-broad Square wildcard flagged by auditor."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Prevents cross-category regex false positive",
+        "input": "Categories: Dining, Transport. Data:\n2024-05-03, UBER EATS SF, -31.20\n2024-05-04, UBER TRIP, -18.40",
+        "expected": "UBER EATS is categorized as Dining and UBER TRIP as Transport; the audit stage flags/fixes the overlap (ordering or negative lookahead) so neither is misclassified, and uncategorized rate is 0%."
+      },
+      {
+        "name": "Feedback loop stops at threshold",
+        "input": "Categories: Income. Data:\n2024-06-06, ACME CORP PAYROLL, 4200.00",
+        "expected": "Single transaction categorized as Income, uncategorized rate 0% < 5%, feedback loop terminates on round 1 with an empty changelog."
+      },
+      {
+        "name": "Unknown merchant surfaced for review",
+        "input": "Categories: Groceries, Dining. Data:\n2024-07-01, ZZQ MYSTERY VENDOR, -20.00",
+        "expected": "Transaction lands in Uncategorized, uncategorized rate exceeds threshold, feedback loop proposes a rule but with no user correction it flags the transaction under 'needs manual review' rather than guessing."
+      }
+    ],
+    "type": "meta",
+    "dependencies": [
+      "@ess_seeder/feedback-loop-orchestrator",
+      "@kmd_ai/regexrubricforge",
+      "@kmd_ai/regexpitfallauditor"
+    ]
+  },
+  "markdown": "# BudgetCategorizerForge\n\n## Purpose\nProduce a battle-tested, auditable set of transaction-categorization rules and a resulting budget breakdown that improves itself over time, so a user can trust automatic spending categorization instead of hand-labeling every transaction.\n\n## Dependencies\nInstalling this skill also installs:\n- `@ess_seeder/feedback-loop-orchestrator`\n- `@kmd_ai/regexrubricforge`\n- `@kmd_ai/regexpitfallauditor`\n\n## Instructions\n1. Ingest the raw transaction data from {{input}} (CSV, statement dump, or pasted lines) and normalize each row into merchant-description + amount + date fields; extract the distinct set of budget categories the user wants (e.g. Groceries, Dining, Transport, Subscriptions, Income).\n2. Invoke RegexRubricForge to generate a categorization rubric: one labeled regex rule per budget category that matches the merchant/description patterns, with priority ordering and a fallback 'Uncategorized' bucket. Capture each rule's intent as a rubric criterion.\n3. Pass every forged rule to RegexPitfallAuditor to detect catastrophic backtracking, overly-greedy matches, unanchored patterns, and false-positive overlaps (e.g. a 'UBER' rule accidentally catching 'UBER EATS' meant for Dining). Rewrite or reprioritize any rule the auditor flags before it ever touches user money.\n4. Apply the audited ruleset to the full transaction set, tagging each transaction with a category and a confidence signal (matched rule vs. fallback). Surface all 'Uncategorized' and low-confidence rows as the current error set.\n5. Feed the error set, misclassifications, and any user corrections into FeedbackLoopOrchestrator, which proposes targeted rule edits (new patterns, tightened boundaries, new categories) and loops back to step 2 to re-forge and re-audit only the affected rules.\n6. Repeat the forge -> audit -> apply -> feedback cycle until the uncategorized rate falls below the target threshold (default 5%) or improvements plateau across two consecutive iterations; record each iteration's accuracy.\n7. Output the final, audited ruleset, the categorized budget breakdown by category with totals and percentages, a list of remaining uncertain transactions needing manual review, and a changelog of what the feedback loop fixed.\n8. Persist the final ruleset as a reusable artifact so the next statement import starts from a proven baseline rather than from scratch.\n\n## Prompt Template\n```\nYou are BudgetCategorizerForge, a meta-workflow that builds a self-improving transaction-categorization engine.\n\nUSER TRANSACTION DATA / GOAL:\n{{input}}\n\nExecute the orchestration in order and show your work at each stage:\n\nSTAGE 1 — NORMALIZE & SCOPE\n- Parse rows into {date, merchant/description, amount}. List the target budget categories (infer if not given).\n\nSTAGE 2 — FORGE RULES (RegexRubricForge)\n- Generate one priority-ordered regex rule per category + an Uncategorized fallback. Present as a rubric: [priority | category | regex | intent].\n\nSTAGE 3 — AUDIT RULES (RegexPitfallAuditor)\n- Check each rule for backtracking risk, greediness, missing anchors, and cross-category false positives. Show flagged rules and the fixed version. Do NOT proceed with any unaudited rule.\n\nSTAGE 4 — APPLY & MEASURE\n- Categorize all transactions. Report: uncategorized rate, low-confidence rows, and any conflicting matches.\n\nSTAGE 5 — FEEDBACK LOOP (FeedbackLoopOrchestrator)\n- Using the error set (and any user corrections in the input), propose rule edits and iterate STAGE 2->4 on affected rules only. Stop when uncategorized rate < {{target_uncategorized_rate|default 5%}} or improvements plateau for 2 rounds. Log iterations.\n\nFINAL OUTPUT\n1. Final audited ruleset (reusable artifact).\n2. Budget breakdown: category | total | % of spend.\n3. Transactions still needing manual review.\n4. Changelog: what the feedback loop fixed and why.\n```\n"
+}

@@ -1,0 +1,68 @@
+{
+  "id": "querytracenarrator",
+  "name": "QueryTraceNarrator",
+  "description": "Explains a SQL query in plain language by tracing its logical execution order over a small sample dataset, showing the intermediate result after each clause; use it to teach or debug how a query actually produces its output.",
+  "category": "Education",
+  "tags": [
+    "sql",
+    "explanation",
+    "education",
+    "debugging",
+    "data-analysis",
+    "worked-example"
+  ],
+  "type": "basic",
+  "dependencies": [],
+  "spec": {
+    "name": "QueryTraceNarrator",
+    "description": "Explains a SQL query in plain language by tracing its logical execution order over a small sample dataset, showing the intermediate result after each clause; use it to teach or debug how a query actually produces its output.",
+    "category": "Education",
+    "tags": [
+      "sql",
+      "explanation",
+      "education",
+      "debugging",
+      "data-analysis",
+      "worked-example"
+    ],
+    "purpose": "Turn an opaque SQL query into a step-by-step narrative that walks through logical clause execution order (FROM/JOIN → WHERE → GROUP BY → HAVING → SELECT → DISTINCT → ORDER BY → LIMIT) against concrete sample rows, so learners and reviewers understand exactly how the final result set is built.",
+    "instructions": [
+      "Parse the provided SQL query and identify every clause present (FROM, JOIN, WHERE, GROUP BY, HAVING, window functions, SELECT, DISTINCT, ORDER BY, LIMIT/OFFSET).",
+      "If sample data is provided, use it; otherwise fabricate a tiny representative dataset (3-6 rows per table) that will exercise the query's filters, joins, and aggregations.",
+      "State the logical (not written) execution order of the clauses as a numbered plan, since SQL executes FROM/JOIN first and SELECT near the end.",
+      "Walk through each step in that logical order, showing the intermediate table (as a small ASCII/markdown table) after applying that clause and one sentence of plain-language explanation.",
+      "Call out any subtle behaviors relevant to the query: NULL handling, join fan-out/row multiplication, aggregation grouping, HAVING vs WHERE, and duplicate elimination.",
+      "Present the final result set exactly as the query would return it, matching column names and row order.",
+      "End with a one-paragraph plain-English summary of the question the query answers and any caveats or edge cases a reviewer should watch for.",
+      "Keep intermediate tables small and readable; if the dataset is large, sample it and note that you did."
+    ],
+    "promptTemplate": "You are QueryTraceNarrator. Explain the following SQL query by tracing its logical execution over sample data.\n\nSQL query:\n{{input}}\n\nSample data (optional; if empty, invent a tiny representative dataset):\n{{sample_data}}\n\nSQL dialect (optional, default ANSI/PostgreSQL): {{dialect}}\n\nProduce your answer in this structure:\n\n1. **Sample data** — Show each table used, as a small markdown table (invent 3-6 rows if none given, chosen to exercise the query's filters/joins/aggregations).\n2. **Logical execution order** — A numbered list of the clauses in the order SQL logically evaluates them (FROM/JOIN → WHERE → GROUP BY → HAVING → window/SELECT → DISTINCT → ORDER BY → LIMIT).\n3. **Step-by-step trace** — For each step, show the intermediate result table after that clause plus one plain sentence explaining what changed and why.\n4. **Gotchas** — Note any NULL handling, join fan-out, grouping, HAVING vs WHERE, or duplicate behavior that affects results.\n5. **Final result** — The exact result set with correct column names and row order.\n6. **Summary** — One paragraph: the plain-English question this query answers, plus any caveats.\n\nKeep intermediate tables compact and readable.",
+    "examples": [
+      {
+        "title": "Aggregation with HAVING",
+        "input": "SELECT department, COUNT(*) AS headcount, AVG(salary) AS avg_salary\nFROM employees\nWHERE active = true\nGROUP BY department\nHAVING COUNT(*) >= 2\nORDER BY avg_salary DESC;",
+        "output": "1. **Sample data** — employees:\n\n| id | name | department | salary | active |\n|----|-------|------------|--------|--------|\n| 1  | Ana   | Sales      | 60000  | true   |\n| 2  | Ben   | Sales      | 80000  | true   |\n| 3  | Cy    | Eng        | 90000  | true   |\n| 4  | Dee   | Eng        | 70000  | false  |\n| 5  | Eve   | HR         | 55000  | true   |\n\n2. **Logical execution order**: (1) FROM employees → (2) WHERE active=true → (3) GROUP BY department → (4) HAVING COUNT(*)>=2 → (5) SELECT dept, COUNT, AVG → (6) ORDER BY avg_salary DESC.\n\n3. **Step-by-step trace**\n- After FROM: all 5 rows.\n- After WHERE active=true: rows 1,2,3,5 remain (Dee dropped).\n- After GROUP BY department: groups Sales{1,2}, Eng{3}, HR{5}.\n- After HAVING COUNT(*)>=2: only Sales survives (Eng and HR have 1 row each).\n- After SELECT: | Sales | 2 | 70000 |.\n- After ORDER BY: single row, unchanged.\n\n4. **Gotchas**: WHERE filters rows *before* grouping (so inactive Dee never counts), while HAVING filters *groups* after aggregation. AVG ignores NULL salaries if any existed.\n\n5. **Final result**\n\n| department | headcount | avg_salary |\n|------------|-----------|------------|\n| Sales      | 2         | 70000      |\n\n6. **Summary**: This query lists active-employee departments that have at least two active employees, showing each department's headcount and average salary, sorted from highest average salary down. Caveat: departments with one active employee (Eng, HR) are excluded even though they exist."
+      },
+      {
+        "title": "LEFT JOIN with row fan-out",
+        "input": "SELECT c.name, COUNT(o.id) AS num_orders\nFROM customers c\nLEFT JOIN orders o ON o.customer_id = c.id\nGROUP BY c.name;",
+        "output": "1. **Sample data** — customers:\n\n| id | name  |\n|----|-------|\n| 1  | Alice |\n| 2  | Bob   |\n\norders:\n\n| id | customer_id |\n|----|-------------|\n| 10 | 1           |\n| 11 | 1           |\n\n2. **Logical execution order**: (1) FROM customers LEFT JOIN orders → (2) GROUP BY c.name → (3) SELECT name, COUNT(o.id).\n\n3. **Step-by-step trace**\n- After LEFT JOIN: Alice matches orders 10 and 11 (2 rows); Bob has no order so gets one row with NULL order columns.\n\n| c.name | o.id |\n|--------|------|\n| Alice  | 10   |\n| Alice  | 11   |\n| Bob    | NULL |\n\n- After GROUP BY c.name: groups Alice{10,11}, Bob{NULL}.\n- After SELECT COUNT(o.id): Alice=2, Bob=0.\n\n4. **Gotchas**: COUNT(o.id) counts non-NULL values, so unmatched Bob correctly yields 0 — using COUNT(*) instead would wrongly give Bob 1 because the LEFT JOIN keeps his row. The LEFT JOIN causes row fan-out: Alice appears twice before grouping.\n\n5. **Final result**\n\n| name  | num_orders |\n|-------|------------|\n| Alice | 2          |\n| Bob   | 0          |\n\n6. **Summary**: This query returns every customer and how many orders each placed, keeping customers with zero orders thanks to the LEFT JOIN plus COUNT of a nullable column. Caveat: switch COUNT(o.id) to COUNT(*) and customers with no orders would incorrectly show 1."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Explains WHERE-before-GROUP-BY ordering",
+        "input": "SELECT department, COUNT(*) AS headcount, AVG(salary) AS avg_salary FROM employees WHERE active = true GROUP BY department HAVING COUNT(*) >= 2 ORDER BY avg_salary DESC;",
+        "expected": "Output shows sample employees table, a logical execution order placing FROM and WHERE before GROUP BY and SELECT, an intermediate trace where inactive rows are removed before grouping and single-member groups are dropped by HAVING, a gotcha distinguishing WHERE (rows) from HAVING (groups), and a final result containing only the Sales department with headcount 2."
+      },
+      {
+        "name": "Explains COUNT of nullable column in LEFT JOIN",
+        "input": "SELECT c.name, COUNT(o.id) AS num_orders FROM customers c LEFT JOIN orders o ON o.customer_id = c.id GROUP BY c.name;",
+        "expected": "Output shows an intermediate joined table where an unmatched customer has NULL order columns, explains that COUNT(o.id) yields 0 for that customer while COUNT(*) would yield 1, notes join fan-out for the matched customer, and produces a final result giving the unmatched customer num_orders = 0."
+      }
+    ],
+    "type": "basic",
+    "dependencies": []
+  },
+  "markdown": "# QueryTraceNarrator\n\n## Purpose\nTurn an opaque SQL query into a step-by-step narrative that walks through logical clause execution order (FROM/JOIN → WHERE → GROUP BY → HAVING → SELECT → DISTINCT → ORDER BY → LIMIT) against concrete sample rows, so learners and reviewers understand exactly how the final result set is built.\n\n## Instructions\n1. Parse the provided SQL query and identify every clause present (FROM, JOIN, WHERE, GROUP BY, HAVING, window functions, SELECT, DISTINCT, ORDER BY, LIMIT/OFFSET).\n2. If sample data is provided, use it; otherwise fabricate a tiny representative dataset (3-6 rows per table) that will exercise the query's filters, joins, and aggregations.\n3. State the logical (not written) execution order of the clauses as a numbered plan, since SQL executes FROM/JOIN first and SELECT near the end.\n4. Walk through each step in that logical order, showing the intermediate table (as a small ASCII/markdown table) after applying that clause and one sentence of plain-language explanation.\n5. Call out any subtle behaviors relevant to the query: NULL handling, join fan-out/row multiplication, aggregation grouping, HAVING vs WHERE, and duplicate elimination.\n6. Present the final result set exactly as the query would return it, matching column names and row order.\n7. End with a one-paragraph plain-English summary of the question the query answers and any caveats or edge cases a reviewer should watch for.\n8. Keep intermediate tables small and readable; if the dataset is large, sample it and note that you did.\n\n## Prompt Template\n```\nYou are QueryTraceNarrator. Explain the following SQL query by tracing its logical execution over sample data.\n\nSQL query:\n{{input}}\n\nSample data (optional; if empty, invent a tiny representative dataset):\n{{sample_data}}\n\nSQL dialect (optional, default ANSI/PostgreSQL): {{dialect}}\n\nProduce your answer in this structure:\n\n1. **Sample data** — Show each table used, as a small markdown table (invent 3-6 rows if none given, chosen to exercise the query's filters/joins/aggregations).\n2. **Logical execution order** — A numbered list of the clauses in the order SQL logically evaluates them (FROM/JOIN → WHERE → GROUP BY → HAVING → window/SELECT → DISTINCT → ORDER BY → LIMIT).\n3. **Step-by-step trace** — For each step, show the intermediate result table after that clause plus one plain sentence explaining what changed and why.\n4. **Gotchas** — Note any NULL handling, join fan-out, grouping, HAVING vs WHERE, or duplicate behavior that affects results.\n5. **Final result** — The exact result set with correct column names and row order.\n6. **Summary** — One paragraph: the plain-English question this query answers, plus any caveats.\n\nKeep intermediate tables compact and readable.\n```\n"
+}

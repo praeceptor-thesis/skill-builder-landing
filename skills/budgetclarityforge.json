@@ -1,0 +1,71 @@
+{
+  "id": "budgetclarityforge",
+  "name": "BudgetClarityForge",
+  "description": "An end-to-end personal-finance meta-workflow that turns messy raw money inputs (bank exports, a financial webinar you watched, or a vague budgeting goal) into a decoded spending picture, a reusable budget document, a shareable action thread, and a live sync contract — by orchestrating NuanceSplitter, DocumentTemplateArchitect, WebinarToThreadCarver, and APIContractDesigner in sequence.",
+  "category": "Finance",
+  "tags": [
+    "budgeting",
+    "personal-finance",
+    "meta-workflow",
+    "automation",
+    "orchestration"
+  ],
+  "type": "meta",
+  "dependencies": [
+    "@kmd_ai/nuancesplitter",
+    "@design_seeder/document-template-architect",
+    "@kmd_ai/webinartothreadcarver",
+    "@design_seeder/api-contract-designer"
+  ],
+  "spec": {
+    "name": "BudgetClarityForge",
+    "description": "An end-to-end personal-finance meta-workflow that turns messy raw money inputs (bank exports, a financial webinar you watched, or a vague budgeting goal) into a decoded spending picture, a reusable budget document, a shareable action thread, and a live sync contract — by orchestrating NuanceSplitter, DocumentTemplateArchitect, WebinarToThreadCarver, and APIContractDesigner in sequence.",
+    "category": "Finance",
+    "tags": [
+      "budgeting",
+      "personal-finance",
+      "meta-workflow",
+      "automation",
+      "orchestration"
+    ],
+    "purpose": "Deliver a complete \"understand → structure → share → automate\" budgeting pipeline so a user goes from raw, ambiguous financial data to a documented, distributable, and system-connected budget in one pass — without manually stitching together decoding, templating, communication, and integration steps.",
+    "instructions": [
+      "Intake the user's {{input}} and classify each item into three streams: (a) raw transaction/expense text, (b) any financial webinar or course content they want distilled, and (c) their stated budgeting goal and constraints (income, savings target, risk tolerance).",
+      "Run NuanceSplitter on the raw transaction stream to separate genuinely distinct spending categories from near-duplicate or overlapping ones (e.g., 'coffee' vs 'cafe lunch' vs 'client meeting reimbursables'), producing clean, non-redundant expense buckets with rationale for each split.",
+      "Feed the cleaned expense buckets plus the user's goal into DocumentTemplateArchitect to generate a reusable, fill-in budget document — a structured monthly budget template with category sections, target vs actual columns, variance notes, and a savings-progress block the user can reuse each cycle.",
+      "If the user supplied webinar or course content, run WebinarToThreadCarver on it to carve the key money lessons into a concise, numbered action thread (e.g., a savings-tips thread) that reinforces the budget and can be shared or self-referenced.",
+      "Use APIContractDesigner to draft a clean integration contract (endpoints, request/response schemas, auth notes) for syncing the budget template with the user's bank/expense tools, so the manual template can later be automated.",
+      "Assemble a single deliverable that links the four artifacts in order: decoded buckets → budget template → action thread → sync contract, with a one-paragraph summary of how they connect.",
+      "Flag any missing inputs (e.g., no income figure, no webinar provided) and gracefully skip the corresponding stage while noting what was skipped and how to add it later.",
+      "Return a short 'next cycle' checklist so the user knows how to reuse the template and re-run only the stages that changed."
+    ],
+    "promptTemplate": "You are BudgetClarityForge, a personal-finance meta-orchestrator. Process the following user input end-to-end:\n\n{{input}}\n\nExecute in order and clearly label each section:\n\n1) INTAKE & CLASSIFY — sort the input into: raw transactions, webinar/course content, and goal/constraints. Note anything missing.\n\n2) DECODE (via NuanceSplitter) — split raw transactions into clean, non-overlapping spending buckets; give a one-line rationale per bucket.\n\n3) STRUCTURE (via DocumentTemplateArchitect) — produce a reusable monthly budget template using the buckets and the user's goal (category sections, target vs actual, variance notes, savings-progress block).\n\n4) SHARE (via WebinarToThreadCarver) — if webinar/course content exists, carve it into a numbered action thread of money lessons; otherwise write \"Skipped: no webinar content provided.\"\n\n5) AUTOMATE (via APIContractDesigner) — draft an API contract (endpoints, request/response schema, auth notes) to sync the budget template with the user's bank/expense tools.\n\n6) ASSEMBLE — one paragraph connecting all artifacts + a \"Next Cycle Checklist.\"\n\nKeep each section concise and actionable.",
+    "examples": [
+      {
+        "title": "Full input with transactions, webinar, and goal",
+        "input": "Here are last month's expenses: Starbucks $18, corner cafe lunch $42, client coffee (reimbursable) $12, Netflix $15.99, Spotify $10.99, gym $45, groceries $310, Uber $88, Uber Eats $64, rent $1600. Goal: save $500/month on a $4200 take-home income. I also watched a 45-min webinar 'Zero-Based Budgeting for Freelancers' and want the key tips. I use Plaid + a Google Sheet.",
+        "output": "1) INTAKE: Transactions ✓, Webinar ✓ ('Zero-Based Budgeting for Freelancers'), Goal ✓ (save $500 on $4200). Nothing missing.\n\n2) DECODE (NuanceSplitter): • Coffee-personal (Starbucks $18) — discretionary; • Dining-out (cafe lunch $42, Uber Eats $64) — meals not at home; • Reimbursables (client coffee $12) — split out, nets to $0; • Subscriptions (Netflix $15.99, Spotify $10.99); • Health (gym $45); • Groceries ($310); • Transport (Uber $88); • Housing (rent $1600). Rationale: 'client coffee' separated from personal coffee because it's recoverable; Uber vs Uber Eats split (transport vs dining).\n\n3) STRUCTURE (DocumentTemplateArchitect): Monthly Budget Template — Sections: Housing / Food (Groceries + Dining) / Transport / Subscriptions / Health / Reimbursables. Each row: Target | Actual | Variance | Notes. Savings-Progress block: Target $500 | Saved __ | % to goal. Income header: $4200.\n\n4) SHARE (WebinarToThreadCarver): 1/ Give every dollar a job before the month starts. 2/ Freelancers: budget on last month's income, not projected. 3/ Keep a 1-month buffer to smooth irregular pay. 4/ Separate reimbursables so they don't inflate spend. 5/ Review weekly, adjust categories, not the goal.\n\n5) AUTOMATE (APIContractDesigner): GET /transactions (auth: Plaid access_token) → [{id, date, amount, merchant, category}]; POST /budget/sync → {sheetId, month, buckets[]} → 200 {rowsWritten}. Auth: OAuth2 bearer for Sheets, Plaid token in header.\n\n6) ASSEMBLE: Decoded buckets feed the reusable template; the webinar thread reinforces the freelancer-specific tactics baked into the buffer/reimbursable rows; the API contract lets Plaid auto-fill 'Actual' columns into your Sheet. Next Cycle Checklist: [ ] Export new transactions [ ] Re-run DECODE only [ ] Reset Actual columns [ ] Re-run thread only if you watch new content [ ] Contract unchanged."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Skips webinar stage gracefully when none provided",
+        "input": "Expenses: rent $1200, groceries $280, gas $90, gym $40. Goal: save $300/mo on $3000 income. I use YNAB. No webinar.",
+        "expected": "Runs INTAKE, DECODE, STRUCTURE, and AUTOMATE (API contract for YNAB sync), and the SHARE section explicitly reads 'Skipped: no webinar content provided.' Assemble section and Next Cycle Checklist still included."
+      },
+      {
+        "name": "Flags missing income in goal stage",
+        "input": "Transactions: coffee $20, coffee shop lunch $40, groceries $200. Goal: save more money. I use a spreadsheet.",
+        "expected": "INTAKE flags missing income figure and vague savings target; still decodes buckets (splitting personal coffee from coffee-shop lunch) and builds a template with a placeholder income/target, noting what to add later."
+      }
+    ],
+    "type": "meta",
+    "dependencies": [
+      "@kmd_ai/nuancesplitter",
+      "@design_seeder/document-template-architect",
+      "@kmd_ai/webinartothreadcarver",
+      "@design_seeder/api-contract-designer"
+    ]
+  },
+  "markdown": "# BudgetClarityForge\n\n## Purpose\nDeliver a complete \"understand → structure → share → automate\" budgeting pipeline so a user goes from raw, ambiguous financial data to a documented, distributable, and system-connected budget in one pass — without manually stitching together decoding, templating, communication, and integration steps.\n\n## Dependencies\nInstalling this skill also installs:\n- `@kmd_ai/nuancesplitter`\n- `@design_seeder/document-template-architect`\n- `@kmd_ai/webinartothreadcarver`\n- `@design_seeder/api-contract-designer`\n\n## Instructions\n1. Intake the user's {{input}} and classify each item into three streams: (a) raw transaction/expense text, (b) any financial webinar or course content they want distilled, and (c) their stated budgeting goal and constraints (income, savings target, risk tolerance).\n2. Run NuanceSplitter on the raw transaction stream to separate genuinely distinct spending categories from near-duplicate or overlapping ones (e.g., 'coffee' vs 'cafe lunch' vs 'client meeting reimbursables'), producing clean, non-redundant expense buckets with rationale for each split.\n3. Feed the cleaned expense buckets plus the user's goal into DocumentTemplateArchitect to generate a reusable, fill-in budget document — a structured monthly budget template with category sections, target vs actual columns, variance notes, and a savings-progress block the user can reuse each cycle.\n4. If the user supplied webinar or course content, run WebinarToThreadCarver on it to carve the key money lessons into a concise, numbered action thread (e.g., a savings-tips thread) that reinforces the budget and can be shared or self-referenced.\n5. Use APIContractDesigner to draft a clean integration contract (endpoints, request/response schemas, auth notes) for syncing the budget template with the user's bank/expense tools, so the manual template can later be automated.\n6. Assemble a single deliverable that links the four artifacts in order: decoded buckets → budget template → action thread → sync contract, with a one-paragraph summary of how they connect.\n7. Flag any missing inputs (e.g., no income figure, no webinar provided) and gracefully skip the corresponding stage while noting what was skipped and how to add it later.\n8. Return a short 'next cycle' checklist so the user knows how to reuse the template and re-run only the stages that changed.\n\n## Prompt Template\n```\nYou are BudgetClarityForge, a personal-finance meta-orchestrator. Process the following user input end-to-end:\n\n{{input}}\n\nExecute in order and clearly label each section:\n\n1) INTAKE & CLASSIFY — sort the input into: raw transactions, webinar/course content, and goal/constraints. Note anything missing.\n\n2) DECODE (via NuanceSplitter) — split raw transactions into clean, non-overlapping spending buckets; give a one-line rationale per bucket.\n\n3) STRUCTURE (via DocumentTemplateArchitect) — produce a reusable monthly budget template using the buckets and the user's goal (category sections, target vs actual, variance notes, savings-progress block).\n\n4) SHARE (via WebinarToThreadCarver) — if webinar/course content exists, carve it into a numbered action thread of money lessons; otherwise write \"Skipped: no webinar content provided.\"\n\n5) AUTOMATE (via APIContractDesigner) — draft an API contract (endpoints, request/response schema, auth notes) to sync the budget template with the user's bank/expense tools.\n\n6) ASSEMBLE — one paragraph connecting all artifacts + a \"Next Cycle Checklist.\"\n\nKeep each section concise and actionable.\n```\n"
+}

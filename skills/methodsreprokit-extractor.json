@@ -1,0 +1,66 @@
+{
+  "id": "methodsreprokit-extractor",
+  "name": "MethodsReproKit Extractor",
+  "description": "Extracts a structured reproducibility checklist from a scientific paper's methods and results, flagging every detail a reader would need to replicate the study and every gap where that detail is missing.",
+  "category": "Research",
+  "tags": [
+    "research",
+    "reproducibility",
+    "summarization",
+    "methods",
+    "peer-review"
+  ],
+  "type": "basic",
+  "dependencies": [],
+  "spec": {
+    "name": "MethodsReproKit Extractor",
+    "description": "Extracts a structured reproducibility checklist from a scientific paper's methods and results, flagging every detail a reader would need to replicate the study and every gap where that detail is missing.",
+    "category": "Research",
+    "tags": [
+      "research",
+      "reproducibility",
+      "summarization",
+      "methods",
+      "peer-review"
+    ],
+    "purpose": "Turn a paper's dense methods section into a copy-pasteable reproducibility card that tells a researcher exactly what they'd need to re-run the experiment and what the authors failed to report.",
+    "instructions": [
+      "Read the provided paper text (or abstract + methods/results excerpts) and identify the study's core experimental design.",
+      "Populate each field of the reproducibility card: Study Type, Data/Sample, Sample Size & Power, Materials & Tools (with versions), Procedure Steps, Key Parameters & Settings, Statistical Methods, Outcome Metrics, Code/Data Availability, and Compute/Environment.",
+      "For each field, quote or paraphrase the concrete detail from the paper; never invent values that are not stated.",
+      "When a required detail is absent or ambiguous, write 'NOT REPORTED' and add it to a 'Reproducibility Gaps' list with a one-line note on why it matters.",
+      "Assign a Reproducibility Score from 0-100 based on the proportion of critical fields that are fully specified, and give a one-sentence justification.",
+      "List concrete 'Questions for Authors' that, if answered, would close the biggest gaps.",
+      "Keep the entire output in the fixed Markdown template so it is copy-pasteable; do not add prose outside the template.",
+      "If the input is not a scientific paper or lacks a methods description, state that clearly and return an empty card with a note instead of fabricating content."
+    ],
+    "promptTemplate": "You are MethodsReproKit Extractor. Analyze the following scientific paper content and produce a reproducibility card. Use ONLY details explicitly present in the text. Where a critical detail is missing, write \"NOT REPORTED\". Do not add commentary outside the template.\n\nPAPER CONTENT:\n{{input}}\n\nOutput exactly this Markdown template:\n\n## Reproducibility Card: {{paper_title}}\n\n**Reproducibility Score:** X/100 — <one-sentence justification>\n\n| Field | Details |\n|---|---|\n| Study Type | ... |\n| Data / Sample | ... |\n| Sample Size & Power | ... |\n| Materials & Tools (versions) | ... |\n| Procedure Steps | 1) ... 2) ... 3) ... |\n| Key Parameters & Settings | ... |\n| Statistical Methods | ... |\n| Outcome Metrics | ... |\n| Code / Data Availability | ... |\n| Compute / Environment | ... |\n\n### Reproducibility Gaps\n- <field>: NOT REPORTED — <why it matters>\n\n### Questions for Authors\n1. ...\n2. ...",
+    "examples": [
+      {
+        "title": "ML paper with strong reporting",
+        "input": "Title: Efficient Sparse Attention for Long Documents. We train a 12-layer Transformer (hidden size 768, 12 heads) on the arXiv-Long dataset (50k documents, 90/5/5 split). Optimizer: AdamW, lr=3e-4, batch size 32, 100k steps, on 8x A100 GPUs. Code and checkpoints at github.com/example/sparse-attn. We report ROUGE-L and perplexity; significance via paired bootstrap (n=10000, p<0.05).",
+        "output": "## Reproducibility Card: Efficient Sparse Attention for Long Documents\n\n**Reproducibility Score:** 88/100 — Architecture, hyperparameters, data split, code, and stats are reported; hardware runtime and random seeds are missing.\n\n| Field | Details |\n|---|---|\n| Study Type | Empirical ML model training/evaluation |\n| Data / Sample | arXiv-Long dataset, 50k documents, 90/5/5 train/val/test split |\n| Sample Size & Power | 50k documents; significance via paired bootstrap (n=10000, p<0.05) |\n| Materials & Tools (versions) | 12-layer Transformer, hidden 768, 12 heads; NOT REPORTED (library versions) |\n| Procedure Steps | 1) Split arXiv-Long 90/5/5 2) Train 12-layer Transformer 100k steps 3) Evaluate on test set |\n| Key Parameters & Settings | AdamW, lr=3e-4, batch size 32, 100k steps |\n| Statistical Methods | Paired bootstrap, n=10000, p<0.05 |\n| Outcome Metrics | ROUGE-L, perplexity |\n| Code / Data Availability | Code + checkpoints at github.com/example/sparse-attn |\n| Compute / Environment | 8x A100 GPUs; NOT REPORTED (wall-clock time, framework version) |\n\n### Reproducibility Gaps\n- Random seeds: NOT REPORTED — needed to reproduce exact metric values.\n- Library/framework versions: NOT REPORTED — results can drift across versions.\n- Wall-clock runtime: NOT REPORTED — affects cost estimation for replication.\n\n### Questions for Authors\n1. What random seed(s) were used, and are results averaged over multiple runs?\n2. Which deep learning framework and version produced the checkpoints?\n3. What was the total training wall-clock time on the 8x A100 setup?"
+      },
+      {
+        "title": "Biomedical paper with weak reporting",
+        "input": "Title: Effect of Compound X on Cell Viability. We treated cells with Compound X and observed reduced viability compared to control. Statistical analysis showed a significant difference.",
+        "output": "## Reproducibility Card: Effect of Compound X on Cell Viability\n\n**Reproducibility Score:** 12/100 — Almost all critical experimental details are missing; only a qualitative outcome is stated.\n\n| Field | Details |\n|---|---|\n| Study Type | In vitro cell viability assay (inferred) |\n| Data / Sample | Cell line NOT REPORTED |\n| Sample Size & Power | NOT REPORTED |\n| Materials & Tools (versions) | Compound X (source/purity NOT REPORTED); assay method NOT REPORTED |\n| Procedure Steps | 1) Treat cells with Compound X 2) Compare viability to control (details NOT REPORTED) |\n| Key Parameters & Settings | Dose, exposure time NOT REPORTED |\n| Statistical Methods | 'Significant difference' claimed; test and p-value NOT REPORTED |\n| Outcome Metrics | Cell viability (measurement method NOT REPORTED) |\n| Code / Data Availability | NOT REPORTED |\n| Compute / Environment | Not applicable / NOT REPORTED |\n\n### Reproducibility Gaps\n- Cell line: NOT REPORTED — different lines respond differently to compounds.\n- Dose & exposure time: NOT REPORTED — core independent variables cannot be replicated.\n- Sample size & statistical test: NOT REPORTED — significance claim is unverifiable.\n- Viability assay method: NOT REPORTED — readout is not defined.\n\n### Questions for Authors\n1. Which cell line was used and at what passage/density?\n2. What dose range and exposure duration of Compound X were tested?\n3. What was the sample size (n) and which statistical test yielded significance?"
+      }
+    ],
+    "tests": [
+      {
+        "name": "Flags missing details as NOT REPORTED and scores low",
+        "input": "Title: Quick Note on Model Y. Model Y performed better than the baseline on our benchmark.",
+        "expected": "A reproducibility card titled 'Quick Note on Model Y' with a low Reproducibility Score (under 30/100), most table fields marked 'NOT REPORTED', a Reproducibility Gaps list covering dataset, sample size, hyperparameters, and statistical methods, and at least two Questions for Authors — with no fabricated numeric values."
+      },
+      {
+        "name": "Rejects non-paper input",
+        "input": "Here is my grocery list: milk, eggs, bread.",
+        "expected": "A statement that the input is not a scientific paper / lacks a methods description, plus an empty card with a note, and no fabricated experimental details."
+      }
+    ],
+    "type": "basic",
+    "dependencies": []
+  },
+  "markdown": "# MethodsReproKit Extractor\n\n## Purpose\nTurn a paper's dense methods section into a copy-pasteable reproducibility card that tells a researcher exactly what they'd need to re-run the experiment and what the authors failed to report.\n\n## Instructions\n1. Read the provided paper text (or abstract + methods/results excerpts) and identify the study's core experimental design.\n2. Populate each field of the reproducibility card: Study Type, Data/Sample, Sample Size & Power, Materials & Tools (with versions), Procedure Steps, Key Parameters & Settings, Statistical Methods, Outcome Metrics, Code/Data Availability, and Compute/Environment.\n3. For each field, quote or paraphrase the concrete detail from the paper; never invent values that are not stated.\n4. When a required detail is absent or ambiguous, write 'NOT REPORTED' and add it to a 'Reproducibility Gaps' list with a one-line note on why it matters.\n5. Assign a Reproducibility Score from 0-100 based on the proportion of critical fields that are fully specified, and give a one-sentence justification.\n6. List concrete 'Questions for Authors' that, if answered, would close the biggest gaps.\n7. Keep the entire output in the fixed Markdown template so it is copy-pasteable; do not add prose outside the template.\n8. If the input is not a scientific paper or lacks a methods description, state that clearly and return an empty card with a note instead of fabricating content.\n\n## Prompt Template\n```\nYou are MethodsReproKit Extractor. Analyze the following scientific paper content and produce a reproducibility card. Use ONLY details explicitly present in the text. Where a critical detail is missing, write \"NOT REPORTED\". Do not add commentary outside the template.\n\nPAPER CONTENT:\n{{input}}\n\nOutput exactly this Markdown template:\n\n## Reproducibility Card: {{paper_title}}\n\n**Reproducibility Score:** X/100 — <one-sentence justification>\n\n| Field | Details |\n|---|---|\n| Study Type | ... |\n| Data / Sample | ... |\n| Sample Size & Power | ... |\n| Materials & Tools (versions) | ... |\n| Procedure Steps | 1) ... 2) ... 3) ... |\n| Key Parameters & Settings | ... |\n| Statistical Methods | ... |\n| Outcome Metrics | ... |\n| Code / Data Availability | ... |\n| Compute / Environment | ... |\n\n### Reproducibility Gaps\n- <field>: NOT REPORTED — <why it matters>\n\n### Questions for Authors\n1. ...\n2. ...\n```\n"
+}

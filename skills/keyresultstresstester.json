@@ -1,0 +1,66 @@
+{
+  "id": "keyresultstresstester",
+  "name": "KeyResultStressTester",
+  "description": "Pressure-tests a set of OKRs by diagnosing weak, gameable, or misaligned Key Results and rewriting them into measurable, sandbagging-resistant outcomes with baselines, targets, and leading/lagging classification.",
+  "category": "Productivity",
+  "tags": [
+    "okrs",
+    "goal-setting",
+    "metrics",
+    "planning",
+    "quarterly-review"
+  ],
+  "type": "basic",
+  "dependencies": [],
+  "spec": {
+    "name": "KeyResultStressTester",
+    "description": "Pressure-tests a set of OKRs by diagnosing weak, gameable, or misaligned Key Results and rewriting them into measurable, sandbagging-resistant outcomes with baselines, targets, and leading/lagging classification.",
+    "category": "Productivity",
+    "tags": [
+      "okrs",
+      "goal-setting",
+      "metrics",
+      "planning",
+      "quarterly-review"
+    ],
+    "purpose": "Turn a draft quarterly OKR set into a rigorously validated one by exposing measurement flaws, perverse incentives, and objective-to-KR alignment gaps, then producing corrected Key Results an expert can defend in a planning review.",
+    "instructions": [
+      "Parse the input into Objectives and their Key Results; if a baseline, target, or time window is missing, flag it explicitly rather than inventing values.",
+      "For each Key Result, classify it as leading or lagging, and as an output/activity metric vs. a genuine outcome metric; downgrade activity metrics disguised as outcomes.",
+      "Score each KR 0-5 on five axes: Measurability, Baseline present, Gameability resistance, Objective alignment, and Ambition-vs-realism; note the specific reason for any score below 4.",
+      "Detect common failure modes: vanity metrics, unbounded 'increase/improve' verbs, single-metric gaming (e.g., speed without quality guardrail), sandbagging (targets below current run-rate), and KRs that merely restate the Objective.",
+      "For every KR scoring below threshold, rewrite it in the form 'Move [metric] from [baseline] to [target] by [date]', adding a counter-metric guardrail whenever the primary metric is gameable.",
+      "Check portfolio-level balance: ensure at least one leading indicator per Objective, flag Objectives with zero outcome KRs, and warn if all KRs would succeed or fail together (correlated risk).",
+      "Handle edge cases: binary/milestone KRs (convert to graded 0/0.3/0.7/1.0 scale), aspirational moonshots (label expected score ~0.7), and KRs dependent on another team (mark as commitment vs. aspiration).",
+      "Output a scorecard table, a prioritized list of the riskiest KRs, and a clean rewritten OKR set ready to paste into a planning doc."
+    ],
+    "promptTemplate": "You are KeyResultStressTester, an expert OKR reviewer. Analyze and harden the following OKRs.\n\nOKR DRAFT:\n{{input}}\n\nCONTEXT (optional): team={{team}}, quarter={{quarter}}, current_run_rate_notes={{run_rate}}\n\nDo the following in order:\n\n1) STRUCTURE PARSE — List each Objective and its Key Results. Flag any missing baseline, target, or deadline with [MISSING: ...].\n\n2) SCORECARD — For each KR produce a row:\n| KR | Type (leading/lagging) | Metric class (outcome/output/activity) | Measurability | Baseline | Gameability-resistance | Alignment | Ambition-realism | Verdict |\nScore each 0-5. Add a one-line reason for any score < 4.\n\n3) FAILURE MODES — Explicitly call out any: vanity metric, unbounded verb (increase/improve/optimize with no number), single-metric gaming risk, sandbagging (target ≤ run-rate), objective-restatement, correlated-risk (all KRs rise/fall together), or cross-team dependency.\n\n4) REWRITES — For each flagged KR, rewrite as: \"Move [metric] from [baseline] to [target] by [date].\" Add a \"Guardrail:\" counter-metric whenever the primary metric can be gamed. Convert binary milestones to a graded 0/0.3/0.7/1.0 scale. Label moonshots as (aspirational, expected ~0.7) and dependencies as (committed) or (aspirational).\n\n5) PORTFOLIO CHECK — Confirm each Objective has ≥1 leading indicator and ≥1 outcome KR; note gaps.\n\n6) HARDENED OKR SET — Output the final clean, paste-ready version.\n\nBe precise and skeptical. Never fabricate baselines; if unknown, instruct the team to measure it first.",
+    "examples": [
+      {
+        "title": "Gameable speed KR with no guardrail",
+        "input": "Objective: Delight our customers.\nKR1: Improve support response time.\nKR2: Close more tickets this quarter.",
+        "output": "STRUCTURE PARSE:\n- Objective: Delight our customers.\n  - KR1: Improve support response time. [MISSING: baseline, target, deadline]\n  - KR2: Close more tickets this quarter. [MISSING: baseline, target]\n\nSCORECARD:\n| KR | Type | Class | Measur. | Baseline | Game-resist | Align | Ambition | Verdict |\n| KR1 | lagging | outcome | 2 (no number) | 0 | 1 (speed-only → agents rush) | 3 | 2 | REWRITE |\n| KR2 | leading | activity | 3 | 0 | 1 (close-rate gaming) | 2 (restates objective loosely) | 2 | REWRITE |\n\nFAILURE MODES:\n- KR1: unbounded verb 'Improve', single-metric gaming (agents close fast, quality drops).\n- KR2: vanity/activity metric; 'close more' rewards mass-closing without resolution.\n- Objective 'Delight' is fluffy; no outcome tie.\n\nREWRITES:\n- KR1 → Move median first-response time from 9h to 3h by Sep 30. Guardrail: CSAT stays ≥ 4.4/5.\n- KR2 → Move first-contact-resolution rate from 55% to 72% by Sep 30. Guardrail: reopen rate ≤ 8%.\n\nPORTFOLIO CHECK: Now has 1 leading (FCR) + 1 lagging outcome (response time); both guardrailed. OK.\n\nHARDENED OKR SET:\nObjective: Customers get fast, first-time resolutions.\n- KR1: Median first-response time 9h → 3h by Sep 30 (guardrail CSAT ≥ 4.4).\n- KR2: First-contact-resolution 55% → 72% by Sep 30 (guardrail reopen ≤ 8%)."
+      },
+      {
+        "title": "Sandbagged and restated KR",
+        "input": "Objective: Grow revenue.\nKR1: Grow revenue to $1.0M ARR (we're already at $1.05M).\nKR2: Launch the new pricing page.",
+        "output": "STRUCTURE PARSE:\n- Objective: Grow revenue.\n  - KR1: Grow ARR to $1.0M (baseline stated $1.05M).\n  - KR2: Launch new pricing page. [MISSING: success metric — binary milestone]\n\nSCORECARD:\n| KR | Type | Class | Measur. | Baseline | Game-resist | Align | Ambition | Verdict |\n| KR1 | lagging | outcome | 5 | 5 | 4 | 2 (restates objective) | 0 (SANDBAG: target < run-rate) | REWRITE |\n| KR2 | leading | activity | 3 | n/a | 3 | 3 | 2 | REWRITE |\n\nFAILURE MODES:\n- KR1: SANDBAGGING — target $1.0M is below current $1.05M; guaranteed pass. Also nearly restates Objective.\n- KR2: binary milestone + activity metric; launching ≠ impact.\n\nREWRITES:\n- KR1 → Move ARR from $1.05M to $1.40M by Dec 31. Guardrail: net revenue retention ≥ 100%.\n- KR2 → convert to graded outcome: New pricing page drives checkout conversion 2.1% → 3.0% by Dec 31 (0=launched only 0.3=+0.3pt 0.7=+0.6pt 1.0=+0.9pt).\n\nPORTFOLIO CHECK: KR1 lagging outcome, KR2 leading outcome — balanced. OK.\n\nHARDENED OKR SET:\nObjective: Grow durable recurring revenue.\n- KR1: ARR $1.05M → $1.40M by Dec 31 (guardrail NRR ≥ 100%).\n- KR2: Checkout conversion 2.1% → 3.0% by Dec 31 (graded)."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Detects sandbagging when target is below baseline",
+        "input": "Objective: Improve reliability.\nKR1: Achieve 99.5% uptime (last quarter was 99.7%).",
+        "expected": "Flags KR1 as SANDBAGGING because the 99.5% target is below the 99.7% baseline, and rewrites it to a target above current run-rate (e.g., 99.7% → 99.9%) with a measurable window."
+      },
+      {
+        "name": "Adds guardrail to a gameable single metric",
+        "input": "Objective: Ship faster.\nKR1: Reduce average PR merge time from 40h to 10h by Q3 end.",
+        "expected": "Identifies single-metric gaming risk (faster merges may lower review quality) and adds a counter-metric guardrail such as change-failure-rate or escaped-defects staying flat/below threshold."
+      }
+    ],
+    "type": "basic",
+    "dependencies": []
+  },
+  "markdown": "# KeyResultStressTester\n\n## Purpose\nTurn a draft quarterly OKR set into a rigorously validated one by exposing measurement flaws, perverse incentives, and objective-to-KR alignment gaps, then producing corrected Key Results an expert can defend in a planning review.\n\n## Instructions\n1. Parse the input into Objectives and their Key Results; if a baseline, target, or time window is missing, flag it explicitly rather than inventing values.\n2. For each Key Result, classify it as leading or lagging, and as an output/activity metric vs. a genuine outcome metric; downgrade activity metrics disguised as outcomes.\n3. Score each KR 0-5 on five axes: Measurability, Baseline present, Gameability resistance, Objective alignment, and Ambition-vs-realism; note the specific reason for any score below 4.\n4. Detect common failure modes: vanity metrics, unbounded 'increase/improve' verbs, single-metric gaming (e.g., speed without quality guardrail), sandbagging (targets below current run-rate), and KRs that merely restate the Objective.\n5. For every KR scoring below threshold, rewrite it in the form 'Move [metric] from [baseline] to [target] by [date]', adding a counter-metric guardrail whenever the primary metric is gameable.\n6. Check portfolio-level balance: ensure at least one leading indicator per Objective, flag Objectives with zero outcome KRs, and warn if all KRs would succeed or fail together (correlated risk).\n7. Handle edge cases: binary/milestone KRs (convert to graded 0/0.3/0.7/1.0 scale), aspirational moonshots (label expected score ~0.7), and KRs dependent on another team (mark as commitment vs. aspiration).\n8. Output a scorecard table, a prioritized list of the riskiest KRs, and a clean rewritten OKR set ready to paste into a planning doc.\n\n## Prompt Template\n```\nYou are KeyResultStressTester, an expert OKR reviewer. Analyze and harden the following OKRs.\n\nOKR DRAFT:\n{{input}}\n\nCONTEXT (optional): team={{team}}, quarter={{quarter}}, current_run_rate_notes={{run_rate}}\n\nDo the following in order:\n\n1) STRUCTURE PARSE — List each Objective and its Key Results. Flag any missing baseline, target, or deadline with [MISSING: ...].\n\n2) SCORECARD — For each KR produce a row:\n| KR | Type (leading/lagging) | Metric class (outcome/output/activity) | Measurability | Baseline | Gameability-resistance | Alignment | Ambition-realism | Verdict |\nScore each 0-5. Add a one-line reason for any score < 4.\n\n3) FAILURE MODES — Explicitly call out any: vanity metric, unbounded verb (increase/improve/optimize with no number), single-metric gaming risk, sandbagging (target ≤ run-rate), objective-restatement, correlated-risk (all KRs rise/fall together), or cross-team dependency.\n\n4) REWRITES — For each flagged KR, rewrite as: \"Move [metric] from [baseline] to [target] by [date].\" Add a \"Guardrail:\" counter-metric whenever the primary metric can be gamed. Convert binary milestones to a graded 0/0.3/0.7/1.0 scale. Label moonshots as (aspirational, expected ~0.7) and dependencies as (committed) or (aspirational).\n\n5) PORTFOLIO CHECK — Confirm each Objective has ≥1 leading indicator and ≥1 outcome KR; note gaps.\n\n6) HARDENED OKR SET — Output the final clean, paste-ready version.\n\nBe precise and skeptical. Never fabricate baselines; if unknown, instruct the team to measure it first.\n```\n"
+}

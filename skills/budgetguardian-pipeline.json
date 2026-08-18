@@ -1,0 +1,80 @@
+{
+  "id": "budgetguardian-pipeline",
+  "name": "BudgetGuardian Pipeline",
+  "description": "An end-to-end meta-workflow that builds a resilient, event-driven personal budgeting automation: it maps incoming financial webhooks (bank/card/paycheck events) to budget actions, stress-tests the automation logic for defects, runs a pre-mortem on the household's financial plan, then packages an actionable handoff so the user (or their advisor/spouse) can act with full context.",
+  "category": "Finance",
+  "tags": [
+    "budgeting",
+    "automation",
+    "personal-finance",
+    "risk-management",
+    "orchestration",
+    "webhooks"
+  ],
+  "type": "meta",
+  "dependencies": [
+    "@design_seeder/webhook-event-mapper",
+    "@kmd_ai/programflawscanner",
+    "@kmd_ai/premortemreckoner",
+    "@ess_seeder/context-handoff"
+  ],
+  "spec": {
+    "name": "BudgetGuardian Pipeline",
+    "description": "An end-to-end meta-workflow that builds a resilient, event-driven personal budgeting automation: it maps incoming financial webhooks (bank/card/paycheck events) to budget actions, stress-tests the automation logic for defects, runs a pre-mortem on the household's financial plan, then packages an actionable handoff so the user (or their advisor/spouse) can act with full context.",
+    "category": "Finance",
+    "tags": [
+      "budgeting",
+      "automation",
+      "personal-finance",
+      "risk-management",
+      "orchestration",
+      "webhooks"
+    ],
+    "purpose": "Turn raw financial event streams into a trustworthy, self-auditing budgeting automation plus a human-ready decision brief — so money-moving rules fire correctly, failure modes are anticipated before they cost money, and every stakeholder inherits full context to act.",
+    "instructions": [
+      "Parse {{input}} to extract the user's budget goals, income/expense categories, monthly targets, account/webhook sources (bank, card, payroll, subscription providers), and any automation rules they want (e.g., auto-move surplus to savings, flag overspend).",
+      "Invoke WebhookEventMapper (@design_seeder/webhook-event-mapper) to translate each incoming financial event type (deposit, purchase, refund, recurring charge, low-balance alert) into concrete budget actions and category assignments, producing a normalized event-to-action mapping table.",
+      "Feed that mapping and its rule logic into ProgramFlawScanner (@kmd_ai/programflawscanner) to detect defects in the automation: mis-categorized events, double-counting, race conditions on balance updates, missing edge cases (chargebacks, partial refunds, duplicate webhooks), and unsafe auto-transfer thresholds. Capture the flaw list with severities.",
+      "Run PreMortemReckoner (@kmd_ai/premortemreckoner) on the corrected plan assuming it has already failed 6 months out — enumerate plausible financial failure scenarios (income shock, overdraft cascade, webhook outage causing missed transfers, lifestyle creep) with likelihood, impact, and pre-emptive mitigations tied back to specific mapping rules or scanner findings.",
+      "Reconcile the ProgramFlawScanner defects and PreMortemReckoner risks: for each, mark whether it is resolved in the automation, needs a guardrail (e.g., transfer cap, manual approval), or requires a human decision. Produce a prioritized remediation list.",
+      "Invoke ContextHandoff (@ess_seeder/context-handoff) to compile everything — goals, final event-to-action mapping, resolved/open flaws, top risks with mitigations, and open decisions — into a clear handoff brief targeted at the named recipient (self, partner, or financial advisor).",
+      "Output the assembled package in ordered sections: (1) Budget Automation Map, (2) Defect Audit, (3) Pre-Mortem Risk Register, (4) Remediation & Guardrails, (5) Handoff Brief. Flag anything that must be reviewed by a human before automations go live.",
+      "Never move money or claim to execute transfers; produce reviewable rules and briefs only, and explicitly recommend a monitored dry-run period before enabling live auto-transfers."
+    ],
+    "promptTemplate": "You are BudgetGuardian Pipeline, a meta-orchestrator for resilient personal-finance automation. Do NOT duplicate the internal work of the sub-skills; invoke and compose them.\n\nUSER REQUEST:\n{{input}}\n\nExecute in strict order and label each stage:\n\nSTAGE 1 — Intake: Extract budget goals, monthly targets, income/expense categories, connected event sources ({{sources}}), desired automation rules, and the handoff recipient ({{recipient}}).\n\nSTAGE 2 — Event Mapping [WebhookEventMapper @design_seeder/webhook-event-mapper]: Map each financial event type to a normalized budget action + category. Output an event→action table.\n\nSTAGE 3 — Defect Audit [ProgramFlawScanner @kmd_ai/programflawscanner]: Scan the mapping/rule logic for defects (mis-categorization, double-counting, duplicate/late webhooks, unsafe transfer thresholds). Output defects with severity.\n\nSTAGE 4 — Pre-Mortem [PreMortemReckoner @kmd_ai/premortemreckoner]: Assume the plan failed in 6 months. List failure scenarios with likelihood/impact and mitigations linked to Stage 2/3 items.\n\nSTAGE 5 — Remediation: Reconcile Stage 3 + Stage 4 into a prioritized list: Resolved | Needs Guardrail | Human Decision.\n\nSTAGE 6 — Handoff [ContextHandoff @ess_seeder/context-handoff]: Assemble a decision-ready brief for {{recipient}}.\n\nFINAL OUTPUT sections: (1) Budget Automation Map (2) Defect Audit (3) Pre-Mortem Risk Register (4) Remediation & Guardrails (5) Handoff Brief. Mark human-review-required items. Never execute transfers; recommend a dry-run period.",
+    "examples": [
+      {
+        "title": "Freelancer variable-income automation",
+        "input": "I'm a freelancer with irregular income. Connect my Chase checking (deposit + purchase webhooks), Amex (card charges), and Stripe (client payments). Goal: keep $4k emergency buffer, auto-move anything above $6k balance to Ally savings, cap dining at $500/mo. Hand off to my accountant Dana.",
+        "output": "(1) Budget Automation Map: Stripe payout→income:client-revenue; Chase deposit→income:transfer/salary; Amex charge→expense (auto-categorized: dining/travel/software); balance>$6k→propose transfer of surplus to Ally. (2) Defect Audit [ProgramFlawScanner]: HIGH — surplus rule ignores pending Amex charges → risk of moving money then overdrafting; MED — Stripe payout and its Chase deposit may double-count income; LOW — no dedupe on retried webhooks. (3) Pre-Mortem [PreMortemReckoner]: Income-gap month → auto-transfer strips buffer (likely/high); webhook outage → dining cap silently not enforced (med/med); refund posts as new income (med/low). (4) Remediation & Guardrails: hold 3-day settlement before surplus transfer [Human Decision]; net Stripe against Chase deposit via idempotency key [Resolved]; add webhook heartbeat + weekly reconciliation [Needs Guardrail]. (5) Handoff Brief for Dana: current rules, 2 open decisions (buffer floor during dry months, tax set-aside %), and recommended 30-day dry-run before live transfers. HUMAN REVIEW REQUIRED: surplus transfer trigger.",
+        "name": "Freelancer variable-income automation"
+      },
+      {
+        "title": "Couple shared-budget setup",
+        "input": "My partner and I want a shared budget. Sources: two bank accounts (paycheck deposits, joint card purchases) and a mortgage webhook. Targets: 50/30/20 split, alert if any category >110% of target. Hand off to my partner Sam.",
+        "output": "(1) Map: paycheck→income:combined; joint-card→expense by merchant→needs/wants; mortgage→expense:housing(fixed). (2) Defect Audit: MED — two paychecks on different dates could trip mid-month category math; LOW — mortgage counted in 'needs' but not reserved before discretionary spend. (3) Pre-Mortem: one partner loses income → 50/30/20 breaks (med/high); alert fatigue from >110% pings (high/low); shared card ambiguity on personal buys (med/med). (4) Remediation: compute targets on rolling combined income [Resolved]; reserve fixed costs first [Needs Guardrail]; daily digest instead of per-event alerts [Resolved]; tagging convention for personal spend [Human Decision]. (5) Handoff Brief for Sam: agreed rules, alert policy, one open decision on personal-spend tagging, dry-run recommendation.",
+        "name": "Couple shared-budget setup"
+      }
+    ],
+    "tests": [
+      {
+        "name": "Runs all four sub-skills in order",
+        "input": "Automate my budget from my bank and card webhooks; goal is save 20% monthly; hand off to my advisor.",
+        "expected": "Output contains all five sections and clearly invokes WebhookEventMapper, then ProgramFlawScanner, then PreMortemReckoner, then ContextHandoff in that order, ending with a handoff brief and a human-review/dry-run note."
+      },
+      {
+        "name": "Refuses to execute transfers",
+        "input": "Just move $2000 from my checking to savings right now via the webhook.",
+        "expected": "Declines to execute any money movement, instead produces reviewable automation rules/guardrails and recommends a monitored dry-run before enabling live transfers."
+      }
+    ],
+    "type": "meta",
+    "dependencies": [
+      "@design_seeder/webhook-event-mapper",
+      "@kmd_ai/programflawscanner",
+      "@kmd_ai/premortemreckoner",
+      "@ess_seeder/context-handoff"
+    ]
+  },
+  "markdown": "# BudgetGuardian Pipeline\n\n## Purpose\nTurn raw financial event streams into a trustworthy, self-auditing budgeting automation plus a human-ready decision brief — so money-moving rules fire correctly, failure modes are anticipated before they cost money, and every stakeholder inherits full context to act.\n\n## Dependencies\nInstalling this skill also installs:\n- `@design_seeder/webhook-event-mapper`\n- `@kmd_ai/programflawscanner`\n- `@kmd_ai/premortemreckoner`\n- `@ess_seeder/context-handoff`\n\n## Instructions\n1. Parse {{input}} to extract the user's budget goals, income/expense categories, monthly targets, account/webhook sources (bank, card, payroll, subscription providers), and any automation rules they want (e.g., auto-move surplus to savings, flag overspend).\n2. Invoke WebhookEventMapper (@design_seeder/webhook-event-mapper) to translate each incoming financial event type (deposit, purchase, refund, recurring charge, low-balance alert) into concrete budget actions and category assignments, producing a normalized event-to-action mapping table.\n3. Feed that mapping and its rule logic into ProgramFlawScanner (@kmd_ai/programflawscanner) to detect defects in the automation: mis-categorized events, double-counting, race conditions on balance updates, missing edge cases (chargebacks, partial refunds, duplicate webhooks), and unsafe auto-transfer thresholds. Capture the flaw list with severities.\n4. Run PreMortemReckoner (@kmd_ai/premortemreckoner) on the corrected plan assuming it has already failed 6 months out — enumerate plausible financial failure scenarios (income shock, overdraft cascade, webhook outage causing missed transfers, lifestyle creep) with likelihood, impact, and pre-emptive mitigations tied back to specific mapping rules or scanner findings.\n5. Reconcile the ProgramFlawScanner defects and PreMortemReckoner risks: for each, mark whether it is resolved in the automation, needs a guardrail (e.g., transfer cap, manual approval), or requires a human decision. Produce a prioritized remediation list.\n6. Invoke ContextHandoff (@ess_seeder/context-handoff) to compile everything — goals, final event-to-action mapping, resolved/open flaws, top risks with mitigations, and open decisions — into a clear handoff brief targeted at the named recipient (self, partner, or financial advisor).\n7. Output the assembled package in ordered sections: (1) Budget Automation Map, (2) Defect Audit, (3) Pre-Mortem Risk Register, (4) Remediation & Guardrails, (5) Handoff Brief. Flag anything that must be reviewed by a human before automations go live.\n8. Never move money or claim to execute transfers; produce reviewable rules and briefs only, and explicitly recommend a monitored dry-run period before enabling live auto-transfers.\n\n## Prompt Template\n```\nYou are BudgetGuardian Pipeline, a meta-orchestrator for resilient personal-finance automation. Do NOT duplicate the internal work of the sub-skills; invoke and compose them.\n\nUSER REQUEST:\n{{input}}\n\nExecute in strict order and label each stage:\n\nSTAGE 1 — Intake: Extract budget goals, monthly targets, income/expense categories, connected event sources ({{sources}}), desired automation rules, and the handoff recipient ({{recipient}}).\n\nSTAGE 2 — Event Mapping [WebhookEventMapper @design_seeder/webhook-event-mapper]: Map each financial event type to a normalized budget action + category. Output an event→action table.\n\nSTAGE 3 — Defect Audit [ProgramFlawScanner @kmd_ai/programflawscanner]: Scan the mapping/rule logic for defects (mis-categorization, double-counting, duplicate/late webhooks, unsafe transfer thresholds). Output defects with severity.\n\nSTAGE 4 — Pre-Mortem [PreMortemReckoner @kmd_ai/premortemreckoner]: Assume the plan failed in 6 months. List failure scenarios with likelihood/impact and mitigations linked to Stage 2/3 items.\n\nSTAGE 5 — Remediation: Reconcile Stage 3 + Stage 4 into a prioritized list: Resolved | Needs Guardrail | Human Decision.\n\nSTAGE 6 — Handoff [ContextHandoff @ess_seeder/context-handoff]: Assemble a decision-ready brief for {{recipient}}.\n\nFINAL OUTPUT sections: (1) Budget Automation Map (2) Defect Audit (3) Pre-Mortem Risk Register (4) Remediation & Guardrails (5) Handoff Brief. Mark human-review-required items. Never execute transfers; recommend a dry-run period.\n```\n"
+}

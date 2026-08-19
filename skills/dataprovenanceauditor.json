@@ -1,0 +1,77 @@
+{
+  "id": "dataprovenanceauditor",
+  "name": "DataProvenanceAuditor",
+  "description": "An end-to-end data cleaning and validation meta-workflow that reconstructs a dataset's documented collection/processing methods, disentangles ambiguous or conflated field definitions, then produces a reconciled validation ruleset and cleaned-data audit report — so you clean data against what was actually measured, not against guesses.",
+  "category": "Data",
+  "tags": [
+    "data-cleaning",
+    "validation",
+    "provenance",
+    "data-quality",
+    "meta-workflow"
+  ],
+  "type": "meta",
+  "dependencies": [
+    "@kmd_ai/methodsreprokit-extractor",
+    "@kmd_ai/nuancesplitter"
+  ],
+  "spec": {
+    "name": "DataProvenanceAuditor",
+    "description": "An end-to-end data cleaning and validation meta-workflow that reconstructs a dataset's documented collection/processing methods, disentangles ambiguous or conflated field definitions, then produces a reconciled validation ruleset and cleaned-data audit report — so you clean data against what was actually measured, not against guesses.",
+    "category": "Data",
+    "tags": [
+      "data-cleaning",
+      "validation",
+      "provenance",
+      "data-quality",
+      "meta-workflow"
+    ],
+    "purpose": "Turn a raw dataset plus its accompanying documentation into a defensible, provenance-aware cleaning plan: extract the true data-collection methods, resolve semantic ambiguity in columns and categories, and emit machine-checkable validation rules alongside a human-readable audit trail that justifies every cleaning decision.",
+    "instructions": [
+      "Intake: Accept the raw dataset (or its schema + sample rows) together with any methods documentation, codebooks, README files, or protocol text supplied in {{input}}. Separate the two streams before proceeding.",
+      "Reconstruct provenance with MethodsReproKit Extractor (@kmd_ai/methodsreprokit-extractor): feed it the documentation stream to extract measurement units, instruments, sampling frames, transformation steps, missing-value conventions, and valid ranges/enumerations that the data was originally produced under.",
+      "Detect ambiguity with NuanceSplitter (@kmd_ai/nuancesplitter): for each column, category label, or free-text field where the extracted methods reveal overloaded or conflated meaning (e.g. one 'status' field mixing state and reason, or units silently changing mid-collection), split it into its distinct underlying concepts.",
+      "Reconcile: map each NuanceSplitter-derived concept back to the provenance facts from step 2, flagging every mismatch between what the documentation claims and what the data structure implies (unit drift, undocumented categories, range violations).",
+      "Generate a validation ruleset: convert reconciled expectations into concrete, machine-checkable constraints (type, range, enum, uniqueness, cross-field, and unit-consistency rules), each tagged with the provenance source that justifies it.",
+      "Apply and audit: describe the cleaning actions the ruleset implies (splits, recodes, coercions, quarantines), never silently dropping data — quarantine ambiguous records for review instead.",
+      "Emit a Data Provenance Audit Report containing: (a) the validation ruleset, (b) a column-by-column provenance-vs-observed reconciliation table, (c) the concept splits performed, and (d) an unresolved-issues list requiring human confirmation.",
+      "If documentation is missing or contradicts the data, state assumptions explicitly and mark affected rules as 'provisional' rather than fabricating provenance."
+    ],
+    "promptTemplate": "You are DataProvenanceAuditor, a meta-workflow for provenance-aware data cleaning and validation.\n\nINPUT:\n{{input}}\n\nExecute the following orchestration and show your work per stage:\n\nSTAGE 1 — Intake & Split Streams\n- Identify the DATA stream (schema, columns, sample rows) and the DOCUMENTATION stream (methods, codebook, README, protocol).\n\nSTAGE 2 — Provenance Extraction [invoke @kmd_ai/methodsreprokit-extractor]\n- From the documentation, extract: measurement units, instruments/sources, sampling frame, transformation/derivation steps, missing-value conventions, valid ranges and enumerations.\n- Output a structured \"Provenance Facts\" table.\n\nSTAGE 3 — Ambiguity Disentanglement [invoke @kmd_ai/nuancesplitter]\n- For each overloaded or conflated field/category surfaced against the provenance facts, split it into distinct underlying concepts.\n- Output a \"Concept Splits\" table (original field -> resolved concepts + definitions).\n\nSTAGE 4 — Reconciliation\n- Cross-map concept splits to provenance facts. Produce a \"Provenance vs Observed\" table flagging: unit drift, undocumented categories, range violations, definition conflicts.\n\nSTAGE 5 — Validation Ruleset\n- Emit machine-checkable rules (type / range / enum / uniqueness / cross-field / unit-consistency), each with a `justified_by` provenance citation and a `confidence` (confirmed | provisional).\n\nSTAGE 6 — Cleaning & Audit\n- Describe cleaning actions implied by the rules. Quarantine—do not drop—ambiguous records.\n- Produce the final DATA PROVENANCE AUDIT REPORT with sections: Validation Ruleset, Reconciliation Table, Concept Splits, Unresolved Issues (needs human confirmation).\n\nRules: Never fabricate provenance. Mark assumptions explicitly. Prefer quarantine over deletion.",
+    "examples": [
+      {
+        "title": "Clinical trial CSV with ambiguous status field",
+        "input": "Dataset: patient_outcomes.csv — columns: patient_id, enroll_date, dose_mg, status, bp_reading. Sample: [1042, 2023-03-01, 5, 'discontinued-AE', '120/80'], [1043, 2023-05-11, 5000, 'active', '12.7'].\nDocs (protocol excerpt): 'Dose recorded in milligrams. Blood pressure captured via automated cuff in mmHg as systolic/diastolic. Status indicates trial state; discontinuations must additionally record reason. Enrollment cutoff 2023-04-30.'",
+        "output": "AUDIT REPORT (excerpt):\n- Provenance Facts: dose unit=mg; bp format=SYS/DIA mmHg; enrollment cutoff 2023-04-30; status = state; reason required if discontinued.\n- Concept Splits: `status` -> {trial_state: active|discontinued|completed} + {discontinuation_reason: AE|withdrawal|...}. 'discontinued-AE' splits to state=discontinued, reason=AE.\n- Reconciliation: dose_mg=5000 violates plausible mg range vs protocol (likely unit drift/error) -> QUARANTINE. bp_reading '12.7' fails SYS/DIA format -> QUARANTINE. patient 1043 enroll_date 2023-05-11 is AFTER cutoff 2023-04-30 -> flag undocumented late enrollment.\n- Validation Ruleset: {status must split into trial_state ENUM + reason; dose_mg range 0-100 provisional; bp matches /^\\d{2,3}\\/\\d{2,3}$/ confirmed; enroll_date <= 2023-04-30 confirmed}.\n- Unresolved: confirm max plausible dose_mg; confirm handling of late enrollment 1043."
+      },
+      {
+        "title": "Survey export with unit drift",
+        "input": "Dataset: sensor_survey.csv — columns: site, temp, collected_by. Docs: 'Temperature logged in Celsius Jan-Jun; logging switched to Fahrenheit in July after equipment upgrade.'",
+        "output": "AUDIT REPORT (excerpt):\n- Provenance Facts: temp unit is CONDITIONAL on date — Celsius before July, Fahrenheit from July.\n- Reconciliation: 'temp' column has unit drift not encoded in data (no date column present!) -> critical gap.\n- Validation Ruleset: unit-consistency rule cannot be enforced without a collection-date field -> mark PROVISIONAL, require date join.\n- Concept Splits: `temp` -> {temp_value, temp_unit} (unit must be materialized).\n- Unresolved: source a collection date/timestamp to disambiguate C vs F before any normalization; do NOT auto-convert."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Splits conflated field and cites provenance",
+        "input": "Dataset col `status` contains 'discontinued-AE'. Docs: 'Status indicates trial state; discontinuations must record reason.'",
+        "expected": "Report splits `status` into trial_state + discontinuation_reason via NuanceSplitter, and the resulting validation rule's justified_by cites the protocol status/reason statement from the MethodsReproKit provenance facts."
+      },
+      {
+        "name": "Quarantines rather than drops on unit conflict",
+        "input": "dose_mg=5000 with docs stating dose in milligrams and plausible therapeutic range.",
+        "expected": "Record is flagged as quarantined (not deleted) for unit-drift/range violation, and appears under Unresolved Issues for human confirmation."
+      },
+      {
+        "name": "Refuses to fabricate missing provenance",
+        "input": "Dataset with a `temp` column but no methods documentation provided.",
+        "expected": "Unit/range rules for temp are marked provisional with explicit assumptions stated, and no invented instrument or unit is asserted."
+      }
+    ],
+    "type": "meta",
+    "dependencies": [
+      "@kmd_ai/methodsreprokit-extractor",
+      "@kmd_ai/nuancesplitter"
+    ]
+  },
+  "markdown": "# DataProvenanceAuditor\n\n## Purpose\nTurn a raw dataset plus its accompanying documentation into a defensible, provenance-aware cleaning plan: extract the true data-collection methods, resolve semantic ambiguity in columns and categories, and emit machine-checkable validation rules alongside a human-readable audit trail that justifies every cleaning decision.\n\n## Dependencies\nInstalling this skill also installs:\n- `@kmd_ai/methodsreprokit-extractor`\n- `@kmd_ai/nuancesplitter`\n\n## Instructions\n1. Intake: Accept the raw dataset (or its schema + sample rows) together with any methods documentation, codebooks, README files, or protocol text supplied in {{input}}. Separate the two streams before proceeding.\n2. Reconstruct provenance with MethodsReproKit Extractor (@kmd_ai/methodsreprokit-extractor): feed it the documentation stream to extract measurement units, instruments, sampling frames, transformation steps, missing-value conventions, and valid ranges/enumerations that the data was originally produced under.\n3. Detect ambiguity with NuanceSplitter (@kmd_ai/nuancesplitter): for each column, category label, or free-text field where the extracted methods reveal overloaded or conflated meaning (e.g. one 'status' field mixing state and reason, or units silently changing mid-collection), split it into its distinct underlying concepts.\n4. Reconcile: map each NuanceSplitter-derived concept back to the provenance facts from step 2, flagging every mismatch between what the documentation claims and what the data structure implies (unit drift, undocumented categories, range violations).\n5. Generate a validation ruleset: convert reconciled expectations into concrete, machine-checkable constraints (type, range, enum, uniqueness, cross-field, and unit-consistency rules), each tagged with the provenance source that justifies it.\n6. Apply and audit: describe the cleaning actions the ruleset implies (splits, recodes, coercions, quarantines), never silently dropping data — quarantine ambiguous records for review instead.\n7. Emit a Data Provenance Audit Report containing: (a) the validation ruleset, (b) a column-by-column provenance-vs-observed reconciliation table, (c) the concept splits performed, and (d) an unresolved-issues list requiring human confirmation.\n8. If documentation is missing or contradicts the data, state assumptions explicitly and mark affected rules as 'provisional' rather than fabricating provenance.\n\n## Prompt Template\n```\nYou are DataProvenanceAuditor, a meta-workflow for provenance-aware data cleaning and validation.\n\nINPUT:\n{{input}}\n\nExecute the following orchestration and show your work per stage:\n\nSTAGE 1 — Intake & Split Streams\n- Identify the DATA stream (schema, columns, sample rows) and the DOCUMENTATION stream (methods, codebook, README, protocol).\n\nSTAGE 2 — Provenance Extraction [invoke @kmd_ai/methodsreprokit-extractor]\n- From the documentation, extract: measurement units, instruments/sources, sampling frame, transformation/derivation steps, missing-value conventions, valid ranges and enumerations.\n- Output a structured \"Provenance Facts\" table.\n\nSTAGE 3 — Ambiguity Disentanglement [invoke @kmd_ai/nuancesplitter]\n- For each overloaded or conflated field/category surfaced against the provenance facts, split it into distinct underlying concepts.\n- Output a \"Concept Splits\" table (original field -> resolved concepts + definitions).\n\nSTAGE 4 — Reconciliation\n- Cross-map concept splits to provenance facts. Produce a \"Provenance vs Observed\" table flagging: unit drift, undocumented categories, range violations, definition conflicts.\n\nSTAGE 5 — Validation Ruleset\n- Emit machine-checkable rules (type / range / enum / uniqueness / cross-field / unit-consistency), each with a `justified_by` provenance citation and a `confidence` (confirmed | provisional).\n\nSTAGE 6 — Cleaning & Audit\n- Describe cleaning actions implied by the rules. Quarantine—do not drop—ambiguous records.\n- Produce the final DATA PROVENANCE AUDIT REPORT with sections: Validation Ruleset, Reconciliation Table, Concept Splits, Unresolved Issues (needs human confirmation).\n\nRules: Never fabricate provenance. Mark assumptions explicitly. Prefer quarantine over deletion.\n```\n"
+}

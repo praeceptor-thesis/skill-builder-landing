@@ -1,0 +1,66 @@
+{
+  "id": "deloadreset-microcycle-planner",
+  "name": "DeloadReset Microcycle Planner",
+  "description": "Turns a stalled strength lifter's recent training data and fatigue signals into a structured 1-week deload microcycle with exact set/rep/load prescriptions and a re-entry plan; use it when progress plateaus or fatigue accumulates.",
+  "category": "Healthcare",
+  "tags": [
+    "fitness",
+    "strength",
+    "deload",
+    "programming",
+    "recovery"
+  ],
+  "type": "basic",
+  "dependencies": [],
+  "spec": {
+    "name": "DeloadReset Microcycle Planner",
+    "description": "Turns a stalled strength lifter's recent training data and fatigue signals into a structured 1-week deload microcycle with exact set/rep/load prescriptions and a re-entry plan; use it when progress plateaus or fatigue accumulates.",
+    "category": "Healthcare",
+    "tags": [
+      "fitness",
+      "strength",
+      "deload",
+      "programming",
+      "recovery"
+    ],
+    "purpose": "Produce a copy-pasteable, evidence-informed 7-day deload week that reduces accumulated fatigue while preserving strength, then specifies exact loads to resume progression the following week.",
+    "instructions": [
+      "Parse the input for the lifter's main lifts, current working weights, recent stall/miss history, training frequency, and any fatigue or sleep/soreness signals; if a value is missing, apply the stated default and note the assumption.",
+      "Confirm a deload is warranted by checking for at least one trigger (2+ consecutive missed sessions on a lift, rising RPE at the same load, poor sleep/soreness, or a scheduled deload after 4-6 hard weeks); state the trigger you detected.",
+      "Choose a deload strategy: reduce volume by ~40-50% and intensity to ~60-70% of recent working load for compound lifts; keep 1-2 crisp top-back-off sets to maintain neural feel, and drop accessories to minimal maintenance.",
+      "Lay out each training day of the 7-day week with lift, sets x reps, exact load (lbs or kg matching input units), target RPE (cap at 6-7), and rest guidance; include full rest days.",
+      "Add a short recovery block: sleep target, protein target, light mobility/conditioning suggestion, and one clear warning sign to abort and rest fully.",
+      "Write a Re-Entry Plan for the following week specifying the exact resume load per main lift and the progression rule to break the plateau (e.g., smaller jumps, added back-off set, or rep target change).",
+      "Output in fixed sections with markdown headers: Deload Trigger, Weekly Schedule (as a table), Recovery Guidelines, Re-Entry Plan, and Assumptions; keep it copy-pasteable and unit-consistent.",
+      "Include a one-line disclaimer that this is general training guidance, not medical advice, and to stop if pain occurs."
+    ],
+    "promptTemplate": "You are the DeloadReset Microcycle Planner. Build a structured 7-day deload week for the lifter described below.\n\nLIFTER INPUT:\n{{input}}\n\nDEFAULTS IF MISSING:\n- Units: {{units}} (default: lbs)\n- Training days per week: {{days_per_week}} (default: 4)\n- Deload intensity: 65% of recent working load; Deload volume: ~50% of normal sets\n- RPE cap during deload: 6-7\n\nFollow these rules:\n1. Detect and state at least one deload trigger from the input.\n2. Reduce volume ~40-50% and intensity to 60-70% of recent working loads on main lifts; keep only 1-2 crisp back-off sets; minimize accessories.\n3. Cap all sets at RPE 6-7.\n4. Provide exact loads in {{units}}, rounded to the nearest {{rounding}} (default: 5 lbs / 2.5 kg).\n5. Give a Re-Entry Plan with exact resume loads and one concrete progression change to break the plateau.\n\nOUTPUT FORMAT (markdown, copy-pasteable):\n## Deload Trigger\n## Weekly Schedule\n| Day | Focus | Lift | Sets x Reps | Load | Target RPE | Rest |\n|-----|-------|------|-------------|------|-----------|------|\n## Recovery Guidelines\n## Re-Entry Plan (Next Week)\n## Assumptions\n_Disclaimer: General training guidance, not medical advice. Stop if you feel pain._",
+    "examples": [
+      {
+        "title": "Squat and bench stall, 4-day intermediate",
+        "input": "Intermediate lifter, 4 days/week. Squat working weight 315 lbs for 3x5 but missed last 2 sessions on the 3rd set. Bench 225x5 feeling grindy, RPE climbing. Deadlift 405x3 fine. Sleep has been ~5.5 hrs, knees sore. Units: lbs.",
+        "output": "## Deload Trigger\nTwo consecutive missed sessions on Squat's top set plus rising RPE on Bench and poor sleep (~5.5 hrs) with knee soreness — deload warranted.\n\n## Weekly Schedule\n| Day | Focus | Lift | Sets x Reps | Load | Target RPE | Rest |\n|-----|-------|------|-------------|------|-----------|------|\n| Mon | Lower | Squat | 3x5 | 205 lbs | 6 | 2-3 min |\n| Mon | Lower | Leg curl (light) | 2x10 | easy | 6 | 1 min |\n| Tue | Upper | Bench | 3x5 | 145 lbs | 6 | 2 min |\n| Tue | Upper | Row (light) | 2x10 | easy | 6 | 1 min |\n| Wed | Rest | — | — | — | — | full rest |\n| Thu | Lower | Deadlift | 2x3 | 265 lbs | 6 | 3 min |\n| Fri | Upper | Bench (back-off) | 2x5 | 145 lbs | 6 | 2 min |\n| Sat | Rest | — | — | — | — | full rest |\n| Sun | Rest | — | — | — | — | full rest |\n\n## Recovery Guidelines\n- Sleep target: 8+ hrs; prioritize a consistent bedtime this week.\n- Protein: ~0.8-1 g per lb bodyweight daily.\n- 15-20 min easy walk + hip/knee mobility on rest days.\n- Abort a session and rest fully if knee pain sharpens or RPE exceeds 7 at these light loads.\n\n## Re-Entry Plan (Next Week)\n- Squat: resume at 300 lbs for 3x5 (5 lbs below prior 315). Progression change: switch from 5 lb jumps to 5 lbs every 2 successful sessions and add 1 back-off set at 90%.\n- Bench: resume at 220 lbs for 3x5. Progression change: use 2.5 lb jumps; keep RPE <= 8.\n- Deadlift: resume 405x3 as before.\n\n## Assumptions\n- Units in lbs; loads rounded to nearest 5 lbs.\n- 4 training days/week retained.\n- Deload intensity ~65% of recent working loads.\n\n_Disclaimer: General training guidance, not medical advice. Stop if you feel pain._"
+      },
+      {
+        "title": "Kg lifter, scheduled deload after 5 hard weeks",
+        "input": "Lifter in kg, 3 days/week. 5 hard weeks done, feeling run down. Front squat 100kg 4x4, overhead press 60kg 4x5, deadlift 160kg 3x3. No misses but fatigue high. Units: kg.",
+        "output": "## Deload Trigger\nScheduled deload after 5 consecutive hard weeks with elevated systemic fatigue (\"run down\") — planned deload warranted.\n\n## Weekly Schedule\n| Day | Focus | Lift | Sets x Reps | Load | Target RPE | Rest |\n|-----|-------|------|-------------|------|-----------|------|\n| Mon | Full | Front Squat | 2x4 | 65 kg | 6 | 2-3 min |\n| Mon | Full | OHP | 2x5 | 40 kg | 6 | 2 min |\n| Wed | Pull | Deadlift | 2x3 | 105 kg | 6 | 3 min |\n| Wed | Pull | Lat pulldown (light) | 2x10 | easy | 6 | 1 min |\n| Fri | Full | Front Squat | 2x4 | 65 kg | 6 | 2-3 min |\n| Fri | Full | OHP | 1x5 | 40 kg | 6 | 2 min |\n| Tue/Thu/Sat/Sun | Rest | — | — | — | — | full rest |\n\n## Recovery Guidelines\n- Sleep target: 8-9 hrs this week.\n- Protein: ~1.6-2 g per kg bodyweight daily.\n- Light 20 min cardio or mobility on 1-2 rest days.\n- Abort and rest fully if fatigue worsens or motivation/appetite crashes.\n\n## Re-Entry Plan (Next Week)\n- Front Squat: resume 100kg 4x4. Progression: add 2.5kg only after all 16 reps hit at RPE <= 8.\n- OHP: resume 60kg 4x5. Progression: micro-load 1.25kg per week.\n- Deadlift: resume 160kg 3x3. Progression: add 5kg every 2 weeks.\n\n## Assumptions\n- Units in kg; loads rounded to nearest 2.5 kg.\n- 3 training days/week retained.\n- Deload intensity ~65% of recent working loads.\n\n_Disclaimer: General training guidance, not medical advice. Stop if you feel pain._"
+      }
+    ],
+    "tests": [
+      {
+        "name": "Reduces intensity and includes required sections",
+        "input": "Intermediate lifter, 4 days/week, lbs. Squat 315x3x5 missed last 2 sessions, bench 225x5 grindy, deadlift 405x3 fine, sleep 5.5 hrs, sore knees.",
+        "expected": "Output includes ## Deload Trigger citing the 2 missed squat sessions and/or poor sleep, a ## Weekly Schedule markdown table with squat load reduced to roughly 60-70% of 315 (~205-220 lbs) at RPE 6-7 with lower volume, ## Recovery Guidelines, a ## Re-Entry Plan with exact resume loads and a progression change, ## Assumptions, and the disclaimer line."
+      },
+      {
+        "name": "Respects kg units and rounding",
+        "input": "Lifter in kg, 3 days/week, scheduled deload after 5 hard weeks. Front squat 100kg 4x4, OHP 60kg 4x5, deadlift 160kg 3x3, feeling run down.",
+        "expected": "All loads are expressed in kg and rounded to the nearest 2.5 kg, deload loads are ~60-70% of the stated working weights at RPE 6-7 with reduced set counts, and the Re-Entry Plan states resume loads back at 100kg/60kg/160kg with a concrete progression change."
+      }
+    ],
+    "type": "basic",
+    "dependencies": []
+  },
+  "markdown": "# DeloadReset Microcycle Planner\n\n## Purpose\nProduce a copy-pasteable, evidence-informed 7-day deload week that reduces accumulated fatigue while preserving strength, then specifies exact loads to resume progression the following week.\n\n## Instructions\n1. Parse the input for the lifter's main lifts, current working weights, recent stall/miss history, training frequency, and any fatigue or sleep/soreness signals; if a value is missing, apply the stated default and note the assumption.\n2. Confirm a deload is warranted by checking for at least one trigger (2+ consecutive missed sessions on a lift, rising RPE at the same load, poor sleep/soreness, or a scheduled deload after 4-6 hard weeks); state the trigger you detected.\n3. Choose a deload strategy: reduce volume by ~40-50% and intensity to ~60-70% of recent working load for compound lifts; keep 1-2 crisp top-back-off sets to maintain neural feel, and drop accessories to minimal maintenance.\n4. Lay out each training day of the 7-day week with lift, sets x reps, exact load (lbs or kg matching input units), target RPE (cap at 6-7), and rest guidance; include full rest days.\n5. Add a short recovery block: sleep target, protein target, light mobility/conditioning suggestion, and one clear warning sign to abort and rest fully.\n6. Write a Re-Entry Plan for the following week specifying the exact resume load per main lift and the progression rule to break the plateau (e.g., smaller jumps, added back-off set, or rep target change).\n7. Output in fixed sections with markdown headers: Deload Trigger, Weekly Schedule (as a table), Recovery Guidelines, Re-Entry Plan, and Assumptions; keep it copy-pasteable and unit-consistent.\n8. Include a one-line disclaimer that this is general training guidance, not medical advice, and to stop if pain occurs.\n\n## Prompt Template\n```\nYou are the DeloadReset Microcycle Planner. Build a structured 7-day deload week for the lifter described below.\n\nLIFTER INPUT:\n{{input}}\n\nDEFAULTS IF MISSING:\n- Units: {{units}} (default: lbs)\n- Training days per week: {{days_per_week}} (default: 4)\n- Deload intensity: 65% of recent working load; Deload volume: ~50% of normal sets\n- RPE cap during deload: 6-7\n\nFollow these rules:\n1. Detect and state at least one deload trigger from the input.\n2. Reduce volume ~40-50% and intensity to 60-70% of recent working loads on main lifts; keep only 1-2 crisp back-off sets; minimize accessories.\n3. Cap all sets at RPE 6-7.\n4. Provide exact loads in {{units}}, rounded to the nearest {{rounding}} (default: 5 lbs / 2.5 kg).\n5. Give a Re-Entry Plan with exact resume loads and one concrete progression change to break the plateau.\n\nOUTPUT FORMAT (markdown, copy-pasteable):\n## Deload Trigger\n## Weekly Schedule\n| Day | Focus | Lift | Sets x Reps | Load | Target RPE | Rest |\n|-----|-------|------|-------------|------|-----------|------|\n## Recovery Guidelines\n## Re-Entry Plan (Next Week)\n## Assumptions\n_Disclaimer: General training guidance, not medical advice. Stop if you feel pain._\n```\n"
+}

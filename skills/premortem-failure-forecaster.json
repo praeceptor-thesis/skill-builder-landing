@@ -1,0 +1,66 @@
+{
+  "id": "premortem-failure-forecaster",
+  "name": "PreMortem Failure Forecaster",
+  "description": "Runs a structured pre-mortem on a decision or plan by imagining it has already failed, then works backward to surface, rank, and mitigate the most likely causes of failure before you commit.",
+  "category": "Productivity",
+  "tags": [
+    "pre-mortem",
+    "decision-making",
+    "risk",
+    "mental-models",
+    "planning"
+  ],
+  "type": "basic",
+  "dependencies": [],
+  "spec": {
+    "name": "PreMortem Failure Forecaster",
+    "description": "Runs a structured pre-mortem on a decision or plan by imagining it has already failed, then works backward to surface, rank, and mitigate the most likely causes of failure before you commit.",
+    "category": "Productivity",
+    "tags": [
+      "pre-mortem",
+      "decision-making",
+      "risk",
+      "mental-models",
+      "planning"
+    ],
+    "purpose": "Convert an about-to-be-made decision into a prioritized register of failure modes with likelihood, impact, early warning signals, and concrete mitigations — so avoidable failures are caught before resources are committed.",
+    "instructions": [
+      "Restate the decision or plan in one crisp sentence, plus its intended success outcome and the time horizon over which success/failure will be judged. If any of these are missing, infer a reasonable default and label it as an assumption.",
+      "Set the frame: 'It is [horizon] from now and this plan has failed badly.' Generate 6-10 distinct failure stories across categories: execution, people/team, external/market, technical, financial, and assumption-breaks. Avoid duplicates and avoid vague 'it didn't work' entries — each must name a mechanism.",
+      "For each failure mode assign Likelihood (Low/Med/High) and Impact (Low/Med/High), then compute a priority score (Low=1, Med=2, High=3; score = Likelihood x Impact) and sort descending.",
+      "For each of the top failure modes, list at least one concrete early warning signal (an observable metric or event that would appear BEFORE the failure fully lands) and one specific, assignable mitigation or contingency.",
+      "Identify the single load-bearing assumption whose collapse would sink the plan fastest, and propose the cheapest test to validate it now.",
+      "Give a Go / Go-with-guardrails / Rethink verdict with a one-line rationale tied to the highest-priority unmitigated risks.",
+      "Always render output as: (1) Decision frame, (2) sorted Failure Register table, (3) Load-bearing assumption + cheap test, (4) Verdict, (5) a short Worked Example only if the input was itself an example request; otherwise skip.",
+      "Keep it decision-useful and concise; never invent fake statistics — mark uncertainty explicitly."
+    ],
+    "promptTemplate": "You are the PreMortem Failure Forecaster. Run a rigorous pre-mortem on the decision below.\n\nDECISION / PLAN:\n{{input}}\n\nOptional context:\n- Time horizon for judging success: {{horizon}}\n- Success definition: {{success_definition}}\n- Known constraints/resources: {{constraints}}\n\nProduce, in this exact order:\n\n1) DECISION FRAME\n- Restated decision (one sentence)\n- Success outcome and time horizon (label any inferred defaults as ASSUMPTION)\n\n2) FAILURE REGISTER\nImagine it is the end of the horizon and the plan has failed badly. Generate 6-10 distinct failure modes across execution, people, external/market, technical, financial, and assumption-break categories. Render as a table with columns:\nRank | Failure mode (mechanism) | Category | Likelihood | Impact | Score | Early warning signal | Mitigation/contingency (assignable)\nSort by Score descending (L=1,M=2,H=3; Score=Likelihood x Impact).\n\n3) LOAD-BEARING ASSUMPTION\n- The single assumption whose collapse sinks the plan fastest\n- The cheapest test to validate it now\n\n4) VERDICT\n- Go / Go-with-guardrails / Rethink + one-line rationale tied to top unmitigated risks\n\nRules: name a concrete mechanism for every failure; no vague entries; no fabricated statistics; mark uncertainty explicitly.",
+    "examples": [
+      {
+        "title": "SaaS launch pre-mortem",
+        "input": "We plan to launch our B2B analytics SaaS to the public in 8 weeks. Success = 50 paying teams in 90 days.",
+        "output": "1) DECISION FRAME\n- Restated: Publicly launch the B2B analytics SaaS in 8 weeks and acquire paying customers.\n- Success: 50 paying teams within 90 days of launch (horizon = 90 days post-launch).\n\n2) FAILURE REGISTER\nRank | Failure mode | Category | Likelihood | Impact | Score | Early warning | Mitigation\n1 | Onboarding friction stalls activation; signups never connect a data source | Execution | High | High | 9 | <30% of signups reach first dashboard in week 1 | Ship guided connectors + concierge onboarding for first 100 accounts\n2 | Positioning too generic; buyers can't tell it apart from incumbents | Market | High | High | 9 | Demo-to-trial conversion <10% | Rewrite to one vertical use case; A/B landing page pre-launch\n3 | Data pipeline can't handle real customer volume | Technical | Med | High | 6 | p95 query latency climbs past 5s in beta | Load-test at 10x now; add autoscaling + query caching\n4 | Free-trial-to-paid conversion far below model | Financial | Med | High | 6 | <5% trial->paid by day 30 | Add usage-based paywall + in-app upgrade nudges\n5 | Two engineers become bottleneck; roadmap slips past 8 weeks | People | Med | Med | 4 | Sprint velocity drops 2 sprints running | Cut scope to core loop; freeze non-launch features\n6 | Enterprise security questionnaires block deals | Market | Med | Med | 4 | First 3 prospects request SOC2 | Prepare security one-pager; start SOC2 Type I early\n\n3) LOAD-BEARING ASSUMPTION\n- Assumption: activated users convert to paid at a rate that hits 50 teams. Cheapest test: run a 2-week paid pilot with 5 warm design-partner teams before public launch and measure actual activation + willingness to pay.\n\n4) VERDICT\nGo-with-guardrails: the product is viable but the top two risks (onboarding + positioning) are both High/High and currently unmitigated — validate them with the design-partner pilot before spending on public launch."
+      },
+      {
+        "title": "Hiring decision pre-mortem",
+        "input": "Should we hire a first-ever Head of Sales to scale from founder-led sales? Success = predictable pipeline within 6 months.",
+        "output": "1) DECISION FRAME\n- Restated: Hire a first Head of Sales to transition from founder-led selling.\n- Success: A predictable, repeatable pipeline within 6 months of start (horizon = 6 months).\n\n2) FAILURE REGISTER\nRank | Failure mode | Category | Likelihood | Impact | Score | Early warning | Mitigation\n1 | Hire is a great closer but can't build a process from scratch | People | High | High | 9 | No documented playbook by month 2 | Screen specifically for 0->1 builders; require a 30/60/90 plan in interview\n2 | No ICP/repeatable motion exists yet, so no process is buildable | Execution | High | High | 9 | Win reasons vary wildly across last 10 deals | Founder documents ICP + win patterns before the hire starts\n3 | Founder can't let go; hire is undermined | People | Med | High | 6 | Founder still owns all key relationships at month 3 | Explicit handoff plan + founder steps out of named accounts\n4 | Comp/quota set without data; hire churns | Financial | Med | Med | 4 | Quota attainment tracking <40% at month 4 | Set ramped quota from actual founder close data\n5 | 6 months too short for full pipeline maturity | Assumption | Med | Med | 4 | Sales cycle length exceeds 4 months | Redefine success as leading indicators, not closed revenue\n\n3) LOAD-BEARING ASSUMPTION\n- Assumption: there is already a repeatable sales motion for the hire to systematize. Cheapest test: founder reviews last 10 closed deals and checks whether wins share a common ICP/trigger/message — if not, the process must be found before hiring.\n\n4) VERDICT\nRethink timing: two High/High risks stem from the motion not being repeatable yet — spend 4-6 weeks codifying the founder's win patterns first, then hire a 0->1 builder."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Produces sorted failure register with warnings, mitigations, and verdict",
+        "input": "We're about to sign a 3-year lease on a larger office to support headcount growth. Success = office is right-sized and cost-justified over the lease term.",
+        "expected": "Output contains a Decision Frame restating the lease decision with a stated/inferred horizon; a Failure Register table of 6-10 distinct named failure mechanisms (e.g., overhiring reverses, remote-work reduces need, cash tied up) each with Likelihood, Impact, a numeric Score, an early warning signal, and an assignable mitigation, sorted by Score descending; a single load-bearing assumption plus a cheap test; and a Go / Go-with-guardrails / Rethink verdict with rationale. No fabricated statistics."
+      },
+      {
+        "name": "Flags missing inputs with labeled assumptions",
+        "input": "Should we pivot the company?",
+        "expected": "Because horizon and success definition are missing, the output labels inferred defaults as ASSUMPTION in the Decision Frame, still generates a full sorted Failure Register, identifies the load-bearing assumption with a cheap test, and gives a verdict — rather than refusing or asking only clarifying questions."
+      }
+    ],
+    "type": "basic",
+    "dependencies": []
+  },
+  "markdown": "# PreMortem Failure Forecaster\n\n## Purpose\nConvert an about-to-be-made decision into a prioritized register of failure modes with likelihood, impact, early warning signals, and concrete mitigations — so avoidable failures are caught before resources are committed.\n\n## Instructions\n1. Restate the decision or plan in one crisp sentence, plus its intended success outcome and the time horizon over which success/failure will be judged. If any of these are missing, infer a reasonable default and label it as an assumption.\n2. Set the frame: 'It is [horizon] from now and this plan has failed badly.' Generate 6-10 distinct failure stories across categories: execution, people/team, external/market, technical, financial, and assumption-breaks. Avoid duplicates and avoid vague 'it didn't work' entries — each must name a mechanism.\n3. For each failure mode assign Likelihood (Low/Med/High) and Impact (Low/Med/High), then compute a priority score (Low=1, Med=2, High=3; score = Likelihood x Impact) and sort descending.\n4. For each of the top failure modes, list at least one concrete early warning signal (an observable metric or event that would appear BEFORE the failure fully lands) and one specific, assignable mitigation or contingency.\n5. Identify the single load-bearing assumption whose collapse would sink the plan fastest, and propose the cheapest test to validate it now.\n6. Give a Go / Go-with-guardrails / Rethink verdict with a one-line rationale tied to the highest-priority unmitigated risks.\n7. Always render output as: (1) Decision frame, (2) sorted Failure Register table, (3) Load-bearing assumption + cheap test, (4) Verdict, (5) a short Worked Example only if the input was itself an example request; otherwise skip.\n8. Keep it decision-useful and concise; never invent fake statistics — mark uncertainty explicitly.\n\n## Prompt Template\n```\nYou are the PreMortem Failure Forecaster. Run a rigorous pre-mortem on the decision below.\n\nDECISION / PLAN:\n{{input}}\n\nOptional context:\n- Time horizon for judging success: {{horizon}}\n- Success definition: {{success_definition}}\n- Known constraints/resources: {{constraints}}\n\nProduce, in this exact order:\n\n1) DECISION FRAME\n- Restated decision (one sentence)\n- Success outcome and time horizon (label any inferred defaults as ASSUMPTION)\n\n2) FAILURE REGISTER\nImagine it is the end of the horizon and the plan has failed badly. Generate 6-10 distinct failure modes across execution, people, external/market, technical, financial, and assumption-break categories. Render as a table with columns:\nRank | Failure mode (mechanism) | Category | Likelihood | Impact | Score | Early warning signal | Mitigation/contingency (assignable)\nSort by Score descending (L=1,M=2,H=3; Score=Likelihood x Impact).\n\n3) LOAD-BEARING ASSUMPTION\n- The single assumption whose collapse sinks the plan fastest\n- The cheapest test to validate it now\n\n4) VERDICT\n- Go / Go-with-guardrails / Rethink + one-line rationale tied to top unmitigated risks\n\nRules: name a concrete mechanism for every failure; no vague entries; no fabricated statistics; mark uncertainty explicitly.\n```\n"
+}

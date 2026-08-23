@@ -1,0 +1,65 @@
+{
+  "id": "categoryvalueharmonizer",
+  "name": "CategoryValueHarmonizer",
+  "description": "Detects and reconciles inconsistent categorical values in a dataset column (typos, aliases, casing, abbreviations) into a canonical set, producing a mapping table plus cleaned values and a review flag for uncertain cases.",
+  "category": "Data",
+  "tags": [
+    "data-cleaning",
+    "categorical",
+    "standardization",
+    "deduplication",
+    "validation"
+  ],
+  "type": "basic",
+  "dependencies": [],
+  "spec": {
+    "name": "CategoryValueHarmonizer",
+    "description": "Detects and reconciles inconsistent categorical values in a dataset column (typos, aliases, casing, abbreviations) into a canonical set, producing a mapping table plus cleaned values and a review flag for uncertain cases.",
+    "category": "Data",
+    "tags": [
+      "data-cleaning",
+      "categorical",
+      "standardization",
+      "deduplication",
+      "validation"
+    ],
+    "purpose": "Turn a messy list of free-text categorical entries into a consistent, deduplicated canonical vocabulary with a transparent, auditable value-to-canonical mapping so downstream aggregation, joins, and reporting are accurate.",
+    "instructions": [
+      "Read the raw distinct values (with counts if provided) and, if supplied, the optional canonical list; if no canonical list is given, derive one from the most frequent / most complete spellings.",
+      "Cluster values that refer to the same concept by normalizing casing, whitespace, punctuation, common abbreviations, and detecting typos and known aliases.",
+      "For each cluster, choose one canonical label (prefer an explicit canonical-list match, else the most frequent well-formed variant) and record the reasoning.",
+      "Assign a confidence level (high / medium / low) to each mapping based on string similarity and semantic certainty; mark medium and low mappings with needs_review = true.",
+      "Never silently merge values you are unsure about — output ambiguous or unrecognized values under a separate 'unmatched / review' section instead of guessing.",
+      "Return a mapping table (raw_value → canonical_value, confidence, needs_review, reason), a list of the final canonical vocabulary, and a short summary (counts of merged, unchanged, flagged).",
+      "Include one concise worked example in the output showing a few raw values collapsing into canonicals, so the user can verify the logic before applying it."
+    ],
+    "promptTemplate": "You are CategoryValueHarmonizer, a data-cleaning specialist for categorical columns.\n\nCOLUMN NAME: {{column_name}}\nCANONICAL LIST (optional, may be empty): {{canonical_list}}\nRAW DISTINCT VALUES (optionally with counts):\n{{input}}\n\nTask:\n1. Cluster raw values that mean the same thing (normalize case, whitespace, punctuation, abbreviations; detect typos and aliases).\n2. Pick one canonical label per cluster. If a canonical list is provided, map to it; otherwise derive canonicals from the cleanest/most frequent variants.\n3. Assign confidence (high/medium/low). Set needs_review=true for medium/low or any ambiguous mapping. Do NOT guess-merge low-confidence values — place truly ambiguous ones under \"Unmatched / Review\".\n\nOutput in this exact structure:\n\n### Summary\n- Raw distinct values: N | Canonical values: M | Merged: X | Unchanged: Y | Flagged for review: Z\n\n### Canonical Vocabulary\n- <list of final canonical values>\n\n### Mapping Table\n| raw_value | canonical_value | confidence | needs_review | reason |\n|-----------|-----------------|------------|--------------|--------|\n| ...       | ...             | ...        | ...          | ...    |\n\n### Unmatched / Review\n- <values you could not confidently map, with a note>\n\n### Worked Example\n<Show 2-3 raw values collapsing into a canonical, with a one-line explanation of the logic used.>",
+    "examples": [
+      {
+        "title": "Country column with abbreviations and typos",
+        "input": "column_name: country\ncanonical_list: (empty)\nraw values:\nUSA (120)\nUnited States (95)\nU.S.A. (14)\nunited states of america (7)\nUnted States (2)\nUK (60)\nUnited Kingdom (33)\nGermany (40)\ngermny (1)\nDeutschland (3)",
+        "output": "### Summary\n- Raw distinct values: 10 | Canonical values: 4 | Merged: 6 | Unchanged: 0 | Flagged for review: 1\n\n### Canonical Vocabulary\n- United States\n- United Kingdom\n- Germany\n\n### Mapping Table\n| raw_value | canonical_value | confidence | needs_review | reason |\n|-----------|-----------------|------------|--------------|--------|\n| USA | United States | high | false | Common abbreviation |\n| United States | United States | high | false | Exact canonical |\n| U.S.A. | United States | high | false | Punctuation variant of USA |\n| united states of america | United States | high | false | Full-form alias, casing normalized |\n| Unted States | United States | high | false | Typo (edit distance 1) |\n| UK | United Kingdom | high | false | Common abbreviation |\n| United Kingdom | United Kingdom | high | false | Exact canonical |\n| Germany | Germany | high | false | Exact canonical |\n| germny | Germany | high | false | Typo (missing 'a') |\n| Deutschland | Germany | medium | true | Endonym alias; confirm English-label policy |\n\n### Unmatched / Review\n- 'Deutschland' mapped to Germany at medium confidence — confirm whether native-language names should be normalized to English labels.\n\n### Worked Example\nRaw 'U.S.A.' (120+95+14+7+2 across variants) → canonical 'United States'. Logic: strip punctuation and lowercase → 'usa'; matches the abbreviation alias set for the most frequent full form 'United States'."
+      },
+      {
+        "title": "Product status with casing and spacing chaos",
+        "input": "column_name: order_status\ncanonical_list: Pending, Shipped, Delivered, Cancelled\nraw values:\nPENDING\npending \nShipped\nshipped\nDeliverd\nDelivered\nCancelled\ncanceled\nIn Transit",
+        "output": "### Summary\n- Raw distinct values: 9 | Canonical values: 4 (+1 review) | Merged: 8 | Unchanged: 0 | Flagged for review: 2\n\n### Canonical Vocabulary\n- Pending\n- Shipped\n- Delivered\n- Cancelled\n\n### Mapping Table\n| raw_value | canonical_value | confidence | needs_review | reason |\n|-----------|-----------------|------------|--------------|--------|\n| PENDING | Pending | high | false | Casing normalized to canonical |\n| pending  | Pending | high | false | Trailing whitespace + casing |\n| Shipped | Shipped | high | false | Exact canonical |\n| shipped | Shipped | high | false | Casing normalized |\n| Deliverd | Delivered | high | false | Typo (edit distance 1) |\n| Delivered | Delivered | high | false | Exact canonical |\n| Cancelled | Cancelled | high | false | Exact canonical |\n| canceled | Cancelled | high | false | US spelling variant |\n| In Transit | (unmatched) | low | true | Not in canonical list; see review |\n\n### Unmatched / Review\n- 'In Transit' is not in the provided canonical list. It likely represents a distinct status between Shipped and Delivered — decide whether to add it to the canonical set or map it to 'Shipped'.\n\n### Worked Example\nRaw 'canceled' → canonical 'Cancelled'. Logic: lowercase both → 'canceled' vs 'cancelled'; single-letter difference is a known US/UK spelling variant, so map to the canonical-list spelling."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Flags out-of-vocabulary value instead of guessing",
+        "input": "column_name: order_status\ncanonical_list: Pending, Shipped, Delivered, Cancelled\nraw values:\nPending\nShipped\nReturned",
+        "expected": "Pending and Shipped map to their exact canonicals with high confidence and needs_review=false; 'Returned' appears under 'Unmatched / Review' (not silently merged) with a note asking whether to add it to the canonical set. Output includes Summary, Canonical Vocabulary, Mapping Table, Unmatched/Review, and a Worked Example section."
+      },
+      {
+        "name": "Merges typos and casing without a supplied canonical list",
+        "input": "column_name: city\ncanonical_list: (empty)\nraw values:\nNew York (50)\nnew york (10)\nNewYork (3)\nNew Yrok (1)",
+        "expected": "All four variants collapse to a single canonical 'New York' (derived as the most frequent well-formed variant). Casing and spacing variants are high confidence; 'New Yrok' is flagged as a typo (edit distance 1) with high confidence needs_review=false, or medium if similarity is borderline. Summary reports 1 canonical value and 3 merged."
+      }
+    ],
+    "type": "basic",
+    "dependencies": []
+  },
+  "markdown": "# CategoryValueHarmonizer\n\n## Purpose\nTurn a messy list of free-text categorical entries into a consistent, deduplicated canonical vocabulary with a transparent, auditable value-to-canonical mapping so downstream aggregation, joins, and reporting are accurate.\n\n## Instructions\n1. Read the raw distinct values (with counts if provided) and, if supplied, the optional canonical list; if no canonical list is given, derive one from the most frequent / most complete spellings.\n2. Cluster values that refer to the same concept by normalizing casing, whitespace, punctuation, common abbreviations, and detecting typos and known aliases.\n3. For each cluster, choose one canonical label (prefer an explicit canonical-list match, else the most frequent well-formed variant) and record the reasoning.\n4. Assign a confidence level (high / medium / low) to each mapping based on string similarity and semantic certainty; mark medium and low mappings with needs_review = true.\n5. Never silently merge values you are unsure about — output ambiguous or unrecognized values under a separate 'unmatched / review' section instead of guessing.\n6. Return a mapping table (raw_value → canonical_value, confidence, needs_review, reason), a list of the final canonical vocabulary, and a short summary (counts of merged, unchanged, flagged).\n7. Include one concise worked example in the output showing a few raw values collapsing into canonicals, so the user can verify the logic before applying it.\n\n## Prompt Template\n```\nYou are CategoryValueHarmonizer, a data-cleaning specialist for categorical columns.\n\nCOLUMN NAME: {{column_name}}\nCANONICAL LIST (optional, may be empty): {{canonical_list}}\nRAW DISTINCT VALUES (optionally with counts):\n{{input}}\n\nTask:\n1. Cluster raw values that mean the same thing (normalize case, whitespace, punctuation, abbreviations; detect typos and aliases).\n2. Pick one canonical label per cluster. If a canonical list is provided, map to it; otherwise derive canonicals from the cleanest/most frequent variants.\n3. Assign confidence (high/medium/low). Set needs_review=true for medium/low or any ambiguous mapping. Do NOT guess-merge low-confidence values — place truly ambiguous ones under \"Unmatched / Review\".\n\nOutput in this exact structure:\n\n### Summary\n- Raw distinct values: N | Canonical values: M | Merged: X | Unchanged: Y | Flagged for review: Z\n\n### Canonical Vocabulary\n- <list of final canonical values>\n\n### Mapping Table\n| raw_value | canonical_value | confidence | needs_review | reason |\n|-----------|-----------------|------------|--------------|--------|\n| ...       | ...             | ...        | ...          | ...    |\n\n### Unmatched / Review\n- <values you could not confidently map, with a note>\n\n### Worked Example\n<Show 2-3 raw values collapsing into a canonical, with a one-line explanation of the logic used.>\n```\n"
+}

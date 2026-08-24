@@ -92,23 +92,33 @@ jobs:
       # buried in a terraform plan. The token is checked exactly as stored
       # (no trimming): a trailing newline from a careless paste is a real
       # failure this exists to catch.
+      #
+      # CLOUDFLARE_API_TOKEN is injected from the ORGANIZATION's secrets:
+      # `secrets.<name>` resolves the org secret when this repository is in
+      # its access list and no repository-level secret of the same name
+      # shadows it. Do not create a repo-level copy — a stale shadow serving
+      # a dead token while the org holds a good one is the exact failure
+      # that motivated this step.
       - name: Cloudflare token preflight
         env:
           CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
           set -euo pipefail
           if [ -z "$CF_TOKEN" ]; then
-            echo "::error title=CLOUDFLARE_API_TOKEN::repository secret is not set"
+            echo "::error title=CLOUDFLARE_API_TOKEN::secret resolved empty — grant this repository access to the organization secret (org Settings -> Secrets and variables -> Actions -> CLOUDFLARE_API_TOKEN -> Repository access)"
             exit 1
           fi
-          body=$(curl -sS --max-time 30             -H "Authorization: Bearer $CF_TOKEN"             -H "Content-Type: application/json"             https://api.cloudflare.com/client/v4/user/tokens/verify) || {
+          body=$(curl -sS --max-time 30 \
+            -H "Authorization: Bearer $CF_TOKEN" \
+            -H "Content-Type: application/json" \
+            https://api.cloudflare.com/client/v4/user/tokens/verify) || {
             echo "::error title=CLOUDFLARE_API_TOKEN::tokens/verify request failed (network/curl error)"
             exit 1
           }
           success=$(echo "$body" | jq -r '.success')
           status=$(echo "$body" | jq -r '.result.status // "unknown"')
           if [ "$success" != "true" ] || [ "$status" != "active" ]; then
-            echo "::error title=CLOUDFLARE_API_TOKEN::token failed verification (status: $status) — rotate the repository secret. Mint an account token with Zone:Zone:Read, Zone:Workers Routes:Edit, Zone:DNS:Edit on dmzagent.com plus Account:Workers KV Storage:Edit, Account:Workers Scripts:Edit, Account:Cloudflare Pages:Edit, and verify it with uni's ops/preflight-cf-token.sh before writing it."
+            echo "::error title=CLOUDFLARE_API_TOKEN::token failed verification (status: $status). The value comes from the ORG secret unless a stale repository-level CLOUDFLARE_API_TOKEN shadows it — delete any repo-level copy in this repo's Actions secrets first, and rotate the org secret only if it is itself dead: mint an account token with Zone:Zone:Read, Zone:Workers Routes:Edit, Zone:DNS:Edit on dmzagent.com plus Account:Workers KV Storage:Edit, Account:Workers Scripts:Edit, Account:Cloudflare Pages:Edit, verified with uni's ops/preflight-cf-token.sh before writing."
             echo "$body" | jq -c '.errors' || true
             exit 1
           fi

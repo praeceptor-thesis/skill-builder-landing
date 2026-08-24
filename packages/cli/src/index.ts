@@ -94,10 +94,17 @@ cli
     default: 'https://skills.dmzagent.com/api',
   })
   .option('-t, --token <token>', 'Auth token for registry')
+  .option('--visibility <visibility>', 'public, private, or draft (default: registry default — public for CLI publishes)')
   .action(async (skillPath, options) => {
     const registry = options.registry as string;
     const client = createApiClient(registry);
     if (options.token) client.setToken(options.token as string);
+
+    const visibility = options.visibility as string | undefined;
+    if (visibility && !['public', 'private', 'draft'].includes(visibility)) {
+      console.error('Visibility must be one of: public, private, draft');
+      process.exit(1);
+    }
 
     console.log(`Publishing skill from ${skillPath} to ${registry}`);
 
@@ -141,6 +148,9 @@ cli
 
       if (!skill.id || !skill.name) {
         throw new Error('Skill must have id and name');
+      }
+      if (visibility) {
+        skill.visibility = visibility as SkillPayload['visibility'];
       }
 
       console.log('Packaging skill manifest...');

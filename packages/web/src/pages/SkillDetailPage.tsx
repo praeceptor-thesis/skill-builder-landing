@@ -504,26 +504,44 @@ export default function SkillDetailPage() {
                 <div className="rounded-2xl border border-red-200 bg-red-50 p-6">
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-red-500">Danger Zone</h3>
                   <div className="mt-4 space-y-4">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-4">
                       <div>
                         <p className="text-sm font-medium text-stone-800">Visibility</p>
-                        <p className="text-xs text-stone-500">{skill.visibility === 'draft' ? 'Only you can see this skill' : 'Anyone can find and install this skill'}</p>
+                        <p className="text-xs text-stone-500">
+                          {skill.visibility === 'draft'
+                            ? 'Draft — only you can see this skill'
+                            : skill.visibility === 'private'
+                              ? 'Private — only you can see and install this skill'
+                              : 'Public — anyone can find and install this skill'}
+                        </p>
                       </div>
-                      <button
-                        onClick={async () => {
-                          setUpdatingVis(true);
-                          try {
-                            const toggled = skill.visibility === 'draft' ? 'public' : 'draft';
-                            const res = await updateSkillVisibility(skill.id, toggled);
-                            setSkill(res.skill);
-                          } catch {}
-                          setUpdatingVis(false);
-                        }}
-                        disabled={updatingVis}
-                        className="rounded-full border border-red-300 bg-white px-4 py-1.5 text-xs font-medium text-stone-700 transition hover:border-red-500 hover:text-red-600 disabled:opacity-50"
-                      >
-                        {updatingVis ? '...' : skill.visibility === 'draft' ? 'Publish' : 'Set to Draft'}
-                      </button>
+                      <div className="flex items-center gap-1">
+                        {(['public', 'private', 'draft'] as const).map((option) => {
+                          const current = (skill.visibility ?? 'public') === option;
+                          return (
+                            <button
+                              key={option}
+                              onClick={async () => {
+                                if (current) return;
+                                setUpdatingVis(true);
+                                try {
+                                  const res = await updateSkillVisibility(skill.id, option);
+                                  setSkill(res.skill);
+                                } catch {}
+                                setUpdatingVis(false);
+                              }}
+                              disabled={updatingVis}
+                              className={`rounded-full border px-3 py-1.5 text-xs font-medium capitalize transition disabled:opacity-50 ${
+                                current
+                                  ? 'border-red-500 bg-red-500 text-white'
+                                  : 'border-red-300 bg-white text-stone-700 hover:border-red-500 hover:text-red-600'
+                              }`}
+                            >
+                              {updatingVis && !current ? '...' : option}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
                     <div className="flex items-center justify-between">
                       <div>

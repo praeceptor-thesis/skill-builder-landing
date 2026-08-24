@@ -6,7 +6,8 @@
   "main": "skill-persistence-worker.js",
   "scripts": {
     "dev": "wrangler dev skill-persistence-worker.js --remote",
-    "deploy": "wrangler deploy"
+    "deploy": "wrangler deploy",
+    "test": "node --test test/*.test.mjs"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260613.1",

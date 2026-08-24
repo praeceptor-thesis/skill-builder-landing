@@ -38,6 +38,16 @@ export interface SkillArtifacts {
   markdown: string;
 }
 
+/**
+ * Who can see a skill. 'public' is world-readable; 'draft' (unfinished) and
+ * 'private' (finished, deliberately restricted) are owner-only across every
+ * read path — list, fetch, suggest, taxonomy, fork, execute. Skills published
+ * from DMZAgent for agent orchestration (source: 'dmzagent-orchestration')
+ * are created private; making one public is an explicit act via
+ * PATCH /api/skills/:id/visibility, never a publish side effect.
+ */
+export type SkillVisibility = 'public' | 'draft' | 'private';
+
 export interface Skill {
   id: string;
   name: string;
@@ -59,6 +69,9 @@ export interface Skill {
   downloads: number;
   type?: SkillType;
   dependencies?: string[];
+  visibility?: SkillVisibility;
+  /** Provenance of the publish, e.g. 'dmzagent-orchestration'. */
+  source?: string;
 }
 
 export type SkillPayload = {
@@ -73,6 +86,8 @@ export type SkillPayload = {
   forkedFrom?: string;
   type?: SkillType;
   dependencies?: string[];
+  visibility?: SkillVisibility;
+  source?: string;
 };
 
 export interface TaxonomyFacet {

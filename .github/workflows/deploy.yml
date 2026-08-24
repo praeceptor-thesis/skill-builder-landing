@@ -19,6 +19,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      # The registry worker's visibility enforcement suite (node --test, no
+      # deps). Runs before any plan/apply so a change that would leak a
+      # private or draft skill never reaches a deploy.
+      - name: Worker tests
+        run: npm test --prefix worker
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:

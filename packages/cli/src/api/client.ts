@@ -45,7 +45,16 @@ export type Skill = {
   downloads: number;
   type?: SkillType;
   dependencies?: string[];
+  visibility?: SkillVisibility;
+  source?: string;
 };
+
+/**
+ * 'public' is world-readable; 'draft' and 'private' are owner-only. Skills
+ * published from DMZAgent for agent orchestration land private by default —
+ * public is an explicit act, not a publish side effect.
+ */
+export type SkillVisibility = 'public' | 'draft' | 'private';
 
 export type SkillPayload = {
   id: string;
@@ -63,6 +72,8 @@ export type SkillPayload = {
   author?: { id: string; name: string };
   type?: SkillType;
   dependencies?: string[];
+  visibility?: SkillVisibility;
+  source?: string;
 };
 
 export type TaxonomyFacet = { value: string; label?: string; count: number };

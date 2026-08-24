@@ -84,6 +84,36 @@ jobs:
         env:
           VITE_SKILL_API_URL: https://skills.dmzagent.com/api
 
+      # The house preflight (see uni's ops/preflight-cf-token.sh and
+      # monitor-cf-token.yml): verify the token against
+      # /user/tokens/verify BEFORE terraform touches it, so a dead or
+      # corrupted CLOUDFLARE_API_TOKEN fails here with one named line and
+      # the exact fix — not as three "failed to make http request" errors
+      # buried in a terraform plan. The token is checked exactly as stored
+      # (no trimming): a trailing newline from a careless paste is a real
+      # failure this exists to catch.
+      - name: Cloudflare token preflight
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "$CF_TOKEN" ]; then
+            echo "::error title=CLOUDFLARE_API_TOKEN::repository secret is not set"
+            exit 1
+          fi
+          body=$(curl -sS --max-time 30             -H "Authorization: Bearer $CF_TOKEN"             -H "Content-Type: application/json"             https://api.cloudflare.com/client/v4/user/tokens/verify) || {
+            echo "::error title=CLOUDFLARE_API_TOKEN::tokens/verify request failed (network/curl error)"
+            exit 1
+          }
+          success=$(echo "$body" | jq -r '.success')
+          status=$(echo "$body" | jq -r '.result.status // "unknown"')
+          if [ "$success" != "true" ] || [ "$status" != "active" ]; then
+            echo "::error title=CLOUDFLARE_API_TOKEN::token failed verification (status: $status) — rotate the repository secret. Mint an account token with Zone:Zone:Read, Zone:Workers Routes:Edit, Zone:DNS:Edit on dmzagent.com plus Account:Workers KV Storage:Edit, Account:Workers Scripts:Edit, Account:Cloudflare Pages:Edit, and verify it with uni's ops/preflight-cf-token.sh before writing it."
+            echo "$body" | jq -c '.errors' || true
+            exit 1
+          fi
+          echo "token verified: active"
+
       - name: Terraform init
         run: terraform init
         working-directory: ./terraform

@@ -1,0 +1,66 @@
+{
+  "id": "refundmacrodecider",
+  "name": "RefundMacroDecider",
+  "description": "Drafts a policy-compliant refund/return support reply by first checking whether the refund is even eligible, and asking targeted clarifying questions when order details, timing, or reason are missing.",
+  "category": "Support",
+  "tags": [
+    "support",
+    "refunds",
+    "macros",
+    "policy",
+    "clarifying-questions"
+  ],
+  "type": "basic",
+  "dependencies": [],
+  "spec": {
+    "name": "RefundMacroDecider",
+    "description": "Drafts a policy-compliant refund/return support reply by first checking whether the refund is even eligible, and asking targeted clarifying questions when order details, timing, or reason are missing.",
+    "category": "Support",
+    "tags": [
+      "support",
+      "refunds",
+      "macros",
+      "policy",
+      "clarifying-questions"
+    ],
+    "purpose": "Produce a ready-to-send customer support reply about a refund, return, or exchange that matches company policy, states the outcome (approve/partial/deny), and includes next steps — or, when the request is ambiguous, produces a short set of clarifying questions instead of guessing.",
+    "instructions": [
+      "Parse the customer message and any attached policy for the six critical fields: order ID, purchase/delivery date, product condition, reason for refund, refund method requested, and amount. Note which are present.",
+      "If any field required to make an eligibility decision is missing OR the request is contradictory, DO NOT draft a final reply — instead output a CLARIFY block with 1-3 specific, numbered questions and stop.",
+      "When all needed fields are present, compare against the provided {{policy}} (or stated defaults) to classify the outcome as APPROVE, PARTIAL, or DENY, and state the exact reasoning tied to a policy clause.",
+      "Draft the reply in the specified {{tone}} (default: warm and professional): open with acknowledgment, state the decision plainly, give the concrete next steps and timelines, and close with an offer to help further.",
+      "Never invent policy terms, dollar amounts, or timelines not present in the input; if a value is unknown, use a bracketed placeholder like [refund processing time].",
+      "For DENY or PARTIAL outcomes, always include one goodwill alternative (store credit, exchange, discount) when policy permits, and phrase the denial without blaming the customer.",
+      "Output in three labeled sections: DECISION (one line), REPLY (send-ready text), and INTERNAL NOTE (agent-only rationale and any flags for escalation).",
+      "Flag for human escalation when the amount exceeds {{escalation_threshold}}, fraud is suspected, or the customer is threatening chargeback/legal action."
+    ],
+    "promptTemplate": "You are a customer support specialist drafting refund/return replies.\n\nPOLICY:\n{{policy}}\n\nTONE: {{tone}}\nESCALATION THRESHOLD: {{escalation_threshold}}\n\nCUSTOMER MESSAGE & ORDER CONTEXT:\n{{input}}\n\nSTEP 1 — Extract these fields and mark present/missing: order ID, purchase/delivery date, product condition, refund reason, requested refund method, amount.\n\nSTEP 2 — If any field needed for a decision is missing, or the message is contradictory, respond ONLY with:\nCLARIFY:\n1. <specific question>\n2. <specific question (if needed)>\nAnd stop.\n\nSTEP 3 — If sufficient info exists, respond with:\nDECISION: <APPROVE | PARTIAL | DENY> — <one-line policy-tied reason>\nREPLY:\n<send-ready customer reply in the specified tone, with concrete next steps and timelines; use [bracketed placeholders] for any unknown values; include a goodwill alternative for PARTIAL/DENY when policy allows>\nINTERNAL NOTE:\n<rationale, policy clause referenced, and ESCALATE flag if amount > threshold, fraud suspected, or legal/chargeback threat>\n\nDo not invent policy terms, amounts, or timelines not given.",
+    "examples": [
+      {
+        "title": "Ambiguous request triggers clarifying questions",
+        "input": "POLICY: 30-day returns for unopened items; opened items eligible for store credit only. TONE: warm. THRESHOLD: $200. MESSAGE: 'I want my money back for the blender, it didn't work out.'",
+        "output": "CLARIFY:\n1. Could you share your order number or the email used at checkout so I can locate the purchase?\n2. When did you receive the blender, and is it still unopened/unused?\n3. Just to confirm — are you hoping for a refund to your original payment method, or would store credit work?"
+      },
+      {
+        "title": "Complete info, partial refund per policy",
+        "input": "POLICY: 30-day returns for unopened items; opened items = store credit only. TONE: warm. THRESHOLD: $200. MESSAGE: 'Order #A7731, delivered 12 days ago. Opened the headphones and tried them but the fit is uncomfortable. Paid $89, want a refund to my card.'",
+        "output": "DECISION: PARTIAL — Item opened/used within 30 days; policy allows store credit only for opened items, not card refund.\nREPLY:\nHi there, thanks for reaching out about your headphones from order #A7731, and sorry the fit wasn't comfortable! Since the headphones have been opened and used, our policy doesn't allow a refund to your original card, but I'd be glad to set you up with $89 in store credit that never expires — you can put it toward a different pair or anything else you like. If you'd prefer, I can also send a prepaid return label so you can send these back before we issue the credit. Just let me know which you'd like and I'll take care of it right away!\nINTERNAL NOTE: Opened item, within 30-day window, $89 < $200 threshold — no escalation. Policy clause: opened items store-credit only. Store credit offered as goodwill alternative."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Missing order ID and date forces clarify, not a decision",
+        "input": "POLICY: 30-day full refund on unused items. TONE: professional. THRESHOLD: $200. MESSAGE: 'This thing broke, refund me.'",
+        "expected": "Output begins with CLARIFY: and asks for at least the order identifier and purchase/delivery date; no DECISION line is produced."
+      },
+      {
+        "name": "High-value complete request is approved and escalated",
+        "input": "POLICY: 30-day full refund on unused items. TONE: warm. THRESHOLD: $200. MESSAGE: 'Order #Z900, delivered 5 days ago, unopened. Item was $349, please refund my card.'",
+        "expected": "DECISION: APPROVE with policy reason; REPLY confirms card refund with timeline placeholder; INTERNAL NOTE contains ESCALATE flag because $349 exceeds the $200 threshold."
+      }
+    ],
+    "type": "basic",
+    "dependencies": []
+  },
+  "markdown": "# RefundMacroDecider\n\n## Purpose\nProduce a ready-to-send customer support reply about a refund, return, or exchange that matches company policy, states the outcome (approve/partial/deny), and includes next steps — or, when the request is ambiguous, produces a short set of clarifying questions instead of guessing.\n\n## Instructions\n1. Parse the customer message and any attached policy for the six critical fields: order ID, purchase/delivery date, product condition, reason for refund, refund method requested, and amount. Note which are present.\n2. If any field required to make an eligibility decision is missing OR the request is contradictory, DO NOT draft a final reply — instead output a CLARIFY block with 1-3 specific, numbered questions and stop.\n3. When all needed fields are present, compare against the provided {{policy}} (or stated defaults) to classify the outcome as APPROVE, PARTIAL, or DENY, and state the exact reasoning tied to a policy clause.\n4. Draft the reply in the specified {{tone}} (default: warm and professional): open with acknowledgment, state the decision plainly, give the concrete next steps and timelines, and close with an offer to help further.\n5. Never invent policy terms, dollar amounts, or timelines not present in the input; if a value is unknown, use a bracketed placeholder like [refund processing time].\n6. For DENY or PARTIAL outcomes, always include one goodwill alternative (store credit, exchange, discount) when policy permits, and phrase the denial without blaming the customer.\n7. Output in three labeled sections: DECISION (one line), REPLY (send-ready text), and INTERNAL NOTE (agent-only rationale and any flags for escalation).\n8. Flag for human escalation when the amount exceeds {{escalation_threshold}}, fraud is suspected, or the customer is threatening chargeback/legal action.\n\n## Prompt Template\n```\nYou are a customer support specialist drafting refund/return replies.\n\nPOLICY:\n{{policy}}\n\nTONE: {{tone}}\nESCALATION THRESHOLD: {{escalation_threshold}}\n\nCUSTOMER MESSAGE & ORDER CONTEXT:\n{{input}}\n\nSTEP 1 — Extract these fields and mark present/missing: order ID, purchase/delivery date, product condition, refund reason, requested refund method, amount.\n\nSTEP 2 — If any field needed for a decision is missing, or the message is contradictory, respond ONLY with:\nCLARIFY:\n1. <specific question>\n2. <specific question (if needed)>\nAnd stop.\n\nSTEP 3 — If sufficient info exists, respond with:\nDECISION: <APPROVE | PARTIAL | DENY> — <one-line policy-tied reason>\nREPLY:\n<send-ready customer reply in the specified tone, with concrete next steps and timelines; use [bracketed placeholders] for any unknown values; include a goodwill alternative for PARTIAL/DENY when policy allows>\nINTERNAL NOTE:\n<rationale, policy clause referenced, and ESCALATE flag if amount > threshold, fraud suspected, or legal/chargeback threat>\n\nDo not invent policy terms, amounts, or timelines not given.\n```\n"
+}

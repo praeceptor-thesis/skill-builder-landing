@@ -108,6 +108,14 @@ jobs:
             echo "::error title=CLOUDFLARE_API_TOKEN::secret resolved empty — grant this repository access to the organization secret (org Settings -> Secrets and variables -> Actions -> CLOUDFLARE_API_TOKEN -> Repository access)"
             exit 1
           fi
+          # Fingerprint only — never the value (see CLAUDE.md). Lets whoever
+          # set the secret confirm from the CI log alone, with no Secrets-UI
+          # access needed, that what's resolving here is the value they
+          # actually pasted: run the same command locally against both the
+          # trimmed and untrimmed candidate and compare.
+          #   printf '%s' "$YOUR_TOKEN" | sha256sum | cut -c1-12
+          token_fp=$(printf '%s' "$CF_TOKEN" | sha256sum | cut -c1-12)
+          echo "::notice title=CLOUDFLARE_API_TOKEN::resolved length=${#CF_TOKEN} sha256[0:12]=$token_fp — compare against 'printf %s \"\$YOUR_TOKEN\" | sha256sum | cut -c1-12' run locally on the exact value you set (try it both trimmed and untrimmed to also catch a stray trailing newline from a careless paste). A mismatch means something other than what you set is resolving here, e.g. a repo-level shadow — a match means the resolved value itself is not a valid, active Bearer API Token (e.g. a Global API Key pasted in its place)."
           body=$(curl -sS --max-time 30 \
             -H "Authorization: Bearer $CF_TOKEN" \
             -H "Content-Type: application/json" \

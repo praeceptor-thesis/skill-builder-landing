@@ -83,12 +83,21 @@ export type Skill = {
   updatedAt: string;
   version: number;
   downloads: number;
-  visibility?: 'public' | 'draft';
+  visibility?: SkillVisibility;
+  /** Provenance of the publish, e.g. 'dmzagent-orchestration'. */
+  source?: string;
   /** 'basic' (standalone) or 'meta' (orchestrates dependencies). */
   type?: SkillType;
   /** Full registry ids of required skills (meta skills). */
   dependencies?: string[];
 };
+
+/**
+ * 'public' is world-readable; 'draft' and 'private' are owner-only across
+ * every read path. Orchestration publishes from DMZAgent land private —
+ * public is an explicit act through updateSkillVisibility, not a default.
+ */
+export type SkillVisibility = 'public' | 'draft' | 'private';
 
 export type SkillPayload = {
   id: string;
@@ -405,7 +414,7 @@ export async function deleteSkill(id: string): Promise<{ success: boolean }> {
   });
 }
 
-export async function updateSkillVisibility(id: string, visibility: 'public' | 'draft'): Promise<{ skill: Skill }> {
+export async function updateSkillVisibility(id: string, visibility: SkillVisibility): Promise<{ skill: Skill }> {
   return fetchJson(`${apiBase}/skills/${encodeURIComponent(id)}/visibility`, {
     method: 'PATCH',
     headers: getAuthHeaders(),

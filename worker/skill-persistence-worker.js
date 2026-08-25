@@ -1000,6 +1000,11 @@ async function handleSkillExecute(request, rawSkillId, SKILL_STORE, AI) {
     if (!skill) {
       return err('SKILL_NOT_FOUND', 'Skill not found', 404);
     }
+    if (!skillVisibleTo(skill, await resolveCurrentHandle(request, SKILL_STORE))) {
+      // Executing a skill exercises its prompt — that is a read of its
+      // content, so the read gate applies here too, masked.
+      return err('SKILL_NOT_FOUND', 'Skill not found', 404);
+    }
     if (!skill.spec && !spec) {
       return err('SKILL_SPEC_REQUIRED', 'SkillSpec required to execute skill', 400);
     }
@@ -1038,8 +1043,36 @@ async function resolveCurrentHandle(request, SKILL_STORE) {
   return undefined;
 }
 
+// ---------------------------------------------------------------------------
+// Visibility. Three states: 'public' (world-readable), 'draft' (unfinished,
+// owner-only), 'private' (finished, deliberately owner-only). Skills published
+// from DMZAgent for agent orchestration land PRIVATE at creation — making one
+// public is a separate, explicit act through the visibility endpoint, never a
+// side effect of publishing. Community publishes (web editor, CLI) keep their
+// historical public default.
+//
+// skillVisibleTo is THE read gate — every path that returns skill content
+// (list, fetch, suggest, fork, execute) goes through it. Fail-closed on junk:
+// a stored visibility value we don't recognize is treated as owner-only, not
+// world-readable; only the legacy missing field keeps its public meaning,
+// because every pre-visibility row was published as public.
+// ---------------------------------------------------------------------------
+
+const SKILL_VISIBILITIES = ['public', 'draft', 'private'];
+const ORCHESTRATION_SOURCE = 'dmzagent-orchestration';
+
+function normalizeVisibility(value) {
+  return SKILL_VISIBILITIES.includes(value) ? value : undefined;
+}
+
+function skillVisibleTo(skill, handle) {
+  const v = skill?.visibility;
+  if (v === undefined || v === null || v === 'public') return true;
+  return Boolean(handle) && skill.authorHandle === handle;
+}
+
 function visibleTo(skills, handle) {
-  return skills.filter((s) => !(s.visibility === 'draft' && s.authorHandle !== handle));
+  return skills.filter((s) => skillVisibleTo(s, handle));
 }
 
 function relevanceScore(skill, query) {
@@ -1135,7 +1168,7 @@ async function listSkills(request, SKILL_STORE, url) {
     const pageKeys = allKeys.slice(start, start + pageSize);
     let skills = (await Promise.all(pageKeys.map((item) => SKILL_STORE.get(item.name, { type: 'json' }))))
       .filter(Boolean)
-      .filter((s) => !(s.visibility === 'draft' && s.authorHandle !== currentUserHandle));
+      .filter((s) => skillVisibleTo(s, currentUserHandle));
     skills.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
     return ok({ skills, total, page, pageSize });
   }
@@ -1289,6 +1322,30 @@ async function saveSkill(request, SKILL_STORE) {
       return err('VALIDATION_SKILL_SPEC_INVALID', 'SkillSpec is invalid', 400, validationErrors);
     }
 
+    const source = typeof skill.source === 'string' ? skill.source.trim() : undefined;
+    let visibility;
+    if (skill.visibility !== undefined) {
+      visibility = normalizeVisibility(skill.visibility);
+      if (!visibility) {
+        return err('VALIDATION_INVALID_VISIBILITY', `Visibility must be one of: ${SKILL_VISIBILITIES.join(', ')}`, 400);
+      }
+    }
+    if (source === ORCHESTRATION_SOURCE) {
+      // Skills added from DMZAgent for agent orchestration are scoped private
+      // at creation. Going public is an explicit, attributable act through the
+      // visibility endpoint — never a flag riding along on the publish.
+      if (visibility === 'public') {
+        return err(
+          'VALIDATION_ORCHESTRATION_PRIVATE',
+          'Orchestration skills are created private. Publish first, then set visibility to public explicitly via PATCH /api/skills/:id/visibility.',
+          400,
+        );
+      }
+      visibility = visibility || 'private';
+    } else {
+      visibility = visibility || 'public';
+    }
+
     const now = new Date().toISOString();
     const markdown = skill.markdown || specToMarkdown(spec);
     const scopedId = `@${user.handle}/${skill.id}`;
@@ -1309,7 +1366,8 @@ async function saveSkill(request, SKILL_STORE) {
       updatedAt: now,
       version: skill.version || 1,
       downloads: skill.downloads || 0,
-      visibility: skill.visibility || 'public',
+      visibility,
+      ...(source ? { source } : {}),
     };
 
     await SKILL_STORE.put(`skills/${scopedId}`, JSON.stringify(skillWithMeta));
@@ -1332,6 +1390,11 @@ async function updateSkill(request, rawSkillId, SKILL_STORE) {
     if (!existing) return err('SKILL_NOT_FOUND', 'Skill not found', 404);
     if (existing.authorHandle !== user.handle) {
       return err('AUTH_FORBIDDEN', 'Only the skill owner can update this skill', 403);
+    }
+    if (updates.visibility !== undefined && !normalizeVisibility(updates.visibility)) {
+      // A junk value spread into the row would read as neither public nor
+      // owner-only depending on which gate saw it first — refuse it here.
+      return err('VALIDATION_INVALID_VISIBILITY', `Visibility must be one of: ${SKILL_VISIBILITIES.join(', ')}`, 400);
     }
 
     const isVisibilityOnly = Object.keys(updates).length === 1 && 'visibility' in updates;
@@ -1381,8 +1444,8 @@ async function updateSkillVisibility(request, rawSkillId, SKILL_STORE) {
 
     const skillId = parseSkillId(rawSkillId);
     const { visibility } = await request.json();
-    if (!visibility || !['public', 'draft'].includes(visibility)) {
-      return err('VALIDATION_INVALID_VISIBILITY', 'Visibility must be "public" or "draft"', 400);
+    if (!normalizeVisibility(visibility)) {
+      return err('VALIDATION_INVALID_VISIBILITY', `Visibility must be one of: ${SKILL_VISIBILITIES.join(', ')}`, 400);
     }
 
     const existing = await SKILL_STORE.get(`skills/${skillId}`, { type: 'json' });
@@ -1410,6 +1473,11 @@ async function forkSkill(request, rawSkillId, SKILL_STORE) {
     const skillId = parseSkillId(rawSkillId);
     const original = await SKILL_STORE.get(`skills/${skillId}`, { type: 'json' });
     if (!original) return err('SKILL_NOT_FOUND', 'Skill not found', 404);
+    if (!skillVisibleTo(original, user.handle)) {
+      // A draft or private skill can be forked only by its owner — forking is
+      // a read that copies the whole spec, so it gets the read gate, masked.
+      return err('SKILL_NOT_FOUND', 'Skill not found', 404);
+    }
     if (!original.spec) return err('SKILL_SPEC_REQUIRED', 'SkillSpec required to fork skill', 400);
 
     const body = await request.json().catch(() => ({}));
@@ -1481,15 +1549,9 @@ async function fetchSkill(request, rawId, SKILL_STORE) {
     const skill = await SKILL_STORE.get(`skills/${id}`, { type: 'json' });
     if (!skill) return err('SKILL_NOT_FOUND', 'Skill not found', 404);
 
-    if (skill.visibility === 'draft') {
-      let currentUserHandle;
-      try {
-        const authResult = await requireAuth(request, SKILL_STORE);
-        if (!authResult.error) currentUserHandle = authResult.user.handle;
-      } catch {}
-      if (skill.authorHandle !== currentUserHandle) {
-        return err('SKILL_NOT_FOUND', 'Skill not found', 404);
-      }
+    if (!skillVisibleTo(skill, await resolveCurrentHandle(request, SKILL_STORE))) {
+      // Masked: a restricted skill's existence is not the caller's to learn.
+      return err('SKILL_NOT_FOUND', 'Skill not found', 404);
     }
 
     skill.downloads = (skill.downloads || 0) + 1;

@@ -19,6 +19,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      # The registry worker's visibility enforcement suite (node --test, no
+      # deps). Runs before any plan/apply so a change that would leak a
+      # private or draft skill never reaches a deploy.
+      - name: Worker tests
+        run: npm test --prefix worker
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
@@ -72,6 +83,54 @@ jobs:
         run: npm run build
         env:
           VITE_SKILL_API_URL: https://skills.dmzagent.com/api
+
+      # The house preflight (see uni's ops/preflight-cf-token.sh and
+      # monitor-cf-token.yml): verify the token against
+      # /user/tokens/verify BEFORE terraform touches it, so a dead or
+      # corrupted CLOUDFLARE_API_TOKEN fails here with one named line and
+      # the exact fix — not as three "failed to make http request" errors
+      # buried in a terraform plan. The token is checked exactly as stored
+      # (no trimming): a trailing newline from a careless paste is a real
+      # failure this exists to catch.
+      #
+      # CLOUDFLARE_API_TOKEN is injected from the ORGANIZATION's secrets:
+      # `secrets.<name>` resolves the org secret when this repository is in
+      # its access list and no repository-level secret of the same name
+      # shadows it. Do not create a repo-level copy — a stale shadow serving
+      # a dead token while the org holds a good one is the exact failure
+      # that motivated this step.
+      - name: Cloudflare token preflight
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "$CF_TOKEN" ]; then
+            echo "::error title=CLOUDFLARE_API_TOKEN::secret resolved empty — grant this repository access to the organization secret (org Settings -> Secrets and variables -> Actions -> CLOUDFLARE_API_TOKEN -> Repository access)"
+            exit 1
+          fi
+          # Fingerprint only — never the value (see CLAUDE.md). Lets whoever
+          # set the secret confirm from the CI log alone, with no Secrets-UI
+          # access needed, that what's resolving here is the value they
+          # actually pasted: run the same command locally against both the
+          # trimmed and untrimmed candidate and compare.
+          #   printf '%s' "$YOUR_TOKEN" | sha256sum | cut -c1-12
+          token_fp=$(printf '%s' "$CF_TOKEN" | sha256sum | cut -c1-12)
+          echo "::notice title=CLOUDFLARE_API_TOKEN::resolved length=${#CF_TOKEN} sha256[0:12]=$token_fp — compare against 'printf %s \"\$YOUR_TOKEN\" | sha256sum | cut -c1-12' run locally on the exact value you set (try it both trimmed and untrimmed to also catch a stray trailing newline from a careless paste). A mismatch means something other than what you set is resolving here, e.g. a repo-level shadow — a match means the resolved value itself is not a valid, active Bearer API Token (e.g. a Global API Key pasted in its place)."
+          body=$(curl -sS --max-time 30 \
+            -H "Authorization: Bearer $CF_TOKEN" \
+            -H "Content-Type: application/json" \
+            https://api.cloudflare.com/client/v4/user/tokens/verify) || {
+            echo "::error title=CLOUDFLARE_API_TOKEN::tokens/verify request failed (network/curl error)"
+            exit 1
+          }
+          success=$(echo "$body" | jq -r '.success')
+          status=$(echo "$body" | jq -r '.result.status // "unknown"')
+          if [ "$success" != "true" ] || [ "$status" != "active" ]; then
+            echo "::error title=CLOUDFLARE_API_TOKEN::token failed verification (status: $status). The value comes from the ORG secret unless a stale repository-level CLOUDFLARE_API_TOKEN shadows it — delete any repo-level copy in this repo's Actions secrets first, and rotate the org secret only if it is itself dead: mint an account token with Zone:Zone:Read, Zone:Workers Routes:Edit, Zone:DNS:Edit on dmzagent.com plus Account:Workers KV Storage:Edit, Account:Workers Scripts:Edit, Account:Cloudflare Pages:Edit, verified with uni's ops/preflight-cf-token.sh before writing."
+            echo "$body" | jq -c '.errors' || true
+            exit 1
+          fi
+          echo "token verified: active"
 
       - name: Terraform init
         run: terraform init

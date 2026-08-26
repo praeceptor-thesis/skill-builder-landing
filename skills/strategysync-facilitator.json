@@ -1,0 +1,62 @@
+{
+  "id": "strategysync-facilitator",
+  "name": "StrategySync Facilitator",
+  "description": "An end-to-end meeting facilitation meta-skill that turns raw meeting inputs into a fully run strategy session — it first generates a lightweight visual/tone identity for the meeting deliverables via BrandStyleGuideGenerator, then aligns discussion topics to measurable OKRs and mission threads via OKRGrantMissionConductor, and finally produces on-brand, OKR-tagged meeting notes, decisions, and action items.",
+  "category": "Productivity",
+  "tags": [
+    "meetings",
+    "okr",
+    "facilitation",
+    "branding",
+    "orchestration"
+  ],
+  "type": "meta",
+  "dependencies": [
+    "@design_seeder/brand-style-guide-generator",
+    "@kmd_ai/okrgrantmissionconductor"
+  ],
+  "spec": {
+    "name": "StrategySync Facilitator",
+    "description": "An end-to-end meeting facilitation meta-skill that turns raw meeting inputs into a fully run strategy session — it first generates a lightweight visual/tone identity for the meeting deliverables via BrandStyleGuideGenerator, then aligns discussion topics to measurable OKRs and mission threads via OKRGrantMissionConductor, and finally produces on-brand, OKR-tagged meeting notes, decisions, and action items.",
+    "category": "Productivity",
+    "tags": [
+      "meetings",
+      "okr",
+      "facilitation",
+      "branding",
+      "orchestration"
+    ],
+    "purpose": "Deliver a single command that facilitates a strategy meeting from agenda to distributed follow-ups: consistently branded meeting artifacts whose every decision and action item is explicitly linked to an organizational OKR or mission goal, so meetings produce accountable, traceable, presentation-ready outputs.",
+    "instructions": [
+      "Parse {{input}} to extract meeting context: attendees, agenda topics, raw notes/transcript, the organization or team name, and any known OKRs or mission statements. Flag missing essentials and proceed with reasonable defaults.",
+      "Call BrandStyleGuideGenerator (@design_seeder/brand-style-guide-generator) using the org/team name and meeting purpose to produce a lightweight artifact identity — heading style, accent color, tone-of-voice, and a document header/footer format for all meeting deliverables.",
+      "Call OKRGrantMissionConductor (@kmd_ai/okrgrantmissionconductor) with the agenda topics and any provided OKRs/mission to map each discussion topic to a specific objective, key result, or mission thread; where topics have no mapping, generate a candidate OKR link for review.",
+      "Facilitate the session structure: order agenda items by OKR priority returned in step 3, allocate suggested time per item, and produce discussion prompts that keep each topic tied to its mapped key result.",
+      "Synthesize the raw notes/transcript into structured minutes: summarize each topic, capture decisions, and extract action items with owners and due dates.",
+      "Tag every decision and action item with its OKR/mission linkage from step 3, so follow-ups are traceable to strategic goals; mark any orphaned items as 'needs alignment'.",
+      "Assemble the final deliverable applying the brand identity from step 2 — a branded meeting recap with header, sections (Agenda-to-OKR map, Decisions, Action Items, Open Alignment Gaps), and a short OKR progress note.",
+      "Output both a human-readable recap and a machine-parseable action-item block (owner, task, due, linked OKR) for easy import into task trackers."
+    ],
+    "promptTemplate": "You are StrategySync Facilitator, orchestrating branded, OKR-aligned strategy meetings.\n\nMEETING INPUT:\n{{input}}\n\nExecute the workflow in order:\n\n1) IDENTITY — Invoke BrandStyleGuideGenerator (@design_seeder/brand-style-guide-generator) for the org/team to establish heading style, accent color, tone-of-voice, and header/footer format for all artifacts.\n\n2) ALIGNMENT — Invoke OKRGrantMissionConductor (@kmd_ai/okrgrantmissionconductor) to map each agenda topic to a specific OKR/key result or mission thread. Generate candidate links for unmapped topics.\n\n3) FACILITATE — Reorder agenda by OKR priority, assign time boxes, and write per-topic discussion prompts anchored to the mapped key result.\n\n4) SYNTHESIZE — Convert raw notes into minutes: per-topic summary, decisions, action items (owner + due date).\n\n5) TAG & TRACE — Link every decision/action item to its OKR; flag orphans as \"needs alignment\".\n\n6) DELIVER — Produce the branded recap with these sections: Header (brand format), Agenda→OKR Map, Decisions, Action Items, Open Alignment Gaps, OKR Progress Note. Then output a machine-parseable action block.\n\nOUTPUT FORMAT:\n=== BRANDED MEETING RECAP ===\n[branded header]\n[sections above]\n\n=== ACTION ITEMS (PARSEABLE) ===\n- owner | task | due | linked_okr",
+    "examples": [
+      {
+        "title": "Quarterly product strategy sync",
+        "input": "Team: Nova Product. Attendees: Priya (PM), Dev (Eng lead), Sam (Design). Agenda: 1) Onboarding drop-off, 2) Q3 pricing test, 3) Design system debt. OKRs: O1 'Grow activation' (KR1: activation +15%), O2 'Improve unit economics' (KR2: ARPU +8%). Raw notes: onboarding step 3 causing 40% drop, agreed to A/B test simplified flow; pricing test to launch next sprint; design debt deprioritized.",
+        "output": "=== BRANDED MEETING RECAP ===\n[Nova Product — accent #2D6CDF, clean sans headings, tone: crisp & data-driven]\n\nAGENDA→OKR MAP\n1. Onboarding drop-off → O1/KR1 (activation +15%) [priority: high, 20m]\n2. Q3 pricing test → O2/KR2 (ARPU +8%) [priority: high, 15m]\n3. Design system debt → no direct OKR link [candidate: enabler for O1; needs alignment, 10m]\n\nDECISIONS\n- Simplify onboarding step 3 and run A/B test [→ O1/KR1]\n- Launch Q3 pricing test next sprint [→ O2/KR2]\n- Deprioritize design system debt this quarter [needs alignment]\n\nACTION ITEMS\n- Priya: spec simplified onboarding flow, due next Fri [O1/KR1]\n- Dev: set up pricing A/B infrastructure, due sprint start [O2/KR2]\n\nOPEN ALIGNMENT GAPS\n- Design system debt has no OKR home; recommend linking to O1 as activation enabler or scheduling next quarter.\n\nOKR PROGRESS NOTE\nBoth high-priority topics now have owned experiments driving KR1 and KR2.\n\n=== ACTION ITEMS (PARSEABLE) ===\n- Priya | spec simplified onboarding flow | next Fri | O1/KR1\n- Dev | set up pricing A/B infrastructure | sprint start | O2/KR2"
+      }
+    ],
+    "tests": [
+      {
+        "name": "Every action item carries an OKR linkage or alignment flag",
+        "input": "Team: Helix Ops. Agenda: 1) Vendor renewal, 2) Incident review. OKR: O1 'Reduce downtime' (KR1: uptime 99.9%). Notes: agreed to renew vendor at flat rate; incident review found alerting gap, assign fix to Lee by month-end.",
+        "expected": "Recap maps 'Incident review' to O1/KR1 and tags Lee's alerting-fix action item with O1/KR1; 'Vendor renewal' has no OKR link so its decision/item is flagged 'needs alignment'. Output includes branded header for Helix Ops and a parseable action block listing 'Lee | fix alerting gap | month-end | O1/KR1'."
+      }
+    ],
+    "type": "meta",
+    "dependencies": [
+      "@design_seeder/brand-style-guide-generator",
+      "@kmd_ai/okrgrantmissionconductor"
+    ]
+  },
+  "markdown": "# StrategySync Facilitator\n\n## Purpose\nDeliver a single command that facilitates a strategy meeting from agenda to distributed follow-ups: consistently branded meeting artifacts whose every decision and action item is explicitly linked to an organizational OKR or mission goal, so meetings produce accountable, traceable, presentation-ready outputs.\n\n## Dependencies\nInstalling this skill also installs:\n- `@design_seeder/brand-style-guide-generator`\n- `@kmd_ai/okrgrantmissionconductor`\n\n## Instructions\n1. Parse {{input}} to extract meeting context: attendees, agenda topics, raw notes/transcript, the organization or team name, and any known OKRs or mission statements. Flag missing essentials and proceed with reasonable defaults.\n2. Call BrandStyleGuideGenerator (@design_seeder/brand-style-guide-generator) using the org/team name and meeting purpose to produce a lightweight artifact identity — heading style, accent color, tone-of-voice, and a document header/footer format for all meeting deliverables.\n3. Call OKRGrantMissionConductor (@kmd_ai/okrgrantmissionconductor) with the agenda topics and any provided OKRs/mission to map each discussion topic to a specific objective, key result, or mission thread; where topics have no mapping, generate a candidate OKR link for review.\n4. Facilitate the session structure: order agenda items by OKR priority returned in step 3, allocate suggested time per item, and produce discussion prompts that keep each topic tied to its mapped key result.\n5. Synthesize the raw notes/transcript into structured minutes: summarize each topic, capture decisions, and extract action items with owners and due dates.\n6. Tag every decision and action item with its OKR/mission linkage from step 3, so follow-ups are traceable to strategic goals; mark any orphaned items as 'needs alignment'.\n7. Assemble the final deliverable applying the brand identity from step 2 — a branded meeting recap with header, sections (Agenda-to-OKR map, Decisions, Action Items, Open Alignment Gaps), and a short OKR progress note.\n8. Output both a human-readable recap and a machine-parseable action-item block (owner, task, due, linked OKR) for easy import into task trackers.\n\n## Prompt Template\n```\nYou are StrategySync Facilitator, orchestrating branded, OKR-aligned strategy meetings.\n\nMEETING INPUT:\n{{input}}\n\nExecute the workflow in order:\n\n1) IDENTITY — Invoke BrandStyleGuideGenerator (@design_seeder/brand-style-guide-generator) for the org/team to establish heading style, accent color, tone-of-voice, and header/footer format for all artifacts.\n\n2) ALIGNMENT — Invoke OKRGrantMissionConductor (@kmd_ai/okrgrantmissionconductor) to map each agenda topic to a specific OKR/key result or mission thread. Generate candidate links for unmapped topics.\n\n3) FACILITATE — Reorder agenda by OKR priority, assign time boxes, and write per-topic discussion prompts anchored to the mapped key result.\n\n4) SYNTHESIZE — Convert raw notes into minutes: per-topic summary, decisions, action items (owner + due date).\n\n5) TAG & TRACE — Link every decision/action item to its OKR; flag orphans as \"needs alignment\".\n\n6) DELIVER — Produce the branded recap with these sections: Header (brand format), Agenda→OKR Map, Decisions, Action Items, Open Alignment Gaps, OKR Progress Note. Then output a machine-parseable action block.\n\nOUTPUT FORMAT:\n=== BRANDED MEETING RECAP ===\n[branded header]\n[sections above]\n\n=== ACTION ITEMS (PARSEABLE) ===\n- owner | task | due | linked_okr\n```\n"
+}

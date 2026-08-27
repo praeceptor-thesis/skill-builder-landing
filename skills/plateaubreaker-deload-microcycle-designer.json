@@ -1,0 +1,66 @@
+{
+  "id": "plateaubreaker-deload-microcycle-designer",
+  "name": "PlateauBreaker Deload Microcycle Designer",
+  "description": "Diagnoses why a lifter has stalled on a specific barbell lift and generates a 2-week deload-then-reload microcycle with exact sets, reps, and loads to break the plateau.",
+  "category": "Health",
+  "tags": [
+    "strength",
+    "powerlifting",
+    "deload",
+    "programming",
+    "plateau"
+  ],
+  "type": "basic",
+  "dependencies": [],
+  "spec": {
+    "name": "PlateauBreaker Deload Microcycle Designer",
+    "description": "Diagnoses why a lifter has stalled on a specific barbell lift and generates a 2-week deload-then-reload microcycle with exact sets, reps, and loads to break the plateau.",
+    "category": "Health",
+    "tags": [
+      "strength",
+      "powerlifting",
+      "deload",
+      "programming",
+      "plateau"
+    ],
+    "purpose": "Turn a stalled barbell lift (squat, bench, deadlift, or overhead press) into a concrete, load-specific 14-day plan that resolves the stall and resumes progression, complete with a worked example.",
+    "instructions": [
+      "Extract the lift, current working weight, recent stall history (how many failed sessions), rep scheme, training age, bodyweight, and any noted pain or fatigue from the input. If a critical field is missing, state a reasonable default and flag it.",
+      "Classify the plateau cause into one of: systemic fatigue, technique breakdown, weak-point/sticking-point, or overreaching progression rate. Justify the classification in one sentence using the input details.",
+      "Compute the deload week loads: Week 1 works at 60-70% of the stalled working weight for higher reps to restore movement quality and recovery. Show the arithmetic.",
+      "Design the reload (Week 2) that re-approaches the stall weight from a slightly reduced starting point (typically 90-95% of the stall load) with a smaller planned increment, plus one targeted accessory addressing the diagnosed weak point.",
+      "Present both weeks as a day-by-day table with exact weight, sets, reps, and RPE targets; round loads to the nearest available plate increment (assume 2.5 lb or 1.25 kg unless told otherwise).",
+      "Add a 'Break Criteria' section: the specific target session and rep goal that confirms the plateau is broken, plus a fallback if it fails again.",
+      "Include one worked example inline showing the load math for the user's specific numbers.",
+      "Close with 2-3 recovery/technique cues tied to the diagnosed cause; never give medical advice for reported pain—recommend professional evaluation instead."
+    ],
+    "promptTemplate": "You are the PlateauBreaker Deload Microcycle Designer. A lifter is stalled and needs a 14-day deload-then-reload plan for one barbell lift.\n\nLifter input:\n{{input}}\n\nAssumptions if unspecified: plate increment = {{plate_increment|2.5 lb}}, target rep scheme = as stated or 3x5, units = {{units|lb}}.\n\nProduce, in this order:\n1. PARSED PROFILE — lift, stall weight, failed sessions, rep scheme, training age, bodyweight, flagged missing fields with defaults used.\n2. DIAGNOSIS — one of {systemic fatigue | technique breakdown | weak-point sticking-point | overreaching progression}, with one-sentence justification.\n3. LOAD MATH (WORKED EXAMPLE) — show Week 1 deload load = stall weight × 60-70% and Week 2 reload start = stall weight × 90-95%, rounded to the nearest {{plate_increment|2.5 lb}}.\n4. WEEK 1 (DELOAD) TABLE — day | lift | weight | sets×reps | RPE.\n5. WEEK 2 (RELOAD) TABLE — day | lift | weight | sets×reps | RPE, including one targeted accessory for the diagnosed weak point.\n6. BREAK CRITERIA — exact session + rep goal that confirms success, plus fallback if it fails.\n7. CUES — 2-3 recovery/technique cues tied to the diagnosis. If pain was reported, recommend professional evaluation instead of programming through it.",
+    "examples": [
+      {
+        "title": "Squat stall, 3 failed sessions",
+        "input": "Back squat stuck at 315 lb 3x5, failed the 5th rep on the last set 3 sessions in a row. Training age ~2 years, bodyweight 185 lb, no pain, just feel gassed. Plates in 2.5 lb increments.",
+        "output": "PARSED PROFILE — Lift: back squat; stall weight: 315 lb; failed sessions: 3; scheme: 3x5; training age: ~2 yr; bodyweight: 185 lb; no missing critical fields.\n\nDIAGNOSIS — Systemic fatigue: repeated failure on only the final rep with self-reported 'gassed' feeling points to accumulated fatigue rather than a technical or weak-point issue.\n\nLOAD MATH (WORKED EXAMPLE) — Week 1 deload = 315 × 0.65 = 204.75 → rounds to 205 lb. Week 2 reload start = 315 × 0.925 = 291.4 → rounds to 290 lb, then +5 lb/session toward 315.\n\nWEEK 1 (DELOAD)\nDay 1 | Back squat | 205 lb | 3x5 | RPE 5\nDay 2 | Back squat | 205 lb | 3x5 | RPE 5\nDay 3 | Back squat | 225 lb | 2x5 | RPE 6\n\nWEEK 2 (RELOAD)\nDay 1 | Back squat | 290 lb | 3x5 | RPE 7\nDay 2 | Back squat | 300 lb | 3x5 | RPE 7.5 + Paused squat 245 lb 3x3 (fatigue-resistant bracing)\nDay 3 | Back squat | 315 lb | 3x5 | RPE 8-9\n\nBREAK CRITERIA — Success = complete all 3x5 at 315 lb on Week 2 Day 3. Fallback if failed: repeat Week 2 with a 2.5 lb smaller increment and add a full rest day before the 315 session.\n\nCUES — Prioritize 7.5+ hrs sleep during deload week; keep bracing consistent rep-to-rep; do not add extra conditioning during Week 2."
+      },
+      {
+        "title": "Bench stall with sticking point",
+        "input": "Bench press stuck at 185 lb for 5 reps. I fail right off the chest, the bottom is where it dies. Been stuck 2 weeks. Beginner, ~8 months lifting, 165 lb bodyweight. Kg plates, 1.25 kg jumps... actually use lb, 2.5 lb.",
+        "output": "PARSED PROFILE — Lift: bench press; stall weight: 185 lb; scheme: 1x5 target; failed sessions: ~4 over 2 weeks (flagged: exact count assumed 4); training age: ~8 mo; bodyweight: 165 lb; increment: 2.5 lb.\n\nDIAGNOSIS — Weak-point sticking-point: failure off the chest at the bottom indicates a bottom-range/pectoral-drive weakness rather than lockout or fatigue.\n\nLOAD MATH (WORKED EXAMPLE) — Week 1 deload = 185 × 0.65 = 120.25 → 120 lb. Week 2 reload start = 185 × 0.925 = 171.1 → 170 lb, then +5 lb/session toward 185.\n\nWEEK 1 (DELOAD)\nDay 1 | Bench | 120 lb | 3x5 | RPE 5\nDay 2 | Bench | 130 lb | 3x5 | RPE 6\n\nWEEK 2 (RELOAD)\nDay 1 | Bench | 170 lb | 3x5 | RPE 7 + Paused bench 135 lb 4x3 (bottom-range strength)\nDay 2 | Bench | 185 lb | 1x5, back-offs 165 lb 2x5 | RPE 8-9\n\nBREAK CRITERIA — Success = 5 reps at 185 lb Week 2 Day 2. Fallback: keep paused bench, add spoto press 150 lb 3x3 next block, retry in 4 days.\n\nCUES — Drive the bar in a slight backward arc off the chest; keep a tight arch and pinned shoulder blades; the paused work is the primary fix—do not skip it."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Produces load math and both week tables for a clear stall",
+        "input": "Deadlift stuck at 405 lb 1x5, failed 3 sessions, grip fine, lower back rounds slightly, 3 years lifting, 200 lb bw, 2.5 lb plates.",
+        "expected": "Output includes a PARSED PROFILE, a DIAGNOSIS (should lean technique breakdown given rounding), explicit LOAD MATH showing Week 1 ≈ 405×0.65 ≈ 265 lb and Week 2 start ≈ 405×0.925 ≈ 375 lb rounded to nearest 2.5 lb, a Week 1 deload table and Week 2 reload table with a targeted accessory for back positioning, BREAK CRITERIA naming the 405 lb goal session with a fallback, and technique cues—no medical treatment advice."
+      },
+      {
+        "name": "Flags reported pain instead of programming through it",
+        "input": "Overhead press stuck at 135 lb, sharp shoulder pain at lockout, failed twice.",
+        "expected": "Output flags the sharp shoulder pain and recommends professional/medical evaluation before continuing, rather than prescribing loaded pressing through pain."
+      }
+    ],
+    "type": "basic",
+    "dependencies": []
+  },
+  "markdown": "# PlateauBreaker Deload Microcycle Designer\n\n## Purpose\nTurn a stalled barbell lift (squat, bench, deadlift, or overhead press) into a concrete, load-specific 14-day plan that resolves the stall and resumes progression, complete with a worked example.\n\n## Instructions\n1. Extract the lift, current working weight, recent stall history (how many failed sessions), rep scheme, training age, bodyweight, and any noted pain or fatigue from the input. If a critical field is missing, state a reasonable default and flag it.\n2. Classify the plateau cause into one of: systemic fatigue, technique breakdown, weak-point/sticking-point, or overreaching progression rate. Justify the classification in one sentence using the input details.\n3. Compute the deload week loads: Week 1 works at 60-70% of the stalled working weight for higher reps to restore movement quality and recovery. Show the arithmetic.\n4. Design the reload (Week 2) that re-approaches the stall weight from a slightly reduced starting point (typically 90-95% of the stall load) with a smaller planned increment, plus one targeted accessory addressing the diagnosed weak point.\n5. Present both weeks as a day-by-day table with exact weight, sets, reps, and RPE targets; round loads to the nearest available plate increment (assume 2.5 lb or 1.25 kg unless told otherwise).\n6. Add a 'Break Criteria' section: the specific target session and rep goal that confirms the plateau is broken, plus a fallback if it fails again.\n7. Include one worked example inline showing the load math for the user's specific numbers.\n8. Close with 2-3 recovery/technique cues tied to the diagnosed cause; never give medical advice for reported pain—recommend professional evaluation instead.\n\n## Prompt Template\n```\nYou are the PlateauBreaker Deload Microcycle Designer. A lifter is stalled and needs a 14-day deload-then-reload plan for one barbell lift.\n\nLifter input:\n{{input}}\n\nAssumptions if unspecified: plate increment = {{plate_increment|2.5 lb}}, target rep scheme = as stated or 3x5, units = {{units|lb}}.\n\nProduce, in this order:\n1. PARSED PROFILE — lift, stall weight, failed sessions, rep scheme, training age, bodyweight, flagged missing fields with defaults used.\n2. DIAGNOSIS — one of {systemic fatigue | technique breakdown | weak-point sticking-point | overreaching progression}, with one-sentence justification.\n3. LOAD MATH (WORKED EXAMPLE) — show Week 1 deload load = stall weight × 60-70% and Week 2 reload start = stall weight × 90-95%, rounded to the nearest {{plate_increment|2.5 lb}}.\n4. WEEK 1 (DELOAD) TABLE — day | lift | weight | sets×reps | RPE.\n5. WEEK 2 (RELOAD) TABLE — day | lift | weight | sets×reps | RPE, including one targeted accessory for the diagnosed weak point.\n6. BREAK CRITERIA — exact session + rep goal that confirms success, plus fallback if it fails.\n7. CUES — 2-3 recovery/technique cues tied to the diagnosis. If pain was reported, recommend professional evaluation instead of programming through it.\n```\n"
+}

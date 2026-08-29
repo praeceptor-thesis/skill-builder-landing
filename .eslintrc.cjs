@@ -5,7 +5,15 @@ module.exports = {
     es2021: true,
     node: true,
   },
-  extends: ['eslint:recommended', 'plugin:react/recommended', 'plugin:@typescript-eslint/recommended'],
+  // `plugin:react/jsx-runtime` turns off the in-scope-React rules: this project
+  // builds with the automatic JSX runtime (tsconfig `jsx: react-jsx`), so JSX
+  // files do not import React and never needed to.
+  extends: [
+    'eslint:recommended',
+    'plugin:react/recommended',
+    'plugin:react/jsx-runtime',
+    'plugin:@typescript-eslint/recommended',
+  ],
   parser: '@typescript-eslint/parser',
   parserOptions: {
     ecmaFeatures: {

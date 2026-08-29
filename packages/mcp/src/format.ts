@@ -2,7 +2,7 @@
 
 import { CHARACTER_LIMIT, WEB_BASE_URL } from "./constants.js";
 import { effectiveType, displayId } from "./install.js";
-import type { SkillSuggestion, Skill } from "./types.js";
+import type { SkillSuggestion, Skill, SkillCapability } from "./types.js";
 
 export enum ResponseFormat {
   MARKDOWN = "markdown",
@@ -24,14 +24,24 @@ export function clampText(text: string): string {
   );
 }
 
+/**
+ * The model capabilities a skill needs. The registry hoists them to the top
+ * level of a listed skill; a fetched skill also carries them on its spec.
+ */
+export function skillCapabilities(skill: Pick<Skill, "capabilities" | "spec">): SkillCapability[] {
+  return (skill.capabilities?.length ? skill.capabilities : skill.spec?.capabilities) ?? [];
+}
+
 /** One compact line summarizing a skill, for list/search output. */
 export function skillLine(skill: Skill): string {
   const type = effectiveType(skill);
   const tags = skill.tags?.length ? ` · ${skill.tags.slice(0, 4).join(", ")}` : "";
   const meta = type === "meta" ? ` · meta(${skill.dependencies?.length ?? 0} deps)` : "";
+  const required = skillCapabilities(skill).filter((c) => c.level === "required");
+  const caps = required.length ? ` · needs ${required.map((c) => c.id).join(", ")}` : "";
   return (
     `- **${displayId(skill)}** — ${skill.description || skill.name}\n` +
-    `  ${skill.category || "Uncategorized"} · ${skill.downloads ?? 0} downloads${meta}${tags}`
+    `  ${skill.category || "Uncategorized"} · ${skill.downloads ?? 0} downloads${meta}${tags}${caps}`
   );
 }
 
@@ -65,6 +75,13 @@ export function formatSkillInfo(skill: Skill): string {
   if (type === "meta" && skill.dependencies?.length) {
     lines.push("", "**Dependencies** (installed automatically with this meta skill):");
     for (const dep of skill.dependencies) lines.push(`- ${dep}`);
+  }
+  const capabilities = skillCapabilities(skill);
+  if (capabilities.length) {
+    lines.push("", "**Required capabilities** (the invoking model must provide these):");
+    for (const capability of capabilities) {
+      lines.push(`- \`${capability.id}\` (${capability.level})${capability.note ? ` — ${capability.note}` : ""}`);
+    }
   }
   lines.push("", `Web: ${skillUrl(skill)}`);
   if (skill.description) lines.push("", `> ${skill.description}`);

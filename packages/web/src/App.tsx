@@ -1,9 +1,22 @@
 import React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
-import { listSkills, saveSkill, forkSkill, createSkillBuilderSession, sendSkillBuilderTurn, executeSkill, login, register, getCurrentUser, setAuthToken, clearAuthToken, getAuthToken, suggestSkills, type Skill, type AgentMessage, type User, type RegistryTaxonomy, type SkillSuggestion, type SkillType, generateNpxCommand, isUnauthorizedError } from './services/api';
+import { listSkills, saveSkill, forkSkill, createSkillBuilderSession, sendSkillBuilderTurn, login, register, getCurrentUser, setAuthToken, clearAuthToken, getAuthToken, suggestSkills, type Skill, type AgentMessage, type User, type RegistryTaxonomy, type SkillSuggestion, type SkillType, generateNpxCommand, isUnauthorizedError } from './services/api';
 import { renderMarkdown } from './renderMarkdown';
 import SkillDetailPage from './pages/SkillDetailPage';
+import SkillStudio from './components/SkillStudio';
+import type { AgentActivity } from './components/ArchitectPanel';
+import {
+  applySkillOperationsToSpec,
+  createEmptySkillSpec,
+  normalizeSkillSpec,
+  operationDetail,
+  operationLabel,
+  qualifyDependencies,
+  specFromMarkdown,
+  specToMarkdown,
+  type SkillSpec,
+} from './skill/spec';
 
 const sampleSkills: Skill[] = [
   {
@@ -168,77 +181,6 @@ const initialEditorState: EditorState = {
 };
 
 
-type SkillExample = {
-  title?: string;
-  input: string;
-  output: string;
-};
-
-type SkillTest = {
-  name: string;
-  input: string;
-  expected: string;
-};
-
-type SkillSpec = {
-  name: string;
-  description: string;
-  category: string;
-  tags: string[];
-  purpose: string;
-  instructions: string[];
-  promptTemplate: string;
-  examples: SkillExample[];
-  tests: SkillTest[];
-  type?: SkillType;
-  dependencies?: string[];
-};
-
-type SkillOperation = {
-  type: string;
-  value?: unknown;
-  [key: string]: unknown;
-};
-
-type AgentActivity = {
-  id: string;
-  label: string;
-  status: 'pending' | 'running' | 'done' | 'error';
-  detail?: string;
-};
-
-const categoryOptions = [
-  'Conversational',
-  'Data',
-  'Automation',
-  'Utilities',
-  'Healthcare',
-  'Compliance',
-  'Developer Tools',
-  'Productivity',
-  'Research',
-  'Sales',
-  'Support',
-  'Education',
-  'Finance',
-  'Legal',
-  'Security',
-];
-
-const createEmptySkillSpec = (): SkillSpec => ({
-  name: '',
-  description: '',
-  category: 'Conversational',
-  tags: [],
-  purpose: '',
-  instructions: [],
-  promptTemplate: '',
-  examples: [],
-  tests: [],
-  type: 'basic',
-  dependencies: [],
-});
-
 const createInitialActivityLog = (): AgentActivity[] => [
   {
     id: 'ready',
@@ -248,188 +190,6 @@ const createInitialActivityLog = (): AgentActivity[] => [
   },
 ];
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
-
-const asString = (value: unknown, fallback = '') =>
-  typeof value === 'string' ? value : fallback;
-
-const parseTags = (value: unknown): string[] => {
-  if (Array.isArray(value)) {
-    return value.map((tag) => String(tag).trim()).filter(Boolean);
-  }
-  if (typeof value === 'string') {
-    return value.split(',').map((tag) => tag.trim()).filter(Boolean);
-  }
-  return [];
-};
-
-// Dependencies are skill ids; split on commas/whitespace/newlines and dedupe.
-const parseDependencies = (value: unknown): string[] => {
-  const raw = Array.isArray(value)
-    ? value.map((v) => String(v))
-    : typeof value === 'string'
-      ? value.split(/[\s,]+/)
-      : [];
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const item of raw) {
-    const id = item.trim();
-    if (id && !seen.has(id)) { seen.add(id); out.push(id); }
-  }
-  return out;
-};
-
-// Fully qualify dependency ids against the owner's handle. Bare ids are scoped
-// to the owner; already-scoped ids (incl. cross-org @other/skill) are preserved.
-const qualifyDependencies = (deps: string[] | undefined, ownerHandle?: string): string[] => {
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const raw of deps ?? []) {
-    const id = String(raw).trim();
-    if (!id) continue;
-    const qualified = id.startsWith('@') ? id : (ownerHandle ? `@${ownerHandle}/${id.replace(/^\/+/, '')}` : id);
-    if (!seen.has(qualified)) { seen.add(qualified); out.push(qualified); }
-  }
-  return out;
-};
-
-const normalizeStringArray = (value: unknown): string[] => {
-  if (Array.isArray(value)) {
-    return value.map((item) => String(item).trim()).filter(Boolean);
-  }
-  if (typeof value === 'string') {
-    return value
-      .split('\n')
-      .map((item) => item.replace(/^[-*]\s+|^\d+\.\s+/, '').trim())
-      .filter(Boolean);
-  }
-  return [];
-};
-
-const normalizeExamples = (value: unknown): SkillExample[] => {
-  if (!Array.isArray(value)) return [];
-  return value
-    .map((item, index) => {
-      if (typeof item === 'string') {
-        return { title: `Example ${index + 1}`, input: item, output: '' };
-      }
-      if (!isRecord(item)) return null;
-      const input = asString(item.input ?? item.userInput ?? item.request);
-      const output = asString(item.output ?? item.expectedOutput ?? item.response);
-      const title = asString(item.title ?? item.name, `Example ${index + 1}`);
-      if (!input && !output) return null;
-      return { title, input, output };
-    })
-    .filter(Boolean) as SkillExample[];
-};
-
-const normalizeTests = (value: unknown): SkillTest[] => {
-  if (!Array.isArray(value)) return [];
-  return value
-    .map((item, index) => {
-      if (!isRecord(item)) return null;
-      const input = asString(item.input ?? item.given);
-      const expected = asString(item.expected ?? item.expectedOutput ?? item.output ?? item.then);
-      const name = asString(item.name ?? item.title, `Test ${index + 1}`);
-      if (!input && !expected) return null;
-      return { name, input, expected };
-    })
-    .filter((item): item is SkillTest => Boolean(item));
-};
-
-const normalizeSkillSpec = (value: unknown, fallback: SkillSpec = createEmptySkillSpec()): SkillSpec => {
-  if (!isRecord(value)) return fallback;
-  return {
-    name: asString(value.name ?? value.title, fallback.name),
-    description: asString(value.description ?? value.summary, fallback.description),
-    category: asString(value.category ?? value.domain, fallback.category),
-    tags: parseTags(value.tags).length ? parseTags(value.tags) : fallback.tags,
-    purpose: asString(value.purpose ?? value.goal, fallback.purpose),
-    instructions: normalizeStringArray(value.instructions).length
-      ? normalizeStringArray(value.instructions)
-      : fallback.instructions,
-    promptTemplate: asString(
-      value.promptTemplate ?? value.prompt_template ?? value.prompt ?? value.template,
-      fallback.promptTemplate,
-    ),
-    examples: normalizeExamples(value.examples).length ? normalizeExamples(value.examples) : fallback.examples,
-    tests: normalizeTests(value.tests).length ? normalizeTests(value.tests) : fallback.tests,
-    ...((): { type: SkillType; dependencies: string[] } => {
-      const dependencies = parseDependencies(value.dependencies).length
-        ? parseDependencies(value.dependencies)
-        : (fallback.dependencies ?? []);
-      const explicit = asString(value.type).toLowerCase() === 'meta' ? 'meta'
-        : asString(value.type).toLowerCase() === 'basic' ? 'basic'
-        : (fallback.type ?? '');
-      const type: SkillType = dependencies.length > 0 ? 'meta' : (explicit || 'basic');
-      return { type, dependencies };
-    })(),
-  };
-};
-
-const getSection = (markdown: string, heading: string) => {
-  const escaped = heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const match = markdown.match(new RegExp(`##\\s+${escaped}\\s*\\n([\\s\\S]*?)(?=\\n##\\s+|$)`, 'i'));
-  return match?.[1]?.trim() ?? '';
-};
-
-const stripCodeFence = (value: string) => {
-  const match = value.match(/```(?:[a-zA-Z0-9_-]+)?\s*([\s\S]*?)```/);
-  return (match?.[1] ?? value).trim();
-};
-
-const specFromMarkdown = (markdown: string, fallback: SkillSpec = createEmptySkillSpec()): SkillSpec => {
-  const title = markdown.match(/^#\s+(.+)$/m)?.[1]?.trim();
-  const category = markdown.match(/\*\*Category\*\*:\s*(.+)/i)?.[1]?.trim();
-  const tags = markdown.match(/\*\*Tags\*\*:\s*(.+)/i)?.[1]?.trim();
-  const quotedDescription = markdown.match(/^>\s+(.+)$/m)?.[1]?.trim();
-  const purpose = getSection(markdown, 'Purpose');
-  const instructionsRaw = getSection(markdown, 'Instructions');
-  const promptTemplate = stripCodeFence(getSection(markdown, 'Prompt Template'));
-  const examplesRaw = getSection(markdown, 'Examples');
-  const testsRaw = getSection(markdown, 'Tests');
-
-  return normalizeSkillSpec(
-    {
-      name: title ?? fallback.name,
-      description: quotedDescription ?? fallback.description,
-      category: category ?? fallback.category,
-      tags: tags ? parseTags(tags) : fallback.tags,
-      purpose: purpose || fallback.purpose,
-      instructions: normalizeStringArray(instructionsRaw),
-      promptTemplate: promptTemplate || fallback.promptTemplate,
-      examples: examplesRaw
-        ? [{ title: 'Imported examples', input: examplesRaw, output: '' }]
-        : fallback.examples,
-      tests: testsRaw
-        ? [{ name: 'Imported tests', input: testsRaw, expected: '' }]
-        : fallback.tests,
-    },
-    fallback,
-  );
-};
-
-const specToMarkdown = (spec: SkillSpec) => {
-  const safeTitle = spec.name || 'Untitled Skill';
-  const tags = spec.tags.length ? spec.tags.join(', ') : 'draft';
-  const instructions = spec.instructions.length
-    ? spec.instructions.map((instruction, index) => `${index + 1}. ${instruction}`).join('\n')
-    : '- Define the operating instructions for this skill.';
-  const examples = spec.examples.length
-    ? spec.examples
-        .map((example, index) => `### ${example.title || `Example ${index + 1}`}\n**Input**\n\n\`\`\`\n${example.input}\n\`\`\`\n\n**Output**\n\n\`\`\`\n${example.output}\n\`\`\``)
-        .join('\n\n')
-    : '_No examples generated yet._';
-  const tests = spec.tests.length
-    ? spec.tests
-        .map((test, index) => `### ${test.name || `Test ${index + 1}`}\n**Input**\n\n\`\`\`\n${test.input}\n\`\`\`\n\n**Expected**\n\n\`\`\`\n${test.expected}\n\`\`\``)
-        .join('\n\n')
-    : '_No tests generated yet._';
-
-  return `# ${safeTitle}\n\n> ${spec.description || 'Draft skill description.'}\n\n**Category**: ${spec.category}\n**Tags**: ${tags}\n\n## Purpose\n${spec.purpose || 'Define what this skill is responsible for producing.'}\n\n## Instructions\n${instructions}\n\n## Prompt Template\n\`\`\`\n${spec.promptTemplate || 'You are a reusable AI skill. Use the provided input to complete the task.\n\nInput: {{input}}'}\n\`\`\`\n\n## Examples\n${examples}\n\n## Tests\n${tests}\n`;
-};
-
 const editorFromSpec = (spec: SkillSpec): EditorState => ({
   name: spec.name,
   description: spec.description,
@@ -438,173 +198,15 @@ const editorFromSpec = (spec: SkillSpec): EditorState => ({
   markdown: specToMarkdown(spec),
 });
 
-const applySkillOperationsToSpec = (current: SkillSpec, operations: SkillOperation[]) => {
-  return operations.reduce((draft, operation) => {
-    const type = operation.type;
-    const value = operation.value;
-
-    switch (type) {
-      case 'replace_spec':
-      case 'set_spec':
-      case 'set_skill_spec':
-        return normalizeSkillSpec(value, draft);
-      case 'set_metadata':
-        return normalizeSkillSpec({ ...draft, ...(isRecord(value) ? value : {}) }, draft);
-      case 'set_name':
-        return { ...draft, name: asString(value, draft.name) };
-      case 'set_description':
-        return { ...draft, description: asString(value, draft.description) };
-      case 'set_category':
-        return { ...draft, category: asString(value, draft.category) };
-      case 'set_tags':
-        return { ...draft, tags: parseTags(value) };
-      case 'set_purpose':
-        return { ...draft, purpose: asString(value, draft.purpose) };
-      case 'set_instructions':
-        return { ...draft, instructions: normalizeStringArray(value) };
-      case 'append_instruction':
-        return { ...draft, instructions: [...draft.instructions, asString(value)].filter(Boolean) };
-      case 'set_prompt':
-      case 'set_prompt_template':
-        return { ...draft, promptTemplate: asString(value, draft.promptTemplate) };
-      case 'set_examples':
-        return { ...draft, examples: normalizeExamples(value) };
-      case 'append_example':
-        return { ...draft, examples: [...draft.examples, ...normalizeExamples([value])] };
-      case 'set_tests':
-        return { ...draft, tests: normalizeTests(value) };
-      case 'append_test':
-        return { ...draft, tests: [...draft.tests, ...normalizeTests([value])] };
-      default:
-        return draft;
-    }
-  }, current);
-};
-
-const extractJsonPayload = (text: string): unknown => {
-  const trimmed = text.trim();
-  try {
-    return JSON.parse(trimmed);
-  } catch {
-    // Try fenced JSON next.
-  }
-
-  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1]?.trim();
-  if (fenced) {
-    try {
-      return JSON.parse(fenced);
-    } catch {
-      // Fall through to object slicing.
-    }
-  }
-
-  const firstObject = trimmed.indexOf('{');
-  const lastObject = trimmed.lastIndexOf('}');
-  if (firstObject >= 0 && lastObject > firstObject) {
-    try {
-      return JSON.parse(trimmed.slice(firstObject, lastObject + 1));
-    } catch {
-      // Ignore invalid object slice.
-    }
-  }
-
-  const firstArray = trimmed.indexOf('[');
-  const lastArray = trimmed.lastIndexOf(']');
-  if (firstArray >= 0 && lastArray > firstArray) {
-    try {
-      return JSON.parse(trimmed.slice(firstArray, lastArray + 1));
-    } catch {
-      // Ignore invalid array slice.
-    }
-  }
-
-  return null;
-};
-
-const payloadLooksLikeSpec = (payload: Record<string, unknown>) =>
-  ['name', 'description', 'category', 'purpose', 'instructions', 'promptTemplate', 'prompt_template', 'examples', 'tests'].some((key) => key in payload);
-
-const operationsFromAgentText = (text: string, fallback: SkillSpec): SkillOperation[] => {
-  const payload = extractJsonPayload(text);
-
-  if (Array.isArray(payload)) {
-    return payload.filter(isRecord).map((operation) => operation as SkillOperation);
-  }
-
-  if (isRecord(payload)) {
-    if (Array.isArray(payload.operations)) {
-      return payload.operations.filter(isRecord).map((operation) => operation as SkillOperation);
-    }
-    if (isRecord(payload.skillSpec)) {
-      return [{ type: 'replace_spec', value: payload.skillSpec }];
-    }
-    if (isRecord(payload.spec)) {
-      return [{ type: 'replace_spec', value: payload.spec }];
-    }
-    if (payloadLooksLikeSpec(payload)) {
-      return [{ type: 'replace_spec', value: payload }];
-    }
-  }
-
-  const markdown = text.match(/```(?:markdown|md)\s*([\s\S]*?)```/i)?.[1] ?? (text.trim().startsWith('#') ? text : '');
-  if (markdown) {
-    return [{ type: 'replace_spec', value: specFromMarkdown(markdown, fallback) }];
-  }
-
-  return [];
-};
-
-const operationLabel = (operation: SkillOperation) => {
-  switch (operation.type) {
-    case 'replace_spec':
-    case 'set_spec':
-    case 'set_skill_spec':
-      return 'Rebuilt full skill spec';
-    case 'set_metadata':
-      return 'Generated metadata';
-    case 'set_name':
-      return 'Set skill name';
-    case 'set_description':
-      return 'Wrote description';
-    case 'set_category':
-      return 'Determined category';
-    case 'set_tags':
-      return 'Generated tags';
-    case 'set_purpose':
-      return 'Defined purpose';
-    case 'set_instructions':
-    case 'append_instruction':
-      return 'Generated instructions';
-    case 'set_prompt':
-    case 'set_prompt_template':
-      return 'Generated prompt template';
-    case 'set_examples':
-    case 'append_example':
-      return 'Generated examples';
-    case 'set_tests':
-    case 'append_test':
-      return 'Generated tests';
-    default:
-      return `Applied ${operation.type}`;
-  }
-};
-
-const operationDetail = (operation: SkillOperation) => {
-  if (typeof operation.value === 'string') return operation.value.slice(0, 120);
-  if (Array.isArray(operation.value)) return `${operation.value.length} item${operation.value.length === 1 ? '' : 's'}`;
-  if (isRecord(operation.value)) return 'Updated structured fields';
-  return undefined;
-};
-
 const skillArchitectSystemMessage: AgentMessage = {
   role: 'system',
   text: `You are Skill Architect, an agent that mutates a reusable AI Skill AST. Do not write markdown as the primary response. Return strict JSON only.
 
 Return one of these shapes:
-{"operations":[{"type":"set_name","value":"..."},{"type":"set_category","value":"..."},{"type":"set_description","value":"..."},{"type":"set_tags","value":["..."]},{"type":"set_purpose","value":"..."},{"type":"set_instructions","value":["..."]},{"type":"set_prompt_template","value":"..."},{"type":"set_examples","value":[{"title":"...","input":"...","output":"..."}]},{"type":"set_tests","value":[{"name":"...","input":"...","expected":"..."}]}]}
+{"operations":[{"type":"set_name","value":"..."},{"type":"set_category","value":"..."},{"type":"set_description","value":"..."},{"type":"set_tags","value":["..."]},{"type":"set_purpose","value":"..."},{"type":"set_instructions","value":["..."]},{"type":"set_prompt_template","value":"..."},{"type":"set_examples","value":[{"title":"...","input":"...","output":"..."}]},{"type":"set_tests","value":[{"name":"...","input":"...","expected":"..."}]},{"type":"set_capabilities","value":[{"id":"tool-use","level":"required","note":"..."}]}]}
 
 Or:
-{"skillSpec":{"name":"...","description":"...","category":"...","tags":["..."],"purpose":"...","instructions":["..."],"promptTemplate":"...","examples":[{"title":"...","input":"...","output":"..."}],"tests":[{"name":"...","input":"...","expected":"..."}]}}
+{"skillSpec":{"name":"...","description":"...","category":"...","tags":["..."],"purpose":"...","instructions":["..."],"promptTemplate":"...","examples":[{"title":"...","input":"...","output":"..."}],"tests":[{"name":"...","input":"...","expected":"..."}],"capabilities":[{"id":"vision","level":"required"}]}}
 
 The client will replay your operations into React state. The user should see the skill materialize in the UI, not a markdown answer.`,
 };
@@ -637,7 +239,6 @@ function App() {
   const [assistantInput, setAssistantInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [editorMode, setEditorMode] = useState<'edit' | 'preview' | 'split'>('split');
   const [showRegistry, setShowRegistry] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchCategory, setSearchCategory] = useState('');
@@ -776,7 +377,11 @@ function App() {
 
   const handleCreate = useCallback(() => {
     void runProtectedAction(async () => {
-      if (!editor.name || !editor.description || !editor.markdown) return;
+      if (!editor.name.trim() || !editor.description.trim()) {
+        // Saving silently did nothing before; say which field is holding it up.
+        setError('A name and a description are required before saving. Add them in Settings → Identity.');
+        return;
+      }
 
       const currentUser = userRef.current;
       if (!currentUser) throw new Error('Authentication required');
@@ -814,16 +419,34 @@ function App() {
 
       try {
         setError(null);
-        await saveSkill(newSkill);
-        setSkills((prev) => [...prev, newSkill]);
-        setSelected(id);
-        setAgentActivity((prev) => [...prev, { id: `save-${Date.now()}`, label: 'Saved skill draft', status: 'done', detail: newSkill.name }]);
+        // The registry scopes the id to the owner's handle (`@handle/slug`) and
+        // is the authority on the stored record — keep what it returns, or the
+        // workspace holds an id that no read path (execute included) resolves.
+        const response = await saveSkill(newSkill);
+        const persisted = response?.skill ?? newSkill;
+        setSkills((prev) => [...prev.filter((skill) => skill.id !== persisted.id), persisted]);
+        setSelected(persisted.id);
+        setAgentActivity((prev) => [...prev, { id: `save-${Date.now()}`, label: 'Saved skill draft', status: 'done', detail: persisted.name }]);
       } catch (err) {
         if (isUnauthorizedError(err)) throw err;
         setError(err instanceof Error ? err.message : 'Failed to save skill.');
       }
     }, 'Sign in or create an account to save this skill.');
   }, [editor, skillSpec, skills, runProtectedAction]);
+
+  const handleApplyMarkdown = useCallback(() => {
+    commitSkillSpec(specFromMarkdown(editor.markdown, skillSpec));
+  }, [commitSkillSpec, editor.markdown, skillSpec]);
+
+  const handleInspectSkill = useCallback((skillId: string) => {
+    const known = skills.find((skill) => skill.id === skillId);
+    if (known) {
+      navigateToSkill(known);
+      return;
+    }
+    setSearchQuery(skillId);
+    setShowRegistry(true);
+  }, [skills, navigateToSkill]);
 
   const handleOpenRegistry = useCallback(() => {
     setView('workspace');
@@ -835,10 +458,10 @@ function App() {
     setView('workspace');
   }, [resetWorkspace]);
 
-  const sendMessage = useCallback(async () => {
-    if (!assistantInput.trim() || isLoading) return;
+  const sendMessage = useCallback(async (text?: string) => {
+    const requestText = (text ?? assistantInput).trim();
+    if (!requestText || isLoading) return;
 
-    const requestText = assistantInput.trim();
     const runId = `architect-${Date.now()}`;
     const userMessage: AgentMessage = {
       role: 'user',
@@ -850,7 +473,7 @@ function App() {
       ...prev,
       { id: `${runId}-intent`, label: 'Interpreting user intent', status: 'running', detail: requestText },
     ]);
-    setAssistantInput('');
+    if (text === undefined) setAssistantInput('');
     setIsLoading(true);
     setError(null);
 
@@ -947,10 +570,13 @@ function App() {
           markdown: specToMarkdown(specForSave),
           updatedAt: new Date().toISOString(),
         };
-        await saveSkill(skillToPublish);
-        alert(`Published "${skillToPublish.name}"
+        const response = await saveSkill(skillToPublish);
+        const persisted = response?.skill ?? skillToPublish;
+        setSkills((prev) => [...prev.filter((skill) => skill.id !== persisted.id), persisted]);
+        setSelected(persisted.id);
+        alert(`Published "${persisted.name}"
 
-Install with: ${generateNpxCommand(skillToPublish)}`);
+Install with: ${generateNpxCommand(persisted)}`);
       } catch (err) {
         if (isUnauthorizedError(err)) throw err;
         setError('Failed to publish skill.');
@@ -1091,26 +717,6 @@ Install with: ${generateNpxCommand(skillToPublish)}`);
       setError('Failed to load more skills.');
     }
   }, [registryPage, searchQuery, searchCategory, searchAuthor, searchType, searchTags, registrySort]);
-
-  const handleExecuteSkill = useCallback(async () => {
-    if (!selectedSkill || !assistantInput.trim() || isLoading) return;
-
-    const userMessage: AgentMessage = { role: 'user', text: assistantInput.trim() };
-    setAssistantMessages((prev) => [...prev, userMessage]);
-    setAssistantInput('');
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const response = await executeSkill(selectedSkill.id, { input: userMessage.text, taskOutline: 'Execute skill.' });
-      setAssistantMessages((prev) => [...prev, { role: 'assistant', text: response.response }]);
-    } catch (err) {
-      setError('Skill execution failed.');
-      setAssistantMessages((prev) => [...prev, { role: 'assistant', text: `Error: ${err instanceof Error ? err.message : 'Unknown error'}` }]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [selectedSkill, assistantInput, isLoading]);
 
   const handleLoadSkill = useCallback((skill: Skill) => {
     const fallbackSpec = normalizeSkillSpec({
@@ -1302,353 +908,32 @@ Install with: ${generateNpxCommand(skillToPublish)}`);
           </section>
         </div>
       ) : (
-        <main className="mx-auto max-w-7xl px-6 py-6">
-          <header className="mb-6 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <button onClick={handleGoHome} className="font-display text-base font-semibold text-stone-700 hover:text-amber-600 transition">&larr; skill builder</button>
-              {selectedSkill && (
-                <span className="hidden sm:inline text-sm text-stone-400">/ {selectedSkill.name}</span>
-              )}
-            </div>
-            <div className="flex items-center gap-3">
-              <button onClick={() => setShowRegistry(true)} className="text-sm font-medium text-stone-600 hover:text-stone-800 transition">Browse</button>
-              {user ? (
-                <div className="flex items-center gap-2 pl-3 border-l border-stone-200">
-                  <span className="text-sm text-stone-500">{user.name}</span>
-                  <button onClick={handleLogout} className="text-xs text-stone-400 hover:text-stone-700">Sign out</button>
-                </div>
-              ) : (
-                <button onClick={() => { setAuthNotice(''); setShowAuth(true); }} className="rounded-full bg-stone-900 px-4 py-1.5 text-sm font-medium text-white transition hover:bg-amber-600">Sign in</button>
-              )}
-            </div>
-          </header>
-
-          {error && (
-            <div className="mb-4 rounded-xl bg-red-50 border border-red-200 px-5 py-3 text-sm text-red-700">{error}</div>
-          )}
-
-          <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)_360px]">
-            <aside className="rounded-2xl border border-stone-200 bg-white p-5 flex min-h-[680px] flex-col">
-              <div className="mb-4">
-                <p className="text-xs font-medium uppercase tracking-[0.18em] text-amber-600">Agent-first builder</p>
-                <h2 className="mt-1 font-display text-2xl font-normal text-stone-900">Skill Architect</h2>
-                <p className="mt-2 text-xs leading-relaxed text-stone-400">
-                  The agent emits operations. The client replays them into the SkillSpec and the workspace updates.
-                </p>
-              </div>
-
-              <div className="mb-4 rounded-2xl border border-amber-100 bg-amber-50/70 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wider text-amber-700">Build pipeline</p>
-                <div className="mt-3 space-y-2">
-                  {agentActivity.slice(-8).map((item) => (
-                    <div key={item.id} className="flex gap-2 text-sm">
-                      <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] ${
-                        item.status === 'done'
-                          ? 'bg-emerald-100 text-emerald-700'
-                          : item.status === 'running'
-                            ? 'bg-amber-100 text-amber-700 animate-pulse'
-                            : item.status === 'error'
-                              ? 'bg-red-100 text-red-700'
-                              : 'bg-stone-100 text-stone-400'
-                      }`}>
-                        {item.status === 'done' ? '✓' : item.status === 'error' ? '!' : '•'}
-                      </span>
-                      <div className="min-w-0">
-                        <p className="font-medium text-stone-700">{item.label}</p>
-                        {item.detail && <p className="truncate text-xs text-stone-400">{item.detail}</p>}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex-1 space-y-3 overflow-y-auto rounded-2xl border border-stone-100 bg-stone-50 p-3">
-                {visibleAssistantMessages.map((msg, i) => (
-                  <div key={i} className={`rounded-xl p-3 text-sm leading-relaxed ${
-                    msg.role === 'user'
-                      ? 'bg-white text-stone-700 shadow-sm'
-                      : 'bg-stone-900 text-stone-100'
-                  }`}>
-                    <p className={`mb-1 text-xs font-medium ${msg.role === 'user' ? 'text-stone-400' : 'text-stone-400'}`}>
-                      {msg.role === 'user' ? 'You' : 'Architect'}
-                    </p>
-                    <p className="whitespace-pre-line">{msg.text}</p>
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-4 space-y-2">
-                <textarea
-                  value={assistantInput}
-                  onChange={(e) => setAssistantInput(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
-                  placeholder="Build a skill that extracts Medicare billing codes from physician notes..."
-                  rows={3}
-                  className="w-full resize-none rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm outline-none transition focus:border-amber-500 focus:bg-white"
-                />
-                <div className="flex gap-2">
-                  <button
-                    onClick={sendMessage}
-                    disabled={isLoading}
-                    className="flex-1 rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-amber-700 disabled:opacity-50"
-                  >
-                    {isLoading ? 'Building...' : 'Build / update skill'}
-                  </button>
-                  {selectedSkill && (
-                    <button
-                      onClick={handleExecuteSkill}
-                      disabled={isLoading || !assistantInput.trim()}
-                      className="rounded-xl border border-stone-200 px-3 py-2.5 text-xs font-medium text-stone-500 transition hover:border-stone-400 disabled:opacity-40"
-                    >
-                      Run
-                    </button>
-                  )}
-                </div>
-              </div>
-            </aside>
-
-            <section className="rounded-2xl border border-stone-200 bg-white p-6">
-              <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-[0.18em] text-stone-400">Current SkillSpec</p>
-                  <h1 className="mt-1 font-display text-3xl font-normal text-stone-900">
-                    {skillSpec.name || 'Untitled skill'}
-                  </h1>
-                  <p className="mt-2 max-w-2xl text-sm leading-relaxed text-stone-500">
-                    {skillSpec.description || 'The architect will fill this in as soon as the user describes the desired capability.'}
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <button onClick={handleCreate} className="rounded-full bg-amber-600 px-5 py-2 text-sm font-medium text-white transition hover:bg-amber-700">Save</button>
-                  <button onClick={handlePublishSkill} disabled={!selectedSkill} className="rounded-full border border-stone-200 px-5 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 disabled:opacity-40">Publish</button>
-                  {selectedSkill && (
-                    <button onClick={handleForkSkill} className="rounded-full border border-stone-200 px-5 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400">Fork</button>
-                  )}
-                </div>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-3">
-                <label className="space-y-1.5 text-sm">
-                  <span className="font-medium text-stone-700">Name</span>
-                  <input
-                    value={skillSpec.name}
-                    onChange={(e) => updateSkillSpec({ name: e.target.value })}
-                    placeholder="Medicare Billing Extractor"
-                    className="w-full rounded-xl border border-stone-200 bg-stone-50 px-4 py-2.5 text-sm outline-none transition focus:border-amber-500 focus:bg-white"
-                  />
-                </label>
-                <label className="space-y-1.5 text-sm">
-                  <span className="font-medium text-stone-700">Category</span>
-                  <select
-                    value={skillSpec.category}
-                    onChange={(e) => updateSkillSpec({ category: e.target.value })}
-                    className="w-full rounded-xl border border-stone-200 bg-stone-50 px-4 py-2.5 text-sm outline-none transition focus:border-amber-500 focus:bg-white"
-                  >
-                    {categoryOptions.map((category) => <option key={category}>{category}</option>)}
-                  </select>
-                </label>
-                <label className="space-y-1.5 text-sm">
-                  <span className="font-medium text-stone-700">Tags</span>
-                  <input
-                    value={skillSpec.tags.join(', ')}
-                    onChange={(e) => updateSkillSpec({ tags: parseTags(e.target.value) })}
-                    placeholder="cms, billing, medical"
-                    className="w-full rounded-xl border border-stone-200 bg-stone-50 px-4 py-2.5 text-sm outline-none transition focus:border-amber-500 focus:bg-white"
-                  />
-                </label>
-              </div>
-
-              <div className="mt-4 grid gap-4 md:grid-cols-[auto_1fr] md:items-start">
-                <div className="space-y-1.5 text-sm">
-                  <span className="font-medium text-stone-700">Skill type</span>
-                  <div className="inline-flex overflow-hidden rounded-xl border border-stone-200 text-sm">
-                    {(['basic', 'meta'] as const).map((t) => {
-                      const active = (skillSpec.type ?? 'basic') === t;
-                      return (
-                        <button
-                          key={t}
-                          type="button"
-                          onClick={() => updateSkillSpec({ type: t })}
-                          className={`px-4 py-2.5 font-medium capitalize transition ${active ? 'bg-stone-900 text-white' : 'bg-stone-50 text-stone-600 hover:bg-stone-100'}`}
-                        >
-                          {t}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-                <label className="space-y-1.5 text-sm">
-                  <span className="font-medium text-stone-700">Dependencies <span className="font-normal text-stone-400">(required skills, by id)</span></span>
-                  <input
-                    value={(skillSpec.dependencies ?? []).join(', ')}
-                    onChange={(e) => {
-                      const dependencies = parseDependencies(e.target.value);
-                      updateSkillSpec({ dependencies, type: dependencies.length > 0 ? 'meta' : (skillSpec.type ?? 'basic') });
-                    }}
-                    placeholder="@author/skill-a, @author/skill-b"
-                    disabled={(skillSpec.type ?? 'basic') !== 'meta'}
-                    className="w-full rounded-xl border border-stone-200 bg-stone-50 px-4 py-2.5 text-sm outline-none transition focus:border-amber-500 focus:bg-white disabled:cursor-not-allowed disabled:opacity-50"
-                  />
-                  {(skillSpec.type ?? 'basic') === 'meta' && (
-                    <span className="block text-xs text-violet-600">A meta skill installs these alongside itself.</span>
-                  )}
-                </label>
-              </div>
-
-              <label className="mt-4 block space-y-1.5 text-sm">
-                <span className="font-medium text-stone-700">Description</span>
-                <textarea
-                  value={skillSpec.description}
-                  onChange={(e) => updateSkillSpec({ description: e.target.value })}
-                  placeholder="Brief description of what this skill does"
-                  rows={2}
-                  className="w-full rounded-xl border border-stone-200 bg-stone-50 px-4 py-2.5 text-sm outline-none transition focus:border-amber-500 focus:bg-white"
-                />
-              </label>
-
-              <div className="mt-5 grid gap-4 lg:grid-cols-[0.95fr_1.05fr]">
-                <label className="block space-y-1.5 text-sm">
-                  <span className="font-medium text-stone-700">Purpose</span>
-                  <textarea
-                    value={skillSpec.purpose}
-                    onChange={(e) => updateSkillSpec({ purpose: e.target.value })}
-                    placeholder="What job should this skill own?"
-                    rows={7}
-                    className="w-full rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm outline-none transition focus:border-amber-500 focus:bg-white"
-                  />
-                </label>
-                <label className="block space-y-1.5 text-sm">
-                  <span className="font-medium text-stone-700">Instructions</span>
-                  <textarea
-                    value={skillSpec.instructions.join('\n')}
-                    onChange={(e) => updateSkillSpec({ instructions: normalizeStringArray(e.target.value) })}
-                    placeholder={'Identify the user intent\nExtract required fields\nReturn structured JSON'}
-                    rows={7}
-                    className="w-full rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm outline-none transition focus:border-amber-500 focus:bg-white"
-                  />
-                </label>
-              </div>
-
-              <label className="mt-4 block space-y-1.5 text-sm">
-                <span className="font-medium text-stone-700">Prompt Template</span>
-                <textarea
-                  value={skillSpec.promptTemplate}
-                  onChange={(e) => updateSkillSpec({ promptTemplate: e.target.value })}
-                  placeholder={'You are a reusable AI skill.\n\nInput: {{input}}\nOutput format: {{format}}'}
-                  rows={8}
-                  className="w-full rounded-xl border border-stone-200 bg-stone-950 px-4 py-3 font-mono text-sm text-stone-100 outline-none transition focus:border-amber-500 resize-y"
-                  spellCheck={false}
-                />
-              </label>
-
-              <div className="mt-6 grid gap-4 md:grid-cols-2">
-                <div className="rounded-2xl border border-stone-200 bg-stone-50 p-4">
-                  <div className="mb-3 flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-stone-700">Examples</h3>
-                    <span className="rounded-full bg-white px-2 py-0.5 text-xs text-stone-400">{skillSpec.examples.length}</span>
-                  </div>
-                  <div className="space-y-3">
-                    {skillSpec.examples.length ? skillSpec.examples.map((example, index) => (
-                      <div key={`${example.title}-${index}`} className="rounded-xl bg-white p-3 text-xs shadow-sm">
-                        <p className="font-semibold text-stone-700">{example.title || `Example ${index + 1}`}</p>
-                        <p className="mt-2 text-stone-400">Input</p>
-                        <pre className="mt-1 max-h-20 overflow-auto whitespace-pre-wrap rounded-lg bg-stone-100 p-2 text-stone-600">{example.input}</pre>
-                        <p className="mt-2 text-stone-400">Output</p>
-                        <pre className="mt-1 max-h-24 overflow-auto whitespace-pre-wrap rounded-lg bg-stone-100 p-2 text-stone-600">{example.output}</pre>
-                      </div>
-                    )) : <p className="text-sm text-stone-400">No examples yet. Ask the architect to generate edge-case examples.</p>}
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-stone-200 bg-stone-50 p-4">
-                  <div className="mb-3 flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-stone-700">Tests</h3>
-                    <span className="rounded-full bg-white px-2 py-0.5 text-xs text-stone-400">{skillSpec.tests.length}</span>
-                  </div>
-                  <div className="space-y-3">
-                    {skillSpec.tests.length ? skillSpec.tests.map((test, index) => (
-                      <div key={`${test.name}-${index}`} className="rounded-xl bg-white p-3 text-xs shadow-sm">
-                        <p className="font-semibold text-stone-700">{test.name || `Test ${index + 1}`}</p>
-                        <p className="mt-2 text-stone-400">Input</p>
-                        <pre className="mt-1 max-h-20 overflow-auto whitespace-pre-wrap rounded-lg bg-stone-100 p-2 text-stone-600">{test.input}</pre>
-                        <p className="mt-2 text-stone-400">Expected</p>
-                        <pre className="mt-1 max-h-24 overflow-auto whitespace-pre-wrap rounded-lg bg-stone-100 p-2 text-stone-600">{test.expected}</pre>
-                      </div>
-                    )) : <p className="text-sm text-stone-400">No tests yet. Ask for validation cases before publishing.</p>}
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            <aside className="rounded-2xl border border-stone-200 bg-white p-5">
-              <div className="mb-4">
-                <p className="text-xs font-medium uppercase tracking-[0.18em] text-stone-400">Generated artifacts</p>
-                <h2 className="mt-1 font-display text-2xl font-normal text-stone-900">Runtime package</h2>
-              </div>
-
-              <div className="mb-4 grid grid-cols-2 gap-2">
-                <div className="rounded-xl border border-stone-200 bg-stone-50 p-3">
-                  <p className="text-xs text-stone-400">Fields</p>
-                  <p className="mt-1 text-lg font-semibold text-stone-800">
-                    {[skillSpec.name, skillSpec.description, skillSpec.purpose, skillSpec.promptTemplate].filter(Boolean).length}/4
-                  </p>
-                </div>
-                <div className="rounded-xl border border-stone-200 bg-stone-50 p-3">
-                  <p className="text-xs text-stone-400">Artifacts</p>
-                  <p className="mt-1 text-lg font-semibold text-stone-800">{skillSpec.examples.length + skillSpec.tests.length}</p>
-                </div>
-              </div>
-
-              {selectedSkill && (
-                <div className="mb-4 rounded-xl bg-stone-950 px-4 py-3 font-mono text-xs text-amber-200">
-                  <div className="mb-2 flex items-center justify-between gap-3">
-                    <span className="text-stone-400">Install</span>
-                    <button onClick={() => navigator.clipboard.writeText(npxCommand)} className="font-sans font-medium text-white hover:text-amber-200">Copy</button>
-                  </div>
-                  <code className="break-all">{npxCommand}</code>
-                </div>
-              )}
-
-              <div className="mb-3 flex items-center gap-2">
-                {(['edit', 'split', 'preview'] as const).map((mode) => (
-                  <button
-                    key={mode}
-                    onClick={() => setEditorMode(mode)}
-                    className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
-                      editorMode === mode
-                        ? 'bg-amber-600 text-white'
-                        : 'bg-stone-100 text-stone-500 hover:bg-stone-200'
-                    }`}
-                  >
-                    {mode === 'edit' ? 'Source' : mode.charAt(0).toUpperCase() + mode.slice(1)}
-                  </button>
-                ))}
-              </div>
-
-              <div className={`grid gap-3 ${editorMode === 'split' ? 'grid-cols-1' : 'grid-cols-1'}`}>
-                {editorMode !== 'preview' && (
-                  <div className="space-y-1.5">
-                    <span className="text-xs text-stone-400">Generated markdown</span>
-                    <textarea
-                      value={editor.markdown}
-                      onChange={(e) => setEditor((cur) => ({ ...cur, markdown: e.target.value }))}
-                      className="h-[280px] w-full rounded-xl border border-stone-200 bg-stone-950 px-4 py-3 font-mono text-xs text-stone-100 outline-none transition focus:border-amber-500 resize-y"
-                      spellCheck={false}
-                    />
-                  </div>
-                )}
-                {editorMode !== 'edit' && (
-                  <div className="space-y-1.5">
-                    <span className="text-xs text-stone-400">Preview</span>
-                    <div className="min-h-[360px] max-h-[480px] overflow-y-auto rounded-xl border border-stone-200 bg-white px-5 py-4">
-                      {markdownPreview}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </aside>
-          </div>
-        </main>
+        <SkillStudio
+          spec={skillSpec}
+          onSpecChange={updateSkillSpec}
+          markdown={editor.markdown}
+          onMarkdownChange={(markdown) => setEditor((cur) => ({ ...cur, markdown }))}
+          onApplyMarkdown={handleApplyMarkdown}
+          markdownPreview={markdownPreview}
+          messages={visibleAssistantMessages}
+          activity={agentActivity}
+          agentInput={assistantInput}
+          onAgentInputChange={setAssistantInput}
+          onSend={sendMessage}
+          isLoading={isLoading}
+          selectedSkill={selectedSkill}
+          user={user}
+          error={error}
+          npxCommand={npxCommand}
+          onSave={handleCreate}
+          onPublish={handlePublishSkill}
+          onFork={handleForkSkill}
+          onBrowse={() => setShowRegistry(true)}
+          onHome={handleGoHome}
+          onSignIn={() => { setAuthNotice(''); setShowAuth(true); }}
+          onSignOut={handleLogout}
+          onInspectSkill={handleInspectSkill}
+        />
       )}
 
       {showRegistry && (

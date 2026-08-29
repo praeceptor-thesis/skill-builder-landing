@@ -527,7 +527,10 @@ export default function SkillDetailPage() {
                                 try {
                                   const res = await updateSkillVisibility(skill.id, option);
                                   setSkill(res.skill);
-                                } catch {}
+                                } catch {
+                                  // Leave the current visibility selected; the
+                                  // control re-enables so it can be retried.
+                                }
                                 setUpdatingVis(false);
                               }}
                               disabled={updatingVis}
@@ -556,7 +559,9 @@ export default function SkillDetailPage() {
                               try {
                                 await deleteSkill(skill.id);
                                 navigate('/');
-                              } catch {}
+                              } catch {
+                                // Stay on the page with the skill intact.
+                              }
                               setDeleting(false);
                               setConfirmDelete(false);
                             }}

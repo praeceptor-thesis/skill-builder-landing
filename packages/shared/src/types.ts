@@ -12,6 +12,28 @@ export interface SkillTest {
 
 export type SkillType = 'basic' | 'meta';
 
+export type CapabilityLevel = 'required' | 'preferred';
+
+/**
+ * A model ability an invoker must have to run a skill. `required` gates
+ * execution; `preferred` only degrades it. Ids come from the shared capability
+ * catalog, but custom slugs are preserved so a skill can name an ability the
+ * catalog does not model yet.
+ */
+export interface SkillCapability {
+  id: string;
+  level: CapabilityLevel;
+  note?: string;
+}
+
+export const CAPABILITY_CATALOG_IDS = [
+  'vision', 'audio-input', 'file-input', 'structured-output', 'streaming',
+  'extended-reasoning', 'long-context', 'multilingual',
+  'tool-use', 'parallel-tool-calls', 'code-execution', 'web-search', 'file-system',
+  'computer-use', 'mcp-client',
+  'persistent-memory', 'citations',
+] as const;
+
 export interface SkillSpec {
   name: string;
   description: string;
@@ -26,6 +48,8 @@ export interface SkillSpec {
   type?: SkillType;
   /** Full registry ids of required skills, installed alongside a meta skill. */
   dependencies?: string[];
+  /** Model capabilities required to invoke this skill. */
+  capabilities?: SkillCapability[];
 }
 
 export interface SkillArtifacts {
@@ -69,6 +93,7 @@ export interface Skill {
   downloads: number;
   type?: SkillType;
   dependencies?: string[];
+  capabilities?: SkillCapability[];
   visibility?: SkillVisibility;
   /** Provenance of the publish, e.g. 'dmzagent-orchestration'. */
   source?: string;
@@ -86,6 +111,7 @@ export type SkillPayload = {
   forkedFrom?: string;
   type?: SkillType;
   dependencies?: string[];
+  capabilities?: SkillCapability[];
   visibility?: SkillVisibility;
   source?: string;
 };
@@ -160,6 +186,8 @@ export type SkillOperationType =
   | 'append_example'
   | 'set_tests'
   | 'append_test'
+  | 'set_capabilities'
+  | 'append_capability'
   | 'set_markdown_artifact';
 
 export interface SkillOperation {
@@ -220,11 +248,32 @@ export interface ExecuteSkillRequest {
   input: string;
   taskOutline?: string;
   spec?: SkillSpec;
+  /** Run even when the runtime lacks a capability the skill requires. */
+  force?: boolean;
+}
+
+/** What a given execution runtime can actually do. */
+export interface RuntimeProfile {
+  id: string;
+  label: string;
+  description: string;
+  model?: string;
+  capabilities: string[];
+}
+
+export interface CapabilityReport {
+  profileId: string;
+  profileLabel: string;
+  missingRequired: SkillCapability[];
+  missingPreferred: SkillCapability[];
+  satisfied: boolean;
 }
 
 export interface ExecuteSkillResponse {
   response: string;
   trace?: AgentActivity[];
+  capabilityReport?: CapabilityReport;
+  degraded?: boolean;
 }
 
 export interface User {
@@ -306,6 +355,7 @@ export function createEmptySkillSpec(overrides: Partial<SkillSpec> = {}): SkillS
     tests: [],
     type: 'basic',
     dependencies: [],
+    capabilities: [],
     ...overrides,
   };
 }

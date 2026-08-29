@@ -8,7 +8,7 @@ import { createApiClient, type SkillPayload, type RegistrySearchParams } from '.
 import { runSync } from './sync.js';
 import { runGenerate } from './generate.js';
 import { resolveInstallPlan, writeSkillForTool } from './install.js';
-import { renderSkillTable, renderSkillInfo, renderSuggestions, displayId, effectiveType } from './render.js';
+import { renderSkillTable, renderSkillInfo, renderSuggestions, displayId, effectiveType, skillCapabilities } from './render.js';
 
 const DEFAULT_API = 'https://skills.dmzagent.com/api';
 
@@ -76,6 +76,20 @@ cli
       console.log('');
       for (const item of toInstall) {
         for (const line of writeSkillForTool(item, writeOpts)) console.log(line);
+      }
+
+      const requiredCapabilities = new Map<string, 'required' | 'preferred'>();
+      for (const item of toInstall) {
+        for (const capability of skillCapabilities(item)) {
+          const existing = requiredCapabilities.get(capability.id);
+          if (existing !== 'required') requiredCapabilities.set(capability.id, capability.level);
+        }
+      }
+      if (requiredCapabilities.size > 0) {
+        console.log('\nModel capabilities needed to invoke what you just installed:');
+        for (const [id, level] of requiredCapabilities) {
+          console.log(`  - ${id}${level === 'preferred' ? ' (preferred)' : ''}`);
+        }
       }
 
       console.log(

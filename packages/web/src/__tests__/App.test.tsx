@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
 import App from '../App';
@@ -37,6 +37,8 @@ const mockGenerateNpxCommand = vi.hoisted(
     }),
 );
 const mockGetSkill = vi.hoisted(() => vi.fn());
+const mockResolveSkillDependencies = vi.hoisted(() => vi.fn());
+const mockGetRuntimeProfile = vi.hoisted(() => vi.fn());
 
 vi.mock('../services/api', () => ({
   listSkills: mockListSkills,
@@ -54,6 +56,8 @@ vi.mock('../services/api', () => ({
   isUnauthorizedError: mockIsUnauthorizedError,
   generateNpxCommand: mockGenerateNpxCommand,
   getSkill: mockGetSkill,
+  resolveSkillDependencies: mockResolveSkillDependencies,
+  getRuntimeProfile: mockGetRuntimeProfile,
 }));
 
 vi.mock('../renderMarkdown', () => ({
@@ -115,6 +119,14 @@ describe('App', () => {
     vi.clearAllMocks();
     mockListSkills.mockResolvedValue({ skills: [], total: 0 });
     mockGetSkill.mockResolvedValue({ skill: mockSkill });
+    mockResolveSkillDependencies.mockResolvedValue([]);
+    mockGetRuntimeProfile.mockResolvedValue({
+      id: 'preview-sandbox',
+      label: 'Preview sandbox',
+      description: 'The text-only model this workspace executes skills on.',
+      model: '@cf/meta/llama-3.1-8b-instruct-fp8',
+      capabilities: ['structured-output', 'streaming', 'multilingual'],
+    });
     mockGetAuthToken.mockReturnValue(null);
     mockGetCurrentUser.mockRejectedValue(new Error('Not logged in'));
     mockCreateSkillBuilderSession.mockResolvedValue({
@@ -230,9 +242,9 @@ describe('App', () => {
       expect(screen.getByText('Untitled skill')).toBeInTheDocument();
     });
 
-    it('renders Runtime package sidebar', () => {
-      expect(screen.getByText('Runtime package')).toBeInTheDocument();
-      expect(screen.getByText('Generated artifacts')).toBeInTheDocument();
+    it('renders the preview invocation pane', () => {
+      expect(screen.getByText('Invocation')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText(/What would a caller send/)).toBeInTheDocument();
     });
 
     it('renders Save and Publish buttons', () => {
@@ -245,12 +257,22 @@ describe('App', () => {
       expect(screen.getByText('Skill Architect ready')).toBeInTheDocument();
     });
 
-    it('shows editor mode toggles', () => {
-      const sourceElements = screen.getAllByText('Source');
-      expect(sourceElements.length).toBeGreaterThanOrEqual(1);
-      expect(screen.getByText('Split')).toBeInTheDocument();
-      const previewElements = screen.getAllByText('Preview');
-      expect(previewElements.length).toBeGreaterThanOrEqual(1);
+    it('shows pane toggles for architect, architecture, and preview', () => {
+      expect(screen.getByText('Architect')).toBeInTheDocument();
+      expect(screen.getByText('Architecture')).toBeInTheDocument();
+      expect(screen.getByText('Settings')).toBeInTheDocument();
+      expect(screen.getAllByText('Preview').length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('collapses the architect pane', () => {
+      expect(screen.getByPlaceholderText(/Build a skill that extracts/)).toBeInTheDocument();
+      fireEvent.click(screen.getByText('Architect'));
+      expect(screen.getByPlaceholderText(/Build a skill that extracts/)).not.toBeVisible();
+    });
+
+    it('shows the publish readiness checklist', () => {
+      expect(screen.getByText('Publish readiness')).toBeInTheDocument();
+      expect(screen.getByText('○ Prompt template')).toBeInTheDocument();
     });
   });
 
@@ -264,7 +286,7 @@ describe('App', () => {
     it('sends message and creates a session', async () => {
       const input = screen.getByPlaceholderText(/Build a skill that extracts/);
       fireEvent.change(input, { target: { value: 'Build a summarizer skill' } });
-      fireEvent.click(screen.getByText('Build / update skill'));
+      fireEvent.click(screen.getByText('Send to architect'));
 
       await waitFor(() => {
         expect(mockCreateSkillBuilderSession).toHaveBeenCalledWith(
@@ -276,7 +298,7 @@ describe('App', () => {
     it('shows user message after sending', async () => {
       const input = screen.getByPlaceholderText(/Build a skill that extracts/);
       fireEvent.change(input, { target: { value: 'Build a parser skill' } });
-      fireEvent.click(screen.getByText('Build / update skill'));
+      fireEvent.click(screen.getByText('Send to architect'));
 
       await waitFor(() => {
         const messages = screen.getAllByText('Build a parser skill');
@@ -295,11 +317,20 @@ describe('App', () => {
     });
 
     it('does not send empty message', async () => {
-      const sendButton = screen.getByText('Build / update skill');
-      fireEvent.click(sendButton);
+      fireEvent.click(screen.getByText('Send to architect'));
 
       await waitFor(() => {
         expect(mockCreateSkillBuilderSession).not.toHaveBeenCalled();
+      });
+    });
+
+    it('sends a suggested next step without typing', async () => {
+      fireEvent.click(screen.getByText('Name and describe it'));
+
+      await waitFor(() => {
+        expect(mockCreateSkillBuilderSession).toHaveBeenCalledWith(
+          expect.objectContaining({ intent: expect.stringContaining('precise name') }),
+        );
       });
     });
 
@@ -307,7 +338,7 @@ describe('App', () => {
       mockCreateSkillBuilderSession.mockRejectedValue(new Error('API unavailable'));
       const input = screen.getByPlaceholderText(/Build a skill that extracts/);
       fireEvent.change(input, { target: { value: 'Test' } });
-      fireEvent.click(screen.getByText('Build / update skill'));
+      fireEvent.click(screen.getByText('Send to architect'));
 
       await waitFor(() => {
         expect(screen.getByText(/Skill Architect failed/)).toBeInTheDocument();
@@ -320,49 +351,131 @@ describe('App', () => {
       );
       const input = screen.getByPlaceholderText(/Build a skill that extracts/);
       fireEvent.change(input, { target: { value: 'Slow request' } });
-      fireEvent.click(screen.getByText('Build / update skill'));
+      fireEvent.click(screen.getByText('Send to architect'));
 
-      const button = screen.getByText('Building...');
-      expect(button).toBeDisabled();
+      expect(screen.getByText('Working…')).toBeDisabled();
     });
   });
 
-  describe('SkillSpec editor fields', () => {
+  describe('Settings drawer', () => {
+    beforeEach(async () => {
+      renderWithProviders(<App />);
+      navigateToWorkspace();
+      await waitForWorkspace();
+      fireEvent.click(screen.getByText('Settings'));
+    });
+
+    it('opens with the identity fields', () => {
+      expect(screen.getByPlaceholderText('Clinical Note Summarizer')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('summarization, clinical')).toBeInTheDocument();
+    });
+
+    it('updates the skill name', () => {
+      const nameInput = screen.getByPlaceholderText('Clinical Note Summarizer');
+      fireEvent.change(nameInput, { target: { value: 'Custom Skill Name' } });
+      expect(nameInput).toHaveValue('Custom Skill Name');
+      expect(screen.getAllByText('Custom Skill Name').length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('switches to the behavior section', () => {
+      fireEvent.click(screen.getByText('Behavior'));
+      expect(screen.getByPlaceholderText('What job should this skill own?')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText(/Identify the user intent/)).toBeInTheDocument();
+    });
+
+    it('declares a required capability', () => {
+      fireEvent.click(screen.getByText('Capabilities'));
+      const toolUseRow = screen.getByText('Tool use').closest('div')!.parentElement!;
+      fireEvent.click(within(toolUseRow).getByText('Required'));
+      fireEvent.click(screen.getByText('Done'));
+
+      expect(screen.getByText('Capability contract')).toBeInTheDocument();
+      expect(screen.getAllByText('Tool use').length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('adds an example from the examples section', () => {
+      fireEvent.click(screen.getByText('Examples & tests'));
+      fireEvent.click(screen.getByText('Add example'));
+      expect(screen.getAllByText('Examples (1)').length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('closes on Done', () => {
+      fireEvent.click(screen.getByText('Done'));
+      expect(screen.queryByPlaceholderText('Clinical Note Summarizer')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Spec canvas', () => {
     beforeEach(async () => {
       renderWithProviders(<App />);
       navigateToWorkspace();
       await waitForWorkspace();
     });
 
-    it('displays skill spec fields', () => {
-      expect(
-        screen.getByPlaceholderText('Medicare Billing Extractor'),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByPlaceholderText('cms, billing, medical'),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByPlaceholderText('What job should this skill own?'),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByPlaceholderText(/Identify the user intent/),
-      ).toBeInTheDocument();
+    it('shows the capability contract with an empty state', () => {
+      expect(screen.getByText('Capability contract')).toBeInTheDocument();
+      expect(screen.getByText(/any model can invoke this skill/i)).toBeInTheDocument();
     });
 
-    it('updates skill name on input', () => {
-      const nameInput = screen.getByPlaceholderText('Medicare Billing Extractor');
-      fireEvent.change(nameInput, { target: { value: 'Custom Skill Name' } });
-      expect(nameInput).toHaveValue('Custom Skill Name');
+    it('shows empty examples and tests', () => {
+      expect(screen.getByText('Examples (0)')).toBeInTheDocument();
+      expect(screen.getByText('Tests (0)')).toBeInTheDocument();
     });
 
-    it('shows examples section', () => {
-      expect(screen.getByText('Examples')).toBeInTheDocument();
-      expect(screen.getByText(/No examples yet/)).toBeInTheDocument();
+    it('opens the drawer at the section behind a readiness chip', () => {
+      fireEvent.click(screen.getByText('○ Prompt template'));
+      expect(screen.getByPlaceholderText('What job should this skill own?')).toBeInTheDocument();
+    });
+  });
+
+  describe('Architecture graph', () => {
+    beforeEach(async () => {
+      renderWithProviders(<App />);
+      navigateToWorkspace();
+      await waitForWorkspace();
     });
 
-    it('shows tests section', () => {
-      expect(screen.getByText('Tests')).toBeInTheDocument();
-      expect(screen.getByText(/No tests yet/)).toBeInTheDocument();
+    it('explains that a basic skill has no architecture', () => {
+      fireEvent.click(screen.getByText('Architecture'));
+      expect(screen.getByText('This is a basic skill')).toBeInTheDocument();
+    });
+
+    it('draws the dependency graph once the skill is meta', async () => {
+      mockResolveSkillDependencies.mockResolvedValue([
+        { ...mockSkill, id: '@testauthor/dep-one', name: 'Dep One', dependencies: [] },
+      ]);
+
+      fireEvent.click(screen.getByText('Settings'));
+      fireEvent.click(screen.getByText('Composition'));
+      fireEvent.change(screen.getByPlaceholderText(/@skillauthor\/dialogue-flow/), {
+        target: { value: '@testauthor/dep-one' },
+      });
+      fireEvent.click(screen.getByText('Done'));
+
+      await waitFor(() => {
+        expect(screen.getByText('Meta skill composition')).toBeInTheDocument();
+      });
+      await waitFor(() => {
+        expect(screen.getByText('Dep One')).toBeInTheDocument();
+      });
+      expect(screen.getByText(/1 skill installed alongside/)).toBeInTheDocument();
+    });
+  });
+
+  describe('Preview pane', () => {
+    beforeEach(async () => {
+      renderWithProviders(<App />);
+      navigateToWorkspace();
+      await waitForWorkspace();
+    });
+
+    it('asks for a save before an unsaved draft can run', () => {
+      expect(screen.getByText(/has to be saved first/)).toBeInTheDocument();
+      expect(screen.getByText('Run skill')).toBeDisabled();
+    });
+
+    it('offers a runtime to preflight against', () => {
+      expect(screen.getByText(/text-only model this workspace executes/i)).toBeInTheDocument();
     });
   });
 
@@ -538,31 +651,23 @@ describe('App', () => {
     });
   });
 
-  describe('Editor mode switching', () => {
+  describe('Generated artifact', () => {
     beforeEach(async () => {
       renderWithProviders(<App />);
       navigateToWorkspace();
       await waitForWorkspace();
     });
 
-    it('switches to Source (edit) mode', () => {
-      const sourceButtons = screen.getAllByText('Source');
-      fireEvent.click(sourceButtons[0]);
-      expect(screen.getByText('Generated markdown')).toBeInTheDocument();
+    it('reveals the markdown preview on demand', () => {
+      expect(screen.queryByText(/Start writing your skill markdown/)).not.toBeInTheDocument();
+      fireEvent.click(screen.getByText('Generated artifact'));
+      expect(screen.getByText(/Start writing your skill markdown/)).toBeInTheDocument();
     });
 
-    it('switches to Preview mode', () => {
-      const previewButtons = screen.getAllByText('Preview');
-      fireEvent.click(previewButtons[0]);
-      const previewTexts = screen.getAllByText('Preview');
-      expect(previewTexts.length).toBeGreaterThanOrEqual(1);
-    });
-
-    it('switches back to Split mode', () => {
-      const sourceButtons = screen.getAllByText('Source');
-      fireEvent.click(sourceButtons[0]);
-      fireEvent.click(screen.getByText('Split'));
-      expect(sourceButtons.length).toBeGreaterThanOrEqual(1);
+    it('edits the markdown source in the drawer', () => {
+      fireEvent.click(screen.getByText('Generated artifact'));
+      fireEvent.click(screen.getByText('Edit source'));
+      expect(screen.getByText('Parse markdown into the spec')).toBeInTheDocument();
     });
   });
 });

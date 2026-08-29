@@ -1,8 +1,3 @@
-type SkillApiImportMetaEnv = {
-  DEV?: boolean;
-  VITE_SKILL_API_URL?: string;
-};
-
 declare global {
   interface ImportMeta {
     readonly env: ImportMetaEnv;
@@ -22,6 +17,20 @@ export type SkillTest = {
 };
 
 export type SkillType = 'basic' | 'meta';
+
+export type CapabilityLevel = 'required' | 'preferred';
+
+/**
+ * A model ability an invoker must have to run the skill. `required` gates
+ * execution; `preferred` only degrades it. Ids come from the shared capability
+ * catalog (see ../skill/capabilities), but custom slugs are accepted so a skill
+ * can name something the catalog does not model yet.
+ */
+export type SkillCapability = {
+  id: string;
+  level: CapabilityLevel;
+  note?: string;
+};
 
 export type SkillSpec = {
   name: string;
@@ -44,6 +53,8 @@ export type SkillSpec = {
    * `@handle/skill-id`.
    */
   dependencies?: string[];
+  /** Model capabilities required to invoke this skill. */
+  capabilities?: SkillCapability[];
 };
 
 export type SkillArtifacts = {
@@ -241,11 +252,37 @@ export type ExecuteSkillRequest = {
   input: string;
   taskOutline?: string;
   spec?: SkillSpec;
+  /**
+   * Run even when the runtime is missing a capability the skill requires. The
+   * worker refuses such a run by default; the preview pane sets this when the
+   * author chooses to see the degraded output anyway.
+   */
+  force?: boolean;
+};
+
+/** What a given execution runtime can actually do. */
+export type RuntimeProfileResponse = {
+  id: string;
+  label: string;
+  description: string;
+  model?: string;
+  capabilities: string[];
+};
+
+export type CapabilityReportResponse = {
+  profileId: string;
+  profileLabel: string;
+  missingRequired: SkillCapability[];
+  missingPreferred: SkillCapability[];
+  satisfied: boolean;
 };
 
 export type ExecuteSkillResponse = {
   response: string;
   trace?: AgentActivity[];
+  capabilityReport?: CapabilityReportResponse;
+  /** True when the run went ahead with an unmet required capability. */
+  degraded?: boolean;
 };
 
 export type User = {
@@ -363,24 +400,42 @@ export async function suggestSkills(
  * itself plus every (transitive) dependency, deduped. Used by the UI to preview
  * a meta skill's footprint. Cycle-safe.
  */
-export async function resolveSkillDependencies(skill: Skill): Promise<Skill[]> {
-  const resolved = new Map<string, Skill>([[skill.id, skill]]);
-  const queue = [...(skill.dependencies ?? [])];
-  while (queue.length > 0) {
-    const depId = queue.shift()!;
-    if (resolved.has(depId)) continue;
-    try {
-      const { skill: dep } = await getSkill(depId);
-      resolved.set(dep.id, dep);
-      for (const next of dep.dependencies ?? []) {
-        if (!resolved.has(next)) queue.push(next);
+export async function resolveSkillDependencies(
+  skill: { id: string; dependencies?: string[] },
+): Promise<Skill[]> {
+  const resolved = new Map<string, Skill>();
+  // The root counts as visited so a dependency pointing back at it terminates.
+  const visited = new Set<string>([skill.id]);
+  let level = (skill.dependencies ?? []).filter((id) => {
+    if (visited.has(id)) return false;
+    visited.add(id);
+    return true;
+  });
+
+  // Walk the tree a level at a time and fetch each level in parallel: a wide
+  // meta skill resolved one id after another is as slow as its whole tree.
+  while (level.length > 0) {
+    const fetched = await Promise.all(level.map(async (depId) => {
+      try {
+        return (await getSkill(depId)).skill;
+      } catch {
+        // Record a placeholder so the UI can flag an unresolved dependency.
+        return { id: depId, name: depId, missing: true } as unknown as Skill;
       }
-    } catch {
-      // Record a placeholder so the UI can flag an unresolved dependency.
-      resolved.set(depId, { id: depId, name: depId, missing: true } as unknown as Skill);
+    }));
+
+    const next: string[] = [];
+    for (const dep of fetched) {
+      resolved.set(dep.id, dep);
+      for (const child of dep.dependencies ?? []) {
+        if (visited.has(child)) continue;
+        visited.add(child);
+        next.push(child);
+      }
     }
+    level = next;
   }
-  resolved.delete(skill.id);
+
   return [...resolved.values()];
 }
 
@@ -455,6 +510,15 @@ export async function executeSkill(id: string, request: ExecuteSkillRequest): Pr
     headers: getAuthHeaders(),
     body: JSON.stringify(request),
   });
+}
+
+/**
+ * The capability profile of the runtime that `executeSkill` runs on. Fetched
+ * rather than hardcoded so the preview pane's preflight matches what the worker
+ * will actually do with the request.
+ */
+export async function getRuntimeProfile(signal?: AbortSignal): Promise<RuntimeProfileResponse> {
+  return fetchJson(`${apiBase}/runtime/profile`, { signal });
 }
 
 export async function login(email: string, password: string): Promise<AuthResponse> {

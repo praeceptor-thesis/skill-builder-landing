@@ -105,7 +105,45 @@ The CLI reads the filename as the skill id and the first heading as the name. Yo
 npx @dmzagent/skill-builder publish ./my-skill.json
 ```
 
-### 4. Fork an existing skill (optional)
+### 4. Declare the capabilities a skill needs (optional)
+
+A skill can declare what a model must be able to do to invoke it. The
+declaration lives on the spec, so it travels with the skill through the
+registry, the CLI, and MCP — an agent can tell whether it is able to run a skill
+before it spends a turn on it.
+
+```json
+{
+  "capabilities": [
+    { "id": "vision", "level": "required", "note": "reads chart images" },
+    { "id": "long-context", "level": "preferred" }
+  ]
+}
+```
+
+`required` capabilities gate execution: the registry refuses to run a skill on a
+runtime that cannot provide one, unless the caller explicitly forces a degraded
+run. `preferred` capabilities only weaken the result. Catalog ids:
+
+```
+vision · audio-input · file-input · structured-output · streaming
+extended-reasoning · long-context · multilingual
+tool-use · parallel-tool-calls · code-execution · web-search · file-system
+computer-use · mcp-client
+persistent-memory · citations
+```
+
+Custom ids are accepted for anything the catalog does not model yet. `info` and
+`list` show the contract, and `install` rolls it up across a meta skill's whole
+dependency tree — a meta skill only runs where every skill it installs can run.
+
+```bash
+npx @dmzagent/skill-builder info @skillauthor/chart-reader
+# Required capabilities (1) — the invoking model must provide these:
+#   - vision (required) — reads chart images
+```
+
+### 5. Fork an existing skill (optional)
 
 ```bash
 npx @dmzagent/skill-builder fork @skillauthor/dialogue-flow --name my-dialogue
@@ -173,12 +211,25 @@ Tools: `skill_search`, `skill_info`, `skill_suggest`, `skill_taxonomy`, and
 
 ## Web App
 
-Visit the web editor at `https://skills.dmzagent.com` to:
+Visit the skill studio at `https://skills.dmzagent.com`. The workspace is three
+collapsible panes plus a settings drawer:
 
-- Browse the registry visually
-- Write skills with a split edit/preview markdown editor
-- Draft skills with the AI assistant
-- Fork, refine, and republish in one workflow
+- **Skill Architect** — an agent that edits the spec directly rather than
+  handing back markdown, with suggested next steps drawn from whatever the spec
+  is still missing.
+- **Spec canvas** — the skill as a document: capability contract, instructions,
+  prompt template with its `{{variables}}` highlighted, examples and tests, and
+  a publish-readiness checklist that links into the field behind each gap.
+- **Preview** — run the skill for real. Template variables become fields, a
+  capability preflight says whether the runtime can honestly execute it, and
+  every run is scored against the expectation it came from. Any run can be
+  handed back to the architect for review.
+- **Architecture** — for meta skills, the dependency tree as a layered graph
+  with unresolved ids and cycles flagged, and the capability contract rolled up
+  across everything the skill installs.
+- **Settings drawer** — every field of the spec, out of the way until you want
+  it: identity, behavior, capabilities, composition, examples and tests, and the
+  generated markdown artifact.
 
 ## Install from source
 

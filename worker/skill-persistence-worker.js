@@ -35,10 +35,141 @@ const SKILL_OPERATION_TYPES = new Set([
   'set_type',
   'set_dependencies',
   'append_dependency',
+  'set_capabilities',
+  'append_capability',
   'set_markdown_artifact',
 ]);
 
 const SKILL_TYPES = new Set(['basic', 'meta']);
+
+// ---------------------------------------------------------------------------
+// Model capability contracts.
+//
+// A skill declares the model abilities an invoker needs. The declaration rides
+// in the SkillSpec, so it reaches the registry, the CLI, and MCP: an agent can
+// tell whether it is able to run a skill before spending a turn on it. Ids come
+// from the catalog below, but custom slugs are preserved — a skill may need
+// something we have not modeled.
+// ---------------------------------------------------------------------------
+
+const CAPABILITY_CATALOG = [
+  'vision', 'audio-input', 'file-input', 'structured-output', 'streaming',
+  'extended-reasoning', 'long-context', 'multilingual',
+  'tool-use', 'parallel-tool-calls', 'code-execution', 'web-search', 'file-system',
+  'computer-use', 'mcp-client',
+  'persistent-memory', 'citations',
+];
+
+const CAPABILITY_LEVELS = new Set(['required', 'preferred']);
+
+/**
+ * What THIS worker can actually do when it executes a skill. Preview runs go to
+ * a small text-only model, so a skill requiring vision genuinely cannot be
+ * exercised here — `handleSkillExecute` refuses rather than returning output
+ * the skill was never meant to produce.
+ */
+const RUNTIME_PROFILE = {
+  id: 'preview-sandbox',
+  label: 'Preview sandbox',
+  description: 'The text-only model this registry executes skills on.',
+  model: MODEL,
+  capabilities: ['structured-output', 'streaming', 'multilingual'],
+};
+
+function toCapabilityId(value) {
+  return String(value ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+/** Accepts bare ids, `{ id, level, note }` records, or a comma-separated string. */
+function normalizeCapabilities(value) {
+  const raw = Array.isArray(value)
+    ? value
+    : typeof value === 'string'
+      ? value.split(/[\n,]+/)
+      : [];
+
+  const byId = new Map();
+  for (const entry of raw) {
+    let id = '';
+    let level = 'required';
+    let note;
+
+    if (typeof entry === 'string') {
+      id = toCapabilityId(entry);
+    } else if (isRecord(entry)) {
+      id = toCapabilityId(entry.id ?? entry.capability ?? entry.name);
+      const rawLevel = String(entry.level ?? entry.requirement ?? 'required').toLowerCase();
+      level = rawLevel === 'preferred' || rawLevel === 'optional' ? 'preferred' : 'required';
+      const rawNote = entry.note ?? entry.reason ?? entry.detail;
+      note = typeof rawNote === 'string' && rawNote.trim() ? rawNote.trim() : undefined;
+    }
+
+    if (!id) continue;
+    const existing = byId.get(id);
+    if (existing) {
+      // A capability named twice keeps the stricter level.
+      byId.set(id, {
+        id,
+        level: existing.level === 'required' || level === 'required' ? 'required' : 'preferred',
+        ...(existing.note || note ? { note: existing.note || note } : {}),
+      });
+    } else {
+      byId.set(id, note ? { id, level, note } : { id, level });
+    }
+  }
+
+  return [...byId.values()];
+}
+
+/**
+ * Problems with a capability declaration as it arrived, before normalization
+ * has a chance to drop them. Bare-id strings and a comma-separated string are
+ * supported shorthands; anything else must name a capability.
+ */
+function capabilityDeclarationErrors(value) {
+  if (value === undefined || value === null || typeof value === 'string') return [];
+  if (!Array.isArray(value)) return ['Capabilities must be an array of { id, level } entries'];
+
+  const errors = [];
+  value.forEach((entry, index) => {
+    const position = `Capability ${index + 1}`;
+    if (typeof entry === 'string') {
+      if (!toCapabilityId(entry)) errors.push(`${position} is empty`);
+      return;
+    }
+    if (!isRecord(entry)) {
+      errors.push(`${position} must be a capability id or an object`);
+      return;
+    }
+    if (!toCapabilityId(entry.id ?? entry.capability ?? entry.name)) {
+      errors.push(`${position} needs an id`);
+    }
+    const level = entry.level ?? entry.requirement;
+    if (level !== undefined && !['required', 'preferred', 'optional'].includes(String(level).toLowerCase())) {
+      errors.push(`${position} level must be one of: ${[...CAPABILITY_LEVELS].join(', ')}`);
+    }
+  });
+  return errors;
+}
+
+/** Check a declared contract against what a runtime offers. */
+function buildCapabilityReport(capabilities, profile = RUNTIME_PROFILE) {
+  const supported = new Set(profile.capabilities);
+  const declared = normalizeCapabilities(capabilities);
+  const missingRequired = declared.filter((c) => c.level === 'required' && !supported.has(c.id));
+  const missingPreferred = declared.filter((c) => c.level === 'preferred' && !supported.has(c.id));
+  return {
+    profileId: profile.id,
+    profileLabel: profile.label,
+    missingRequired,
+    missingPreferred,
+    satisfied: missingRequired.length === 0,
+  };
+}
 
 async function hashPassword(password, saltBytes) {
   const encoder = new TextEncoder();
@@ -173,6 +304,13 @@ function effectiveSkillType(skill) {
   return resolveSkillType(skill?.type ?? skill?.spec?.type, skill?.dependencies ?? skill?.spec?.dependencies);
 }
 
+/** Structured values are serialized; absent ones stay empty, not `""`. */
+function asTextValue(value) {
+  if (typeof value === 'string') return value;
+  if (value === undefined || value === null) return '';
+  return JSON.stringify(value);
+}
+
 function normalizeExamples(value) {
   if (!Array.isArray(value)) return [];
   return value
@@ -182,10 +320,10 @@ function normalizeExamples(value) {
       return {
         title: asString(item.title) || undefined,
         input: asString(item.input),
-        output: typeof item.output === 'string' ? item.output : JSON.stringify(item.output ?? ''),
+        output: asTextValue(item.output),
       };
     })
-    .filter(item => item && (item.input || item.output));
+    .filter(item => item && (item.input || item.output || item.title));
 }
 
 function normalizeTests(value) {
@@ -194,13 +332,18 @@ function normalizeTests(value) {
     .map((item, index) => {
       if (typeof item === 'string') return { name: `Test ${index + 1}`, input: item, expected: '' };
       if (!isRecord(item)) return null;
+      const rawName = asString(item.name);
       return {
-        name: asString(item.name) || `Test ${index + 1}`,
+        rawName,
+        name: rawName || `Test ${index + 1}`,
         input: asString(item.input),
-        expected: typeof item.expected === 'string' ? item.expected : JSON.stringify(item.expected ?? ''),
+        expected: asTextValue(item.expected),
       };
     })
-    .filter(item => item && (item.input || item.expected));
+    // An entirely empty record is model junk; a row the author just added
+    // carries its name, so it survives until they fill it in.
+    .filter(item => item && (item.input || item.expected || item.rawName))
+    .map(({ rawName, ...test }) => test);
 }
 
 function createEmptySkillSpec(overrides = {}) {
@@ -216,6 +359,7 @@ function createEmptySkillSpec(overrides = {}) {
     tests: [],
     type: 'basic',
     dependencies: [],
+    capabilities: [],
     ...overrides,
   };
 }
@@ -226,6 +370,9 @@ function normalizeSkillSpec(value, fallback = createEmptySkillSpec()) {
     ? normalizeDependencies(source.dependencies)
     : normalizeDependencies(fallback.dependencies);
   const explicitType = normalizeSkillType(source.type) || normalizeSkillType(fallback.type);
+  const capabilities = source.capabilities !== undefined
+    ? normalizeCapabilities(source.capabilities)
+    : normalizeCapabilities(fallback.capabilities);
   return {
     name: asString(source.name) || fallback.name || '',
     description: asString(source.description) || fallback.description || '',
@@ -237,6 +384,7 @@ function normalizeSkillSpec(value, fallback = createEmptySkillSpec()) {
     examples: source.examples !== undefined ? normalizeExamples(source.examples) : normalizeExamples(fallback.examples),
     tests: source.tests !== undefined ? normalizeTests(source.tests) : normalizeTests(fallback.tests),
     dependencies,
+    capabilities,
     type: resolveSkillType(explicitType, dependencies),
   };
 }
@@ -259,6 +407,18 @@ function specToMarkdown(spec) {
     normalized.promptTemplate || 'Use the provided input to complete the task.',
     '```',
   ];
+
+  if (normalized.capabilities.length > 0) {
+    lines.push(
+      '',
+      '## Required capabilities',
+      'A model must have these to invoke this skill:',
+      '',
+      ...normalized.capabilities.map((capability) => (
+        `- \`${capability.id}\` (${capability.level})${capability.note ? ` — ${capability.note}` : ''}`
+      )),
+    );
+  }
 
   if (normalized.type === 'meta' && normalized.dependencies.length > 0) {
     lines.push(
@@ -309,6 +469,7 @@ function buildArtifacts(spec) {
       tags: normalized.tags,
       type: normalized.type,
       dependencies: normalized.dependencies,
+      capabilities: normalized.capabilities,
     },
     purpose: normalized.purpose,
     instructions: normalized.instructions,
@@ -317,6 +478,7 @@ function buildArtifacts(spec) {
     tests: normalized.tests,
     type: normalized.type,
     dependencies: normalized.dependencies,
+    capabilities: normalized.capabilities,
     markdown: specToMarkdown(normalized),
   };
 }
@@ -335,6 +497,22 @@ function validateSkillSpec(spec) {
   if (spec.dependencies !== undefined && !Array.isArray(spec.dependencies)) errors.push('Dependencies must be an array of skill ids');
   if (spec.type === 'meta' && (!Array.isArray(spec.dependencies) || spec.dependencies.length === 0)) {
     errors.push('A meta skill must list at least one dependency');
+  }
+  if (spec.capabilities !== undefined) {
+    if (!Array.isArray(spec.capabilities)) {
+      errors.push('Capabilities must be an array of { id, level } entries');
+    } else {
+      for (const capability of spec.capabilities) {
+        if (!isRecord(capability) || !toCapabilityId(capability.id)) {
+          errors.push('Each capability needs an id');
+          break;
+        }
+        if (capability.level !== undefined && !CAPABILITY_LEVELS.has(capability.level)) {
+          errors.push(`Capability level must be one of: ${[...CAPABILITY_LEVELS].join(', ')}`);
+          break;
+        }
+      }
+    }
   }
   return errors;
 }
@@ -388,6 +566,13 @@ function applySkillOperation(spec, operation) {
       const dependencies = normalizeDependencies([...current.dependencies, value]);
       return { ...current, dependencies, type: resolveSkillType(current.type, dependencies) };
     }
+    case 'set_capabilities':
+      return { ...current, capabilities: normalizeCapabilities(value) };
+    case 'append_capability':
+      return {
+        ...current,
+        capabilities: normalizeCapabilities([...current.capabilities, value]),
+      };
     case 'set_markdown_artifact':
       return current;
     default:
@@ -580,7 +765,8 @@ Your JSON response must match this shape:
     { "type": "set_instructions", "value": ["instruction"], "reason": "..." },
     { "type": "set_prompt_template", "value": "...", "reason": "..." },
     { "type": "set_examples", "value": [{ "title": "...", "input": "...", "output": "..." }], "reason": "..." },
-    { "type": "set_tests", "value": [{ "name": "...", "input": "...", "expected": "..." }], "reason": "..." }
+    { "type": "set_tests", "value": [{ "name": "...", "input": "...", "expected": "..." }], "reason": "..." },
+    { "type": "set_capabilities", "value": [{ "id": "tool-use", "level": "required", "note": "..." }], "reason": "..." }
   ],
   "activity": [
     { "id": "activity-name", "label": "Determined category", "status": "done", "detail": "...", "operationType": "set_category" }
@@ -596,7 +782,10 @@ Rules:
 - Create production-ready prompt templates with {{input}} and other obvious placeholders.
 - Examples must have input and output.
 - Tests must have name, input, and expected.
-- Category should be concise, such as Healthcare, Compliance, Developer Tools, Data, Automation, Utilities, Sales, Support, Education, Finance, Legal, Security, Research, or Productivity.`,
+- Category should be concise, such as Healthcare, Compliance, Developer Tools, Data, Automation, Utilities, Sales, Support, Education, Finance, Legal, Security, Research, or Productivity.
+- Declare the model capabilities the skill needs to run, with level "required" (the skill cannot work without it) or "preferred" (it degrades without it). Only declare what the skill genuinely exercises; a plain text-in/text-out skill needs none.
+- Known capability ids: ${CAPABILITY_CATALOG.join(', ')}.
+- A skill that reads images needs vision; one that calls tools needs tool-use; one that must return parseable JSON needs structured-output; one that reads whole repositories or long documents needs long-context.`,
     },
     {
       role: 'user',
@@ -654,6 +843,10 @@ async function handleRequest(request, env) {
 
   if (url.pathname === '/api/skills' && request.method === 'POST') {
     return saveSkill(request, SKILL_STORE);
+  }
+
+  if (url.pathname === '/api/runtime/profile' && request.method === 'GET') {
+    return ok(RUNTIME_PROFILE);
   }
 
   if (url.pathname === '/api/taxonomy' && request.method === 'GET') {
@@ -991,7 +1184,7 @@ async function handleSkillBuilderTurn(request, rawSessionId, SKILL_STORE, AI) {
 
 async function handleSkillExecute(request, rawSkillId, SKILL_STORE, AI) {
   try {
-    const { input, taskOutline, spec } = await request.json();
+    const { input, taskOutline, spec, force } = await request.json();
     if (!input || typeof input !== 'string') {
       return err('SKILL_EXECUTION_INVALID_INPUT', 'input string required');
     }
@@ -1009,9 +1202,43 @@ async function handleSkillExecute(request, rawSkillId, SKILL_STORE, AI) {
       return err('SKILL_SPEC_REQUIRED', 'SkillSpec required to execute skill', 400);
     }
 
+    // A skill declares what a model must be able to do to run it. This sandbox
+    // is a small text-only model, so a skill that requires vision or tools
+    // cannot honestly be exercised here. Refuse by default and say what is
+    // missing; the caller can pass `force` to see the degraded output anyway.
+    const executionSpec = normalizeSkillSpec(spec || skill.spec);
+    const capabilityReport = buildCapabilityReport(executionSpec.capabilities);
+    if (!capabilityReport.satisfied && force !== true) {
+      return err(
+        'SKILL_CAPABILITY_UNSUPPORTED',
+        `${capabilityReport.profileLabel} lacks ${capabilityReport.missingRequired.length} capability this skill requires`,
+        422,
+        { capabilityReport, runtime: RUNTIME_PROFILE },
+      );
+    }
+
     const response = await executeSkill(AI, skill, input, taskOutline, spec);
 
-    return ok({ response, trace: [{ id: `execute-${Date.now()}`, label: 'Executed skill from SkillSpec', status: 'done', detail: skill.name }] });
+    const trace = [
+      { id: `execute-${Date.now()}`, label: 'Executed skill from SkillSpec', status: 'done', detail: skill.name },
+    ];
+    if (!capabilityReport.satisfied) {
+      trace.unshift({
+        id: `capability-${Date.now()}`,
+        label: 'Ran with unmet required capabilities',
+        status: 'error',
+        detail: capabilityReport.missingRequired.map((c) => c.id).join(', '),
+      });
+    } else if (capabilityReport.missingPreferred.length > 0) {
+      trace.unshift({
+        id: `capability-${Date.now()}`,
+        label: 'Ran without preferred capabilities',
+        status: 'done',
+        detail: capabilityReport.missingPreferred.map((c) => c.id).join(', '),
+      });
+    }
+
+    return ok({ response, trace, capabilityReport, degraded: !capabilityReport.satisfied });
   } catch (error) {
     console.error('Skill execution error:', error);
     return err('SKILL_EXECUTION_FAILED', 'Skill execution failed', 500);
@@ -1314,6 +1541,11 @@ async function saveSkill(request, SKILL_STORE) {
     if (!skill?.id) return err('VALIDATION_REQUIRED_FIELD', 'Skill id required');
     if (!skill?.spec) return err('VALIDATION_REQUIRED_FIELD', 'SkillSpec required');
 
+    const capabilityErrors = capabilityDeclarationErrors(skill.spec.capabilities);
+    if (capabilityErrors.length > 0) {
+      return err('VALIDATION_SKILL_SPEC_INVALID', 'SkillSpec is invalid', 400, capabilityErrors);
+    }
+
     const spec = normalizeSkillSpec(skill.spec);
     spec.dependencies = qualifyDependencies(spec.dependencies, user.handle);
     spec.type = resolveSkillType(spec.type, spec.dependencies);
@@ -1357,6 +1589,7 @@ async function saveSkill(request, SKILL_STORE) {
       tags: spec.tags,
       type: spec.type,
       dependencies: spec.dependencies,
+      capabilities: spec.capabilities,
       spec,
       markdown,
       author: { id: user.id, name: user.name, avatar: user.avatar },
@@ -1402,6 +1635,10 @@ async function updateSkill(request, rawSkillId, SKILL_STORE) {
     let spec = existing.spec;
     let markdown = updates.markdown;
     if (!isVisibilityOnly) {
+      const capabilityErrors = capabilityDeclarationErrors(updates.spec?.capabilities);
+      if (capabilityErrors.length > 0) {
+        return err('VALIDATION_SKILL_SPEC_INVALID', 'SkillSpec is invalid', 400, capabilityErrors);
+      }
       spec = normalizeSkillSpec(updates.spec || existing.spec);
       spec.dependencies = qualifyDependencies(spec.dependencies, existing.authorHandle || user.handle);
       spec.type = resolveSkillType(spec.type, spec.dependencies);
@@ -1422,6 +1659,7 @@ async function updateSkill(request, rawSkillId, SKILL_STORE) {
       tags: spec.tags,
       type: spec.type || existing.type || 'basic',
       dependencies: Array.isArray(spec.dependencies) ? spec.dependencies : (existing.dependencies || []),
+      capabilities: Array.isArray(spec.capabilities) ? spec.capabilities : (existing.capabilities || []),
       spec,
       markdown,
       updatedAt: new Date().toISOString(),
@@ -1503,6 +1741,7 @@ async function forkSkill(request, rawSkillId, SKILL_STORE) {
       tags: spec.tags,
       type: spec.type,
       dependencies: spec.dependencies,
+      capabilities: spec.capabilities,
       spec,
       markdown: specToMarkdown(spec),
       forkedFrom: skillId,

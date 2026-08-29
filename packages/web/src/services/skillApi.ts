@@ -1,8 +1,3 @@
-type SkillApiImportMetaEnv = {
-  DEV?: boolean;
-  VITE_SKILL_API_URL?: string;
-};
-
 declare global {
   interface ImportMeta {
     readonly env: ImportMetaEnv;

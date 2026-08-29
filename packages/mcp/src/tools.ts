@@ -18,6 +18,7 @@ import {
   formatSkillList,
   formatSkillInfo,
   formatSuggestions,
+  skillCapabilities,
   skillUrl,
 } from "./format.js";
 import type { RegistrySearchParams, Skill } from "./types.js";
@@ -74,6 +75,7 @@ function skillSummary(skill: Skill) {
     tags: skill.tags ?? [],
     type: effectiveType(skill),
     dependencies: skill.dependencies ?? [],
+    capabilities: skillCapabilities(skill),
     downloads: skill.downloads ?? 0,
     version: skill.version,
     authorHandle: skill.authorHandle,

@@ -1,4 +1,4 @@
-import type { Skill, SkillSuggestion } from './api/client.js';
+import type { Skill, SkillCapability, SkillSuggestion } from './api/client.js';
 
 /** Display id: scoped (`@handle/id`) when we know the handle, otherwise raw. */
 export function displayId(skill: Pick<Skill, 'id' | 'authorHandle'>): string {
@@ -10,6 +10,25 @@ export function displayId(skill: Pick<Skill, 'id' | 'authorHandle'>): string {
 export function effectiveType(skill: Pick<Skill, 'type' | 'dependencies'>): 'basic' | 'meta' {
   if (skill.dependencies && skill.dependencies.length > 0) return 'meta';
   return skill.type === 'meta' ? 'meta' : 'basic';
+}
+
+/**
+ * The capabilities a model needs to invoke a skill. Declared on the spec, and
+ * hoisted to the top level by the registry, so read whichever is present.
+ */
+export function skillCapabilities(
+  skill: Pick<Skill, 'capabilities' | 'spec'>,
+): SkillCapability[] {
+  const declared = skill.capabilities?.length ? skill.capabilities : skill.spec?.capabilities;
+  return declared ?? [];
+}
+
+/** `tool-use, vision` — required first, since those are the ones that block. */
+export function formatCapabilities(capabilities: SkillCapability[]): string {
+  return [...capabilities]
+    .sort((a, b) => (a.level === b.level ? 0 : a.level === 'required' ? -1 : 1))
+    .map((capability) => (capability.level === 'preferred' ? `${capability.id} (preferred)` : capability.id))
+    .join(', ');
 }
 
 export function truncate(value: string, max: number): string {
@@ -41,6 +60,7 @@ export function renderSkillTable(skills: Skill[]): string {
     { header: 'CATEGORY', get: (s) => truncate(s.category || '', 16) },
     { header: 'TYPE', get: (s) => effectiveType(s) },
     { header: 'DEPS', get: (s) => String((s.dependencies || []).length || ''), align: 'right' },
+    { header: 'CAPS', get: (s) => truncate(formatCapabilities(skillCapabilities(s)), 24) },
     { header: '↓', get: (s) => String(s.downloads ?? 0), align: 'right' },
   ]);
 }
@@ -68,6 +88,14 @@ export function renderSkillInfo(skill: Skill): string {
   if (skill.dependencies && skill.dependencies.length) {
     lines.push('', `Dependencies (${skill.dependencies.length}) — installed automatically:`);
     for (const dep of skill.dependencies) lines.push(`  - ${dep}`);
+  }
+
+  const capabilities = skillCapabilities(skill);
+  if (capabilities.length) {
+    lines.push('', `Required capabilities (${capabilities.length}) — the invoking model must provide these:`);
+    for (const capability of capabilities) {
+      lines.push(`  - ${capability.id} (${capability.level})${capability.note ? ` — ${capability.note}` : ''}`);
+    }
   }
 
   if (skill.spec?.instructions?.length) {

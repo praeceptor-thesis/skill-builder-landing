@@ -19,6 +19,19 @@ export type SkillTest = {
 
 export type SkillType = "basic" | "meta";
 
+export type CapabilityLevel = "required" | "preferred";
+
+/**
+ * A model ability an invoker must have to run the skill. `required` gates
+ * execution; `preferred` only degrades it. An agent reads this to decide
+ * whether it can run a skill before installing it.
+ */
+export type SkillCapability = {
+  id: string;
+  level: CapabilityLevel;
+  note?: string;
+};
+
 export type SkillSpec = {
   name: string;
   description: string;
@@ -33,6 +46,8 @@ export type SkillSpec = {
   type?: SkillType;
   /** Full registry ids of required skills, installed alongside a meta skill. */
   dependencies?: string[];
+  /** Model capabilities required to invoke this skill. */
+  capabilities?: SkillCapability[];
 };
 
 export type Skill = {
@@ -52,6 +67,7 @@ export type Skill = {
   downloads: number;
   type?: SkillType;
   dependencies?: string[];
+  capabilities?: SkillCapability[];
 };
 
 export type TaxonomyFacet = { value: string; label?: string; count: number };

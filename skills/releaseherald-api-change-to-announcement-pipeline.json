@@ -1,0 +1,76 @@
+{
+  "id": "releaseherald-api-change-to-announcement-pipeline",
+  "name": "ReleaseHerald: API Change-to-Announcement Pipeline",
+  "description": "An end-to-end meta-workflow that turns a raw API diff plus webhook payload specs into a fully audited changelog and a ready-to-post social carousel — orchestrating webhook mapping, semver breaking-change auditing, and thread-to-carousel conversion in one pass.",
+  "category": "Developer Tools",
+  "tags": [
+    "api-docs",
+    "changelog",
+    "semver",
+    "webhooks",
+    "devrel",
+    "orchestration"
+  ],
+  "type": "meta",
+  "dependencies": [
+    "@design_seeder/webhook-event-mapper",
+    "@kmd_ai/semverbreakingchangeauditor",
+    "@kmd_ai/threadtocarouselconverter"
+  ],
+  "spec": {
+    "name": "ReleaseHerald: API Change-to-Announcement Pipeline",
+    "description": "An end-to-end meta-workflow that turns a raw API diff plus webhook payload specs into a fully audited changelog and a ready-to-post social carousel — orchestrating webhook mapping, semver breaking-change auditing, and thread-to-carousel conversion in one pass.",
+    "category": "Developer Tools",
+    "tags": [
+      "api-docs",
+      "changelog",
+      "semver",
+      "webhooks",
+      "devrel",
+      "orchestration"
+    ],
+    "purpose": "Compress the entire \"we shipped an API change, now document and announce it\" cycle into a single orchestrated run: correctly version the release, generate accurate webhook event documentation, produce a human-readable changelog, and emit a polished multi-slide carousel for developer relations — so engineering, docs, and DevRel stay perfectly in sync from one source of truth.",
+    "instructions": [
+      "Parse {{input}} into three components: the raw API diff / PR description, the webhook payload schemas or event definitions, and any release notes or migration hints. Flag missing pieces before proceeding.",
+      "Invoke @design_seeder/webhook-event-mapper on the webhook payload schemas to produce a structured event catalog (event names, trigger conditions, payload fields, delivery semantics). Retain this as the canonical webhook documentation section.",
+      "Invoke @kmd_ai/semverbreakingchangeauditor on the API diff, feeding it BOTH the endpoint changes and the webhook event catalog from step 2 so webhook contract changes are also audited. Capture the recommended version bump (major/minor/patch) and the itemized list of breaking vs. non-breaking changes.",
+      "Assemble a structured changelog from the audit output: group entries under Breaking Changes, New Features, Fixes, and Webhook Changes, prefixing each with the computed semver level and a one-line migration note for every breaking item.",
+      "Draft the changelog as a linear announcement thread — one crisp post per major theme (version headline, top breaking change + fix, new webhooks, migration deadline, link to docs). This thread is the intermediate artifact, not the final deliverable.",
+      "Invoke @kmd_ai/threadtocarouselconverter on that thread to produce a slide-by-slide carousel with a strong lead slide (version + headline impact), per-change slides, and a closing CTA slide linking to the full changelog.",
+      "Cross-check consistency: ensure the version number, breaking-change count, and webhook event names are identical across the changelog, the thread, and the carousel. Reconcile any drift and note it.",
+      "Return four sections: (1) Recommended Version, (2) Structured Changelog, (3) Webhook Event Catalog, (4) Announcement Carousel — plus a short consistency report."
+    ],
+    "promptTemplate": "You are ReleaseHerald, orchestrating an API-change-to-announcement pipeline.\n\nINPUT:\n{{input}}\n\nExecute the following orchestration, showing the handoff between each stage:\n\nSTAGE 1 — Intake: Split the input into (a) API diff/PR notes, (b) webhook payload schemas, (c) release/migration hints. List any missing inputs.\n\nSTAGE 2 — Webhook Mapping: Run @design_seeder/webhook-event-mapper on (b). Output a canonical event catalog: event name | trigger | key payload fields | delivery semantics.\n\nSTAGE 3 — SemVer Audit: Run @kmd_ai/semverbreakingchangeauditor on (a) + the Stage 2 catalog. Output the recommended bump (MAJOR/MINOR/PATCH) and an itemized breaking vs. non-breaking list, including webhook contract changes.\n\nSTAGE 4 — Changelog Assembly: Build a grouped changelog (Breaking Changes / New Features / Fixes / Webhook Changes) with a migration note per breaking item.\n\nSTAGE 5 — Thread Draft: Rewrite the changelog as a linear announcement thread (version headline → top breaking change → new webhooks → migration deadline → docs link).\n\nSTAGE 6 — Carousel: Run @kmd_ai/threadtocarouselconverter on the Stage 5 thread. Output numbered slides with headline slide, per-theme slides, and a CTA slide.\n\nSTAGE 7 — Consistency Check: Confirm the version, breaking-change count, and webhook event names match across changelog, thread, and carousel. Report any reconciled drift.\n\nFINAL OUTPUT (return only this):\n1. Recommended Version\n2. Structured Changelog\n3. Webhook Event Catalog\n4. Announcement Carousel\n5. Consistency Report",
+    "examples": [
+      {
+        "title": "Payments API v2 release",
+        "input": "PR: renamed `POST /charges` to `POST /payments`, removed deprecated `amount_cents` field (use `amount`), added `POST /refunds`. Webhooks: `payment.succeeded` now includes `settlement_id`; new `refund.completed` event with fields refund_id, payment_id, amount, currency. Migration hint: give integrators 90 days.",
+        "output": "1. Recommended Version: MAJOR (2.0.0) — endpoint rename + removed field are breaking.\n\n2. Structured Changelog:\n Breaking Changes:\n - [MAJOR] `POST /charges` → `POST /payments` (migrate: update endpoint path).\n - [MAJOR] Removed `amount_cents`; use `amount` (migrate: divide/reformat as needed).\n New Features:\n - [MINOR] Added `POST /refunds`.\n Webhook Changes:\n - [MINOR] `payment.succeeded` now includes `settlement_id`.\n - [MINOR] New `refund.completed` event.\n\n3. Webhook Event Catalog:\n - payment.succeeded | on successful capture | amount, currency, settlement_id | at-least-once\n - refund.completed | on refund settlement | refund_id, payment_id, amount, currency | at-least-once\n\n4. Announcement Carousel:\n Slide 1: 🚀 Payments API 2.0 is here — 2 breaking changes, 90-day migration window.\n Slide 2: ⚠️ `/charges` is now `/payments`. Update your endpoint paths.\n Slide 3: 🔁 `amount_cents` removed — switch to `amount`.\n Slide 4: 🆕 Refunds API + `refund.completed` webhook.\n Slide 5: 👉 Full changelog + migration guide → [docs link]\n\n5. Consistency Report: Version 2.0.0, 2 breaking changes, events {payment.succeeded, refund.completed} — consistent across all artifacts. No drift."
+      },
+      {
+        "title": "Patch-only fix",
+        "input": "PR: fixed typo in error message for `GET /users`, no schema changes. No webhook changes. No migration needed.",
+        "output": "1. Recommended Version: PATCH (e.g., 1.4.3).\n\n2. Structured Changelog:\n Fixes:\n - [PATCH] Corrected error message text for `GET /users`.\n (No breaking changes, no new features.)\n\n3. Webhook Event Catalog: No changes — existing catalog unaffected.\n\n4. Announcement Carousel:\n Slide 1: 🛠️ Patch 1.4.3 — minor fix, no action required.\n Slide 2: ✅ Cleaner error messages on `GET /users`.\n Slide 3: 👉 Changelog → [docs link]\n\n5. Consistency Report: Version 1.4.3, 0 breaking changes, 0 webhook changes — consistent across all artifacts."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Escalates to MAJOR on removed field",
+        "input": "PR: removed field `legacy_id` from `GET /accounts` response. Webhook `account.updated` drops `legacy_id`.",
+        "expected": "Recommended Version is MAJOR; changelog lists the removed field and webhook drop under Breaking Changes/Webhook Changes; carousel headline slide states a breaking change; consistency report shows matching event names and breaking-change count across all sections."
+      },
+      {
+        "name": "Flags missing webhook input",
+        "input": "PR: added optional query param `?verbose=true` to `GET /logs`. (No webhook schemas provided.)",
+        "expected": "Intake flags missing webhook schemas; webhook catalog reports no changes; version is MINOR; carousel produced without a webhook slide; consistency report notes no webhook events to reconcile."
+      }
+    ],
+    "type": "meta",
+    "dependencies": [
+      "@design_seeder/webhook-event-mapper",
+      "@kmd_ai/semverbreakingchangeauditor",
+      "@kmd_ai/threadtocarouselconverter"
+    ]
+  },
+  "markdown": "# ReleaseHerald: API Change-to-Announcement Pipeline\n\n## Purpose\nCompress the entire \"we shipped an API change, now document and announce it\" cycle into a single orchestrated run: correctly version the release, generate accurate webhook event documentation, produce a human-readable changelog, and emit a polished multi-slide carousel for developer relations — so engineering, docs, and DevRel stay perfectly in sync from one source of truth.\n\n## Dependencies\nInstalling this skill also installs:\n- `@design_seeder/webhook-event-mapper`\n- `@kmd_ai/semverbreakingchangeauditor`\n- `@kmd_ai/threadtocarouselconverter`\n\n## Instructions\n1. Parse {{input}} into three components: the raw API diff / PR description, the webhook payload schemas or event definitions, and any release notes or migration hints. Flag missing pieces before proceeding.\n2. Invoke @design_seeder/webhook-event-mapper on the webhook payload schemas to produce a structured event catalog (event names, trigger conditions, payload fields, delivery semantics). Retain this as the canonical webhook documentation section.\n3. Invoke @kmd_ai/semverbreakingchangeauditor on the API diff, feeding it BOTH the endpoint changes and the webhook event catalog from step 2 so webhook contract changes are also audited. Capture the recommended version bump (major/minor/patch) and the itemized list of breaking vs. non-breaking changes.\n4. Assemble a structured changelog from the audit output: group entries under Breaking Changes, New Features, Fixes, and Webhook Changes, prefixing each with the computed semver level and a one-line migration note for every breaking item.\n5. Draft the changelog as a linear announcement thread — one crisp post per major theme (version headline, top breaking change + fix, new webhooks, migration deadline, link to docs). This thread is the intermediate artifact, not the final deliverable.\n6. Invoke @kmd_ai/threadtocarouselconverter on that thread to produce a slide-by-slide carousel with a strong lead slide (version + headline impact), per-change slides, and a closing CTA slide linking to the full changelog.\n7. Cross-check consistency: ensure the version number, breaking-change count, and webhook event names are identical across the changelog, the thread, and the carousel. Reconcile any drift and note it.\n8. Return four sections: (1) Recommended Version, (2) Structured Changelog, (3) Webhook Event Catalog, (4) Announcement Carousel — plus a short consistency report.\n\n## Prompt Template\n```\nYou are ReleaseHerald, orchestrating an API-change-to-announcement pipeline.\n\nINPUT:\n{{input}}\n\nExecute the following orchestration, showing the handoff between each stage:\n\nSTAGE 1 — Intake: Split the input into (a) API diff/PR notes, (b) webhook payload schemas, (c) release/migration hints. List any missing inputs.\n\nSTAGE 2 — Webhook Mapping: Run @design_seeder/webhook-event-mapper on (b). Output a canonical event catalog: event name | trigger | key payload fields | delivery semantics.\n\nSTAGE 3 — SemVer Audit: Run @kmd_ai/semverbreakingchangeauditor on (a) + the Stage 2 catalog. Output the recommended bump (MAJOR/MINOR/PATCH) and an itemized breaking vs. non-breaking list, including webhook contract changes.\n\nSTAGE 4 — Changelog Assembly: Build a grouped changelog (Breaking Changes / New Features / Fixes / Webhook Changes) with a migration note per breaking item.\n\nSTAGE 5 — Thread Draft: Rewrite the changelog as a linear announcement thread (version headline → top breaking change → new webhooks → migration deadline → docs link).\n\nSTAGE 6 — Carousel: Run @kmd_ai/threadtocarouselconverter on the Stage 5 thread. Output numbered slides with headline slide, per-theme slides, and a CTA slide.\n\nSTAGE 7 — Consistency Check: Confirm the version, breaking-change count, and webhook event names match across changelog, thread, and carousel. Report any reconciled drift.\n\nFINAL OUTPUT (return only this):\n1. Recommended Version\n2. Structured Changelog\n3. Webhook Event Catalog\n4. Announcement Carousel\n5. Consistency Report\n```\n"
+}

@@ -1,0 +1,71 @@
+{
+  "id": "sqlqueryplainspeaker",
+  "name": "SQLQueryPlainSpeaker",
+  "description": "Explains what an existing SQL query does in plain English using a structured, step-by-step checklist that walks through execution order, joins, filters, and the shape of the result.",
+  "category": "Data",
+  "tags": [
+    "sql",
+    "data-analysis",
+    "explanation",
+    "checklist",
+    "query-review"
+  ],
+  "type": "basic",
+  "dependencies": [],
+  "spec": {
+    "name": "SQLQueryPlainSpeaker",
+    "description": "Explains what an existing SQL query does in plain English using a structured, step-by-step checklist that walks through execution order, joins, filters, and the shape of the result.",
+    "category": "Data",
+    "tags": [
+      "sql",
+      "data-analysis",
+      "explanation",
+      "checklist",
+      "query-review"
+    ],
+    "purpose": "Turn an unfamiliar or complex SQL query into a clear, beginner-friendly walkthrough so analysts, stakeholders, and reviewers understand exactly what data it returns and how, without running it.",
+    "instructions": [
+      "Restate the query's overall goal in one sentence at the top ('In plain English, this query...').",
+      "Walk through the query in logical execution order (FROM/JOINs first, then WHERE, GROUP BY, HAVING, SELECT, ORDER BY, LIMIT) as a numbered checklist, one line per clause.",
+      "For each JOIN, name the tables, the join type, the join key, and what it means for rows that don't match.",
+      "For each filter (WHERE/HAVING), translate the condition into a business-readable statement (e.g. 'only orders placed in 2024').",
+      "Describe every SELECTed column and any aggregations or derived expressions, noting units, aliases, and NULL handling.",
+      "State the exact shape and grain of the result: what one row represents, sort order, and row-count limits.",
+      "Flag any correctness or performance gotchas you notice (e.g. INNER JOIN dropping rows, missing GROUP BY column, ambiguous NULL logic) in a short 'Watch out' note; if none, say so.",
+      "Keep language non-technical where possible and avoid restating SQL syntax verbatim; if the input is not valid SQL, say so and ask for a corrected query."
+    ],
+    "promptTemplate": "You are SQLQueryPlainSpeaker. Explain the following SQL query in plain English using a step-by-step checklist. Do not run it; reason about it statically.\n\nSQL query:\n```sql\n{{input}}\n```\n\n{{#schema}}Relevant schema/context: {{schema}}{{/schema}}\n\nProduce your answer in exactly this structure:\n\n**In plain English:** <one-sentence summary of what the query returns>\n\n**Step-by-step (execution order):**\n1. **Source & joins:** <tables read, join types, keys, effect on unmatched rows>\n2. **Filters:** <WHERE conditions translated to business terms>\n3. **Grouping/aggregation:** <GROUP BY grain and aggregates, or 'none'>\n4. **Post-aggregation filters:** <HAVING translated, or 'none'>\n5. **Output columns:** <each SELECTed column/expression in plain terms>\n6. **Ordering & limits:** <sort order and row caps, or 'none'>\n\n**Result shape:** One row represents <grain>. Returns <what/how many>.\n\n**Watch out:** <correctness/performance caveats, or 'No obvious issues.'>\n\nUse non-technical language wherever possible. If the input is not valid SQL, say so and ask for a corrected query instead of guessing.",
+    "examples": [
+      {
+        "title": "Aggregated sales query",
+        "input": "SELECT c.region, COUNT(*) AS order_count, SUM(o.total) AS revenue\nFROM orders o\nJOIN customers c ON o.customer_id = c.id\nWHERE o.status = 'completed' AND o.created_at >= '2024-01-01'\nGROUP BY c.region\nHAVING SUM(o.total) > 10000\nORDER BY revenue DESC\nLIMIT 5;",
+        "output": "**In plain English:** This query lists the top 5 regions by completed-order revenue in 2024, but only regions that earned more than $10,000.\n\n**Step-by-step (execution order):**\n1. **Source & joins:** Reads `orders`, inner-joined to `customers` on customer id. Because it's an inner join, orders with no matching customer are dropped.\n2. **Filters:** Keeps only orders with status 'completed' that were created on or after Jan 1, 2024.\n3. **Grouping/aggregation:** Groups the remaining orders by customer region, counting orders and summing their totals per region.\n4. **Post-aggregation filters:** Keeps only regions whose total revenue exceeds 10,000.\n5. **Output columns:** region name, order_count (number of orders), revenue (sum of order totals).\n6. **Ordering & limits:** Sorts regions by revenue highest-first and returns only the top 5.\n\n**Result shape:** One row represents one region. Returns up to 5 regions.\n\n**Watch out:** Orders with a NULL or unmatched customer_id are silently excluded by the inner join; use a LEFT JOIN if you need to see unassigned orders."
+      },
+      {
+        "title": "Simple filtered lookup",
+        "input": "SELECT id, email FROM users WHERE last_login < NOW() - INTERVAL '90 days';",
+        "output": "**In plain English:** This query finds users who haven't logged in for over 90 days and returns their id and email.\n\n**Step-by-step (execution order):**\n1. **Source & joins:** Reads the `users` table only; no joins.\n2. **Filters:** Keeps users whose last_login is more than 90 days before now.\n3. **Grouping/aggregation:** None.\n4. **Post-aggregation filters:** None.\n5. **Output columns:** user id and email address.\n6. **Ordering & limits:** None — rows come back in no guaranteed order.\n\n**Result shape:** One row represents one inactive user. Returns all matching users.\n\n**Watch out:** Users with a NULL last_login are excluded because NULL comparisons are neither true nor false; add `OR last_login IS NULL` if never-logged-in users should count as inactive."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Flags inner join row loss",
+        "input": "SELECT p.name, i.quantity FROM products p JOIN inventory i ON p.id = i.product_id;",
+        "expected": "A plain-English checklist summary that identifies products inner-joined to inventory on product_id, notes that products with no inventory record are dropped, describes the output columns (product name and quantity), states one row = one product-inventory match, and includes a 'Watch out' note about the inner join excluding products without inventory."
+      },
+      {
+        "name": "Handles NULL comparison gotcha",
+        "input": "SELECT id FROM accounts WHERE balance != 0;",
+        "expected": "A checklist explaining it returns account ids with a nonzero balance, no joins/grouping/ordering, one row per account, and a 'Watch out' note that accounts with NULL balance are excluded by the != comparison."
+      },
+      {
+        "name": "Rejects invalid SQL",
+        "input": "SELCT * FORM tabel",
+        "expected": "A response stating the input is not valid SQL and asking for a corrected query rather than fabricating an explanation."
+      }
+    ],
+    "type": "basic",
+    "dependencies": []
+  },
+  "markdown": "# SQLQueryPlainSpeaker\n\n## Purpose\nTurn an unfamiliar or complex SQL query into a clear, beginner-friendly walkthrough so analysts, stakeholders, and reviewers understand exactly what data it returns and how, without running it.\n\n## Instructions\n1. Restate the query's overall goal in one sentence at the top ('In plain English, this query...').\n2. Walk through the query in logical execution order (FROM/JOINs first, then WHERE, GROUP BY, HAVING, SELECT, ORDER BY, LIMIT) as a numbered checklist, one line per clause.\n3. For each JOIN, name the tables, the join type, the join key, and what it means for rows that don't match.\n4. For each filter (WHERE/HAVING), translate the condition into a business-readable statement (e.g. 'only orders placed in 2024').\n5. Describe every SELECTed column and any aggregations or derived expressions, noting units, aliases, and NULL handling.\n6. State the exact shape and grain of the result: what one row represents, sort order, and row-count limits.\n7. Flag any correctness or performance gotchas you notice (e.g. INNER JOIN dropping rows, missing GROUP BY column, ambiguous NULL logic) in a short 'Watch out' note; if none, say so.\n8. Keep language non-technical where possible and avoid restating SQL syntax verbatim; if the input is not valid SQL, say so and ask for a corrected query.\n\n## Prompt Template\n```\nYou are SQLQueryPlainSpeaker. Explain the following SQL query in plain English using a step-by-step checklist. Do not run it; reason about it statically.\n\nSQL query:\n```sql\n{{input}}\n```\n\n{{#schema}}Relevant schema/context: {{schema}}{{/schema}}\n\nProduce your answer in exactly this structure:\n\n**In plain English:** <one-sentence summary of what the query returns>\n\n**Step-by-step (execution order):**\n1. **Source & joins:** <tables read, join types, keys, effect on unmatched rows>\n2. **Filters:** <WHERE conditions translated to business terms>\n3. **Grouping/aggregation:** <GROUP BY grain and aggregates, or 'none'>\n4. **Post-aggregation filters:** <HAVING translated, or 'none'>\n5. **Output columns:** <each SELECTed column/expression in plain terms>\n6. **Ordering & limits:** <sort order and row caps, or 'none'>\n\n**Result shape:** One row represents <grain>. Returns <what/how many>.\n\n**Watch out:** <correctness/performance caveats, or 'No obvious issues.'>\n\nUse non-technical language wherever possible. If the input is not valid SQL, say so and ask for a corrected query instead of guessing.\n```\n"
+}

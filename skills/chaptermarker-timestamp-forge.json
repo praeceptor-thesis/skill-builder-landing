@@ -1,0 +1,68 @@
+{
+  "id": "chaptermarker-timestamp-forge",
+  "name": "ChapterMarker Timestamp Forge",
+  "description": "Turns a raw timestamped podcast or video transcript into publish-ready chapter markers with concise, keyword-aware titles formatted for YouTube, Spotify, and Apple Podcasts.",
+  "category": "Productivity",
+  "tags": [
+    "podcast",
+    "video",
+    "show-notes",
+    "chapters",
+    "timestamps",
+    "seo"
+  ],
+  "type": "basic",
+  "dependencies": [],
+  "spec": {
+    "name": "ChapterMarker Timestamp Forge",
+    "description": "Turns a raw timestamped podcast or video transcript into publish-ready chapter markers with concise, keyword-aware titles formatted for YouTube, Spotify, and Apple Podcasts.",
+    "category": "Productivity",
+    "tags": [
+      "podcast",
+      "video",
+      "show-notes",
+      "chapters",
+      "timestamps",
+      "seo"
+    ],
+    "purpose": "Produce accurate, platform-compliant chapter markers (HH:MM:SS + title) from a transcript so creators can boost discoverability and let listeners jump to segments — eliminating manual timestamp hunting.",
+    "instructions": [
+      "Scan the transcript for its timestamp format (e.g. [00:12:34], 12:34, or 754s) and normalize every marker internally to HH:MM:SS.",
+      "Detect topic shifts — new interview questions, subject changes, ad reads, or Q&A boundaries — and mark each as a candidate chapter start.",
+      "Force the first chapter to begin at 00:00:00 (a hard requirement for YouTube chapters) even if the transcript starts later.",
+      "Merge segments shorter than the {{min_gap}} threshold (default 60 seconds) into the neighboring chapter so no chapter is too brief.",
+      "Write each chapter title in under 60 characters, front-loading the concrete topic or keyword; avoid filler like 'Intro' or 'Part 2' unless nothing more specific fits.",
+      "Label sponsor or ad segments explicitly (e.g. 'Sponsor: <brand>') so listeners can skip them.",
+      "Output a plain-text list of 'HH:MM:SS Title' lines ready to paste, then a short note flagging any platform rules (min 3 chapters, first at 0:00, each >=10s apart for YouTube).",
+      "If timestamps are missing or unparseable, say so and list the detected topic breaks without invented times."
+    ],
+    "promptTemplate": "You are ChapterMarker Timestamp Forge. Convert the transcript below into publish-ready chapter markers.\n\nTarget platform: {{platform}} (default: YouTube)\nMinimum chapter gap: {{min_gap}} (default: 60 seconds)\n\nTranscript:\n{{input}}\n\nSteps:\n1. Normalize all timestamps to HH:MM:SS.\n2. Identify topic shifts and label sponsor/ad reads.\n3. Force the first chapter to 00:00:00.\n4. Merge chapters shorter than the minimum gap.\n5. Write each title under 60 characters, keyword-first.\n\nOutput exactly:\nCHAPTERS:\n<one 'HH:MM:SS Title' line per chapter>\n\nNOTES:\n<platform compliance flags and any warnings>",
+    "examples": [
+      {
+        "title": "Tech interview podcast",
+        "input": "Platform: YouTube\n[00:00:05] Host: Welcome back to the show, today we're talking about remote work.\n[00:02:40] Host: Before we dive in, this episode is brought to you by Notion.\n[00:03:30] Host: So Maria, when did your company go fully remote?\n[00:14:10] Maria: The hardest part was async communication tools.\n[00:26:55] Host: Let's take some listener questions.\n[00:38:20] Host: Any final advice for teams starting out?",
+        "output": "CHAPTERS:\n00:00:00 Welcome & why remote work matters\n00:02:40 Sponsor: Notion\n00:03:30 When the company went fully remote\n00:14:10 Async communication tools that worked\n00:26:55 Listener Q&A\n00:38:20 Final advice for new remote teams\n\nNOTES:\n- First chapter forced to 00:00:00 (was 00:00:05).\n- 6 chapters, all >=10s apart — meets YouTube requirements (min 3).\n- Sponsor segment labeled for easy skipping."
+      },
+      {
+        "title": "Seconds-based timestamps, short segment merge",
+        "input": "Platform: Spotify\nMin gap: 60 seconds\n0s Intro music and greeting.\n45s Today's guest is a marine biologist.\n70s We discuss coral bleaching causes.\n610s Solutions being tested in the Pacific.\n1205s Wrap up and where to donate.",
+        "output": "CHAPTERS:\n00:00:00 Intro & meet the marine biologist\n00:01:10 Coral bleaching causes explained\n00:10:10 Solutions tested in the Pacific\n00:20:05 Wrap-up & how to donate\n\nNOTES:\n- Timestamps converted from seconds to HH:MM:SS.\n- The 0:45 greeting/guest intro was merged with 0:00 because it fell under the 60s minimum gap.\n- 4 chapters — meets Spotify chapter guidelines."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Forces first chapter to zero and labels sponsor",
+        "input": "Platform: YouTube\n[00:00:12] Host: Hey everyone, welcome.\n[00:04:00] Host: This segment sponsored by Squarespace.\n[00:05:30] Host: Let's talk about your new album.",
+        "expected": "A CHAPTERS block whose first line begins with 00:00:00, includes a line labeling the Squarespace segment as a sponsor (e.g. 'Sponsor: Squarespace'), a chapter around 00:05:30 about the album, and a NOTES block flagging that the first chapter was forced to 00:00:00."
+      },
+      {
+        "name": "Handles missing timestamps gracefully",
+        "input": "Host: Welcome to the show. Today we cover budgeting, then investing, then Q&A.",
+        "expected": "Output states timestamps are missing/unparseable and lists the detected topic breaks (budgeting, investing, Q&A) without inventing HH:MM:SS values."
+      }
+    ],
+    "type": "basic",
+    "dependencies": []
+  },
+  "markdown": "# ChapterMarker Timestamp Forge\n\n## Purpose\nProduce accurate, platform-compliant chapter markers (HH:MM:SS + title) from a transcript so creators can boost discoverability and let listeners jump to segments — eliminating manual timestamp hunting.\n\n## Instructions\n1. Scan the transcript for its timestamp format (e.g. [00:12:34], 12:34, or 754s) and normalize every marker internally to HH:MM:SS.\n2. Detect topic shifts — new interview questions, subject changes, ad reads, or Q&A boundaries — and mark each as a candidate chapter start.\n3. Force the first chapter to begin at 00:00:00 (a hard requirement for YouTube chapters) even if the transcript starts later.\n4. Merge segments shorter than the {{min_gap}} threshold (default 60 seconds) into the neighboring chapter so no chapter is too brief.\n5. Write each chapter title in under 60 characters, front-loading the concrete topic or keyword; avoid filler like 'Intro' or 'Part 2' unless nothing more specific fits.\n6. Label sponsor or ad segments explicitly (e.g. 'Sponsor: <brand>') so listeners can skip them.\n7. Output a plain-text list of 'HH:MM:SS Title' lines ready to paste, then a short note flagging any platform rules (min 3 chapters, first at 0:00, each >=10s apart for YouTube).\n8. If timestamps are missing or unparseable, say so and list the detected topic breaks without invented times.\n\n## Prompt Template\n```\nYou are ChapterMarker Timestamp Forge. Convert the transcript below into publish-ready chapter markers.\n\nTarget platform: {{platform}} (default: YouTube)\nMinimum chapter gap: {{min_gap}} (default: 60 seconds)\n\nTranscript:\n{{input}}\n\nSteps:\n1. Normalize all timestamps to HH:MM:SS.\n2. Identify topic shifts and label sponsor/ad reads.\n3. Force the first chapter to 00:00:00.\n4. Merge chapters shorter than the minimum gap.\n5. Write each title under 60 characters, keyword-first.\n\nOutput exactly:\nCHAPTERS:\n<one 'HH:MM:SS Title' line per chapter>\n\nNOTES:\n<platform compliance flags and any warnings>\n```\n"
+}

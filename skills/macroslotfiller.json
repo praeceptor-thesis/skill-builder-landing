@@ -1,0 +1,65 @@
+{
+  "id": "macroslotfiller",
+  "name": "MacroSlotFiller",
+  "description": "Takes a pre-approved support macro riddled with {placeholders} plus the raw ticket details and returns the finished, ready-to-send reply with every slot filled, flagging any placeholder it couldn't confidently fill so an agent knows exactly what to double-check.",
+  "category": "Support",
+  "tags": [
+    "support",
+    "macros",
+    "templates",
+    "personalization",
+    "brevity"
+  ],
+  "type": "basic",
+  "dependencies": [],
+  "spec": {
+    "name": "MacroSlotFiller",
+    "description": "Takes a pre-approved support macro riddled with {placeholders} plus the raw ticket details and returns the finished, ready-to-send reply with every slot filled, flagging any placeholder it couldn't confidently fill so an agent knows exactly what to double-check.",
+    "category": "Support",
+    "tags": [
+      "support",
+      "macros",
+      "templates",
+      "personalization",
+      "brevity"
+    ],
+    "purpose": "Let support agents turn a canned macro template into a personalized, send-ready reply in one step, while surfacing any missing data instead of silently guessing.",
+    "instructions": [
+      "Read the macro template and identify every placeholder written as {slot_name}.",
+      "Extract matching values from the ticket details, customer profile, and order/account context provided.",
+      "Fill each placeholder with the exact value; keep the macro's wording, tone, and structure untouched.",
+      "For dates, names, and IDs, copy them verbatim — never invent, reformat, or approximate.",
+      "If a placeholder has no clear source value, leave it as [[NEEDS: slot_name]] rather than guessing.",
+      "After the filled reply, output a one-line CHECK list of every unfilled or low-confidence slot (or 'CHECK: none').",
+      "Keep the reply as brief as the original macro — do not add greetings, sign-offs, or filler not in the template."
+    ],
+    "promptTemplate": "You are a support macro slot-filler. Fill the macro's {placeholders} using only the ticket context. Preserve wording and brevity. Never invent facts; mark missing slots as [[NEEDS: slot_name]].\n\nMACRO TEMPLATE:\n{{macro}}\n\nTICKET CONTEXT:\n{{input}}\n\nOutput exactly two parts:\nREPLY:\n<the filled macro, ready to send>\nCHECK: <comma-separated list of unfilled/uncertain slots, or \"none\">\n",
+    "examples": [
+      {
+        "title": "Refund macro with full context",
+        "input": "MACRO: Hi {first_name}, your refund of {amount} for order {order_id} has been issued and will appear in {refund_days} business days.\n\nTICKET CONTEXT: Customer Maria Lopez, order #A-2291, requesting refund of $48.00. Policy: card refunds take 5 business days.",
+        "output": "REPLY:\nHi Maria, your refund of $48.00 for order #A-2291 has been issued and will appear in 5 business days.\nCHECK: none"
+      },
+      {
+        "title": "Shipping macro missing a slot",
+        "input": "MACRO: Hey {first_name}, your order {order_id} shipped via {carrier}. Tracking: {tracking_number}.\n\nTICKET CONTEXT: Customer Dan asking where his order #7734 is. It shipped but no tracking number is in the record.",
+        "output": "REPLY:\nHey Dan, your order #7734 shipped via [[NEEDS: carrier]]. Tracking: [[NEEDS: tracking_number]].\nCHECK: carrier, tracking_number"
+      }
+    ],
+    "tests": [
+      {
+        "name": "Flags missing placeholder instead of guessing",
+        "input": "MACRO: Hi {first_name}, your appointment is confirmed for {date} at {time}.\n\nTICKET CONTEXT: Customer Priya confirmed for the 3pm slot. No date given.",
+        "expected": "REPLY line reads: Hi Priya, your appointment is confirmed for [[NEEDS: date]] at 3pm. CHECK: date"
+      },
+      {
+        "name": "Fills all slots verbatim when data present",
+        "input": "MACRO: Thanks {first_name}, we've upgraded you to the {plan} plan effective {date}.\n\nTICKET CONTEXT: Customer Omar upgraded to Pro plan, effective 2024-06-01.",
+        "expected": "REPLY: Thanks Omar, we've upgraded you to the Pro plan effective 2024-06-01. CHECK: none"
+      }
+    ],
+    "type": "basic",
+    "dependencies": []
+  },
+  "markdown": "# MacroSlotFiller\n\n## Purpose\nLet support agents turn a canned macro template into a personalized, send-ready reply in one step, while surfacing any missing data instead of silently guessing.\n\n## Instructions\n1. Read the macro template and identify every placeholder written as {slot_name}.\n2. Extract matching values from the ticket details, customer profile, and order/account context provided.\n3. Fill each placeholder with the exact value; keep the macro's wording, tone, and structure untouched.\n4. For dates, names, and IDs, copy them verbatim — never invent, reformat, or approximate.\n5. If a placeholder has no clear source value, leave it as [[NEEDS: slot_name]] rather than guessing.\n6. After the filled reply, output a one-line CHECK list of every unfilled or low-confidence slot (or 'CHECK: none').\n7. Keep the reply as brief as the original macro — do not add greetings, sign-offs, or filler not in the template.\n\n## Prompt Template\n```\nYou are a support macro slot-filler. Fill the macro's {placeholders} using only the ticket context. Preserve wording and brevity. Never invent facts; mark missing slots as [[NEEDS: slot_name]].\n\nMACRO TEMPLATE:\n{{macro}}\n\nTICKET CONTEXT:\n{{input}}\n\nOutput exactly two parts:\nREPLY:\n<the filled macro, ready to send>\nCHECK: <comma-separated list of unfilled/uncertain slots, or \"none\">\n\n```\n"
+}

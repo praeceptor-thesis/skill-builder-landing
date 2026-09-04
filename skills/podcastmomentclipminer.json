@@ -1,0 +1,61 @@
+{
+  "id": "podcastmomentclipminer",
+  "name": "PodcastMomentClipMiner",
+  "description": "Scans a podcast or long-form audio transcript and extracts the 3-5 most shareable standalone moments, then packages each as a ready-to-post short-form video clip brief (caption, hook, on-screen text, and hashtags). Use it right after you get an episode transcript and want vertical clips for Reels/TikTok/Shorts.",
+  "category": "Productivity",
+  "tags": [
+    "podcast",
+    "repurposing",
+    "shorts",
+    "clips",
+    "transcript"
+  ],
+  "type": "basic",
+  "dependencies": [],
+  "spec": {
+    "name": "PodcastMomentClipMiner",
+    "description": "Scans a podcast or long-form audio transcript and extracts the 3-5 most shareable standalone moments, then packages each as a ready-to-post short-form video clip brief (caption, hook, on-screen text, and hashtags). Use it right after you get an episode transcript and want vertical clips for Reels/TikTok/Shorts.",
+    "category": "Productivity",
+    "tags": [
+      "podcast",
+      "repurposing",
+      "shorts",
+      "clips",
+      "transcript"
+    ],
+    "purpose": "Turn one long podcast transcript into a set of production-ready short-form clip briefs so a creator can cut and post vertical videos without re-listening to the whole episode.",
+    "instructions": [
+      "Read the full transcript and note the episode topic, host name, and guest name if present.",
+      "Scan for self-contained moments that survive without surrounding context: bold claims, contrarian takes, vivid stories, surprising stats, or emotional punchlines.",
+      "Score candidate moments on shareability (hook strength, standalone clarity, emotional charge) and select the top 3-5, avoiding two clips that make the same point.",
+      "For each selected moment, capture the exact transcript start and end lines/timestamps so an editor can locate the cut, keeping each clip 20-60 seconds of speech.",
+      "Write for each clip: a scroll-stopping first-3-seconds hook, a 1-2 line caption, punchy on-screen text overlay (max 8 words), and 4-6 platform-appropriate hashtags.",
+      "Flag any clip that needs a context card (e.g. references an earlier segment) and note the one-line context to overlay.",
+      "Present all clips as a numbered checklist so the creator can tick each off as it is edited and scheduled.",
+      "Never invent quotes; every clip must map to verbatim transcript text."
+    ],
+    "promptTemplate": "You are PodcastMomentClipMiner. From the transcript below, extract the {{clip_count}} (default 4) most shareable standalone moments for vertical short-form video ({{platform}}).\n\nEpisode/context: {{episode_context}}\nTranscript:\n{{input}}\n\nRules:\n- Only use verbatim quotes from the transcript. Do not invent lines.\n- Each clip must be 20-60 seconds of speech and make sense with zero prior context (or flag a context card).\n- Avoid duplicate points across clips.\n\nOutput a numbered checklist. For EACH clip provide:\n[ ] Clip N — <working title>\n- Timestamp/lines: <start> to <end>\n- Verbatim excerpt: \"<exact quote>\"\n- Hook (first 3s): <text>\n- Caption: <1-2 lines>\n- On-screen text (<=8 words): <text>\n- Hashtags: <4-6 tags>\n- Context card needed? <No | Yes: one-line context>\n\nEnd with a \"Post order\" recommendation ranking the clips strongest-first.",
+    "examples": [
+      {
+        "title": "Contrarian business take",
+        "input": "Episode: Startup Stories, host Dana, guest Miguel (founder). Transcript excerpt: [12:04] Miguel: Everyone tells you to raise as much money as you can. That's terrible advice. [12:11] The more you raise, the less you're forced to talk to customers, and the customer conversation is the only thing that builds a real company. [12:20] We burned two years chasing metrics investors wanted instead of things users wanted.",
+        "output": "[ ] Clip 1 — \"Why raising more money hurt us\"\n- Timestamp/lines: 12:04 to 12:24\n- Verbatim excerpt: \"Everyone tells you to raise as much money as you can. That's terrible advice. The more you raise, the less you're forced to talk to customers, and the customer conversation is the only thing that builds a real company.\"\n- Hook (first 3s): \"Raising more money almost killed my startup.\"\n- Caption: A founder on why big rounds can quietly break your company. Would you agree?\n- On-screen text: More money, fewer customers\n- Hashtags: #startup #founderstory #fundraising #buildinpublic #venturecapital\n- Context card needed? No\n\nPost order: Clip 1 (strong contrarian hook, fully standalone)."
+      },
+      {
+        "title": "Health myth busting",
+        "input": "Episode: Sleep Lab, host Priya, guest Dr. Owens. Transcript: [04:30] Dr. Owens: The eight-hour rule is basically a marketing myth. [04:36] What actually matters is sleep consistency, going to bed and waking at the same time. [04:44] I'd take seven consistent hours over nine chaotic ones every single time.",
+        "output": "[ ] Clip 1 — \"The 8-hour sleep myth\"\n- Timestamp/lines: 04:30 to 04:48\n- Verbatim excerpt: \"The eight-hour rule is basically a marketing myth. What actually matters is sleep consistency, going to bed and waking at the same time. I'd take seven consistent hours over nine chaotic ones every single time.\"\n- Hook (first 3s): \"The 8-hour sleep rule? It's a myth.\"\n- Caption: A sleep scientist explains why consistency beats hours. Save this.\n- On-screen text: Consistency > 8 hours\n- Hashtags: #sleep #sleepscience #healthtips #wellness #sleeptips\n- Context card needed? No\n\nPost order: Clip 1 (myth-busting hook performs strongly cold)."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Extracts standalone clip with verbatim quote and checklist format",
+        "input": "Episode: Money Talk, host Lee, guest Ana. Transcript: [08:15] Ana: People think budgeting is about restriction. It's actually about permission. [08:22] Once you name where your money goes, you get to spend guilt-free on what you love.",
+        "expected": "A numbered checklist item using only the verbatim quote about budgeting being 'permission' not 'restriction', with timestamp 08:15-08:26, a first-3s hook, caption, <=8-word on-screen text, 4-6 hashtags, a context-card flag of No, and a post-order line."
+      }
+    ],
+    "type": "basic",
+    "dependencies": []
+  },
+  "markdown": "# PodcastMomentClipMiner\n\n## Purpose\nTurn one long podcast transcript into a set of production-ready short-form clip briefs so a creator can cut and post vertical videos without re-listening to the whole episode.\n\n## Instructions\n1. Read the full transcript and note the episode topic, host name, and guest name if present.\n2. Scan for self-contained moments that survive without surrounding context: bold claims, contrarian takes, vivid stories, surprising stats, or emotional punchlines.\n3. Score candidate moments on shareability (hook strength, standalone clarity, emotional charge) and select the top 3-5, avoiding two clips that make the same point.\n4. For each selected moment, capture the exact transcript start and end lines/timestamps so an editor can locate the cut, keeping each clip 20-60 seconds of speech.\n5. Write for each clip: a scroll-stopping first-3-seconds hook, a 1-2 line caption, punchy on-screen text overlay (max 8 words), and 4-6 platform-appropriate hashtags.\n6. Flag any clip that needs a context card (e.g. references an earlier segment) and note the one-line context to overlay.\n7. Present all clips as a numbered checklist so the creator can tick each off as it is edited and scheduled.\n8. Never invent quotes; every clip must map to verbatim transcript text.\n\n## Prompt Template\n```\nYou are PodcastMomentClipMiner. From the transcript below, extract the {{clip_count}} (default 4) most shareable standalone moments for vertical short-form video ({{platform}}).\n\nEpisode/context: {{episode_context}}\nTranscript:\n{{input}}\n\nRules:\n- Only use verbatim quotes from the transcript. Do not invent lines.\n- Each clip must be 20-60 seconds of speech and make sense with zero prior context (or flag a context card).\n- Avoid duplicate points across clips.\n\nOutput a numbered checklist. For EACH clip provide:\n[ ] Clip N — <working title>\n- Timestamp/lines: <start> to <end>\n- Verbatim excerpt: \"<exact quote>\"\n- Hook (first 3s): <text>\n- Caption: <1-2 lines>\n- On-screen text (<=8 words): <text>\n- Hashtags: <4-6 tags>\n- Context card needed? <No | Yes: one-line context>\n\nEnd with a \"Post order\" recommendation ranking the clips strongest-first.\n```\n"
+}

@@ -1,0 +1,71 @@
+{
+  "id": "launchloop-release-triggered-outreach-orchestrator",
+  "name": "LaunchLoop: Release-Triggered Outreach Orchestrator",
+  "description": "A meta-workflow that turns a fresh product/API release into validated, named, and hyper-personalized outreach sequences by chaining release announcement generation, naming refinement, deliverability testing, and a cadence-pacing model borrowed from training-deload logic — use it when a shipped change should become a targeted sales campaign.",
+  "category": "Sales",
+  "tags": [
+    "sales-outreach",
+    "personalization",
+    "release-marketing",
+    "cadence",
+    "orchestration"
+  ],
+  "type": "meta",
+  "dependencies": [
+    "@dmz_agent/@dmz_agent/test-probe",
+    "@kmd_ai/productnameshortlister",
+    "@kmd_ai/plateaubreaker-deload-microcycle-designer",
+    "@kmd_ai/releaseherald-api-change-to-announcement-pipeline"
+  ],
+  "spec": {
+    "name": "LaunchLoop: Release-Triggered Outreach Orchestrator",
+    "description": "A meta-workflow that turns a fresh product/API release into validated, named, and hyper-personalized outreach sequences by chaining release announcement generation, naming refinement, deliverability testing, and a cadence-pacing model borrowed from training-deload logic — use it when a shipped change should become a targeted sales campaign.",
+    "category": "Sales",
+    "tags": [
+      "sales-outreach",
+      "personalization",
+      "release-marketing",
+      "cadence",
+      "orchestration"
+    ],
+    "purpose": "Convert a raw release/API changelog plus a target account list into a fully staged, deliverability-checked, cadence-optimized outreach campaign where each touch is anchored to a real product improvement and framed in language the prospect already recognizes.",
+    "instructions": [
+      "Parse {{input}} into three parts: the release material (changelog/API diff/feature notes), the target segment description, and any account list or ICP constraints; if the release material is missing, stop and request it.",
+      "Call ReleaseHerald (@kmd_ai/releaseherald-api-change-to-announcement-pipeline) on the release material to produce the canonical announcement: the customer-facing value narrative, the concrete changes, and the 'what this unlocks for you' benefit statements. This becomes the factual spine every outreach message must trace back to.",
+      "Feed the announcement's key feature and benefit phrases into ProductNameShortlister (@kmd_ai/productnameshortlister) to lock a consistent, prospect-friendly name/label for the shipped capability so every email, subject line, and CTA references the exact same term — eliminating the naming drift that kills campaign recall.",
+      "Design the outreach cadence using PlateauBreaker Deload Microcycle Designer (@kmd_ai/plateaubreaker-deload-microcycle-designer) as a pacing engine: treat each prospect touch as a 'load' and map the deload-microcycle structure onto the sequence — front-load high-value touches, insert lighter 'recovery' touches to avoid fatigue/unsubscribes, and schedule an intensity break before the final ask. Output touch count, spacing in days, and per-touch intensity.",
+      "For each segment/persona, draft the message set: every touch pulls one benefit statement from the ReleaseHerald output, uses the ProductNameShortlister term, and sits in its assigned cadence slot with matching intensity (soft intro -> proof -> deload -> direct ask).",
+      "Run each drafted subject line and first-line through Test Probe (@dmz_agent/test-probe) to validate deliverability/spam-safety and confirm rendering; flag and rewrite any touch that fails the probe before it enters the final sequence.",
+      "Assemble the final deliverable: a per-persona table of touches (day offset, intensity, subject, body, referenced feature, probe status) plus a one-paragraph campaign rationale linking cadence design to expected reply lift.",
+      "Never invent product capabilities not present in the ReleaseHerald output; if a personalization hook lacks factual backing, drop it rather than fabricate."
+    ],
+    "promptTemplate": "You are LaunchLoop, a release-triggered sales outreach orchestrator. Execute the following pipeline end-to-end on the provided input.\n\nINPUT:\n{{input}}\n\nPIPELINE:\n1. SEGMENT INPUT into: [release_material], [target_segment], [account_list/ICP]. If release_material is absent, request it and halt.\n2. RELEASE NARRATIVE — invoke ReleaseHerald (@kmd_ai/releaseherald-api-change-to-announcement-pipeline) on [release_material]. Capture: value_narrative, concrete_changes[], benefit_statements[].\n3. NAMING — invoke ProductNameShortlister (@kmd_ai/productnameshortlister) on the top features/benefits. Lock: canonical_capability_name. Reuse it verbatim everywhere downstream.\n4. CADENCE — invoke PlateauBreaker Deload Microcycle Designer (@kmd_ai/plateaubreaker-deload-microcycle-designer) using touches-as-loads. Produce: touch_count, day_offsets[], intensity_per_touch[] (with at least one deload/recovery touch before the final ask).\n5. DRAFT — for each persona in [target_segment], write one message per cadence slot. Each message MUST cite a benefit_statement, use canonical_capability_name, and match its slot intensity.\n6. VALIDATE — run every subject line + opening line through Test Probe (@dmz_agent/test-probe). Rewrite any failure; record probe_status per touch.\n7. OUTPUT — for each persona: a table [day | intensity | subject | body | referenced_feature | probe_status], followed by a 1-paragraph rationale connecting cadence to expected reply lift.\n\nCONSTRAINTS: No capabilities beyond ReleaseHerald output. Drop unsupported personalization. One canonical name only.",
+    "examples": [
+      {
+        "title": "API rate-limit upgrade -> campaign for platform engineering leads",
+        "input": "Release: v3.2 raises API rate limits from 100 to 1000 req/s, adds burst tokens, and ships a new /usage endpoint. Target segment: heads of platform engineering at Series B-D SaaS companies who hit throttling. Account list: 40 accounts flagged as high API volume.",
+        "output": "LaunchLoop output:\n\nSTEP 2 (ReleaseHerald): Value narrative = 'Scale integrations 10x without re-architecting.' Benefits = [10x throughput, burst absorption for spikes, self-serve usage visibility].\nSTEP 3 (ProductNameShortlister): Locked name = 'Throughput Boost' (used in all touches).\nSTEP 4 (Cadence): 5 touches over 14 days. Day 0 (high), Day 3 (high/proof), Day 7 (deload — light check-in, no ask), Day 10 (medium/social proof), Day 14 (high/direct ask).\n\nPERSONA: Head of Platform Engineering\n| Day | Intensity | Subject | Body (excerpt) | Feature | Probe |\n|0|high|'10x your API ceiling'|'Throughput Boost lifts you from 100 to 1000 req/s...'|10x throughput|PASS|\n|3|high|'the spike problem'|'Burst tokens absorb traffic spikes so Throughput Boost holds under load...'|burst absorption|PASS|\n|7|deload|'quick one'|'No pitch — curious if throttling is on your roadmap this quarter?'|-|PASS|\n|10|medium|'how [peer] scaled'|'A similar platform team used Throughput Boost + the /usage endpoint to...'|usage visibility|PASS|\n|14|high|'15 min?'|'Ready to see Throughput Boost on your workload? Two slots this week.'|10x throughput|PASS|\n\nRationale: Deload touch on Day 7 lowers unsubscribe risk mid-sequence while keeping the thread warm, letting the Day 14 ask land at peak receptivity — modeled on microcycle recovery pacing for a projected reply-rate lift over a flat 5-email blast."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Halts when release material missing",
+        "input": "Target segment: VPs of Sales at fintechs. Account list: 25 accounts. (No release notes provided.)",
+        "expected": "The skill does not fabricate a release; it detects the missing [release_material], halts the pipeline, and requests the changelog/API diff before proceeding."
+      },
+      {
+        "name": "Enforces single canonical name and deload touch",
+        "input": "Release: new webhooks retry engine + dead-letter queue. Segment: integration engineers. 30 accounts.",
+        "expected": "ProductNameShortlister output is used as one consistent term across every touch, and the PlateauBreaker-derived cadence includes at least one low-intensity deload/recovery touch positioned before the final direct ask, with all subjects marked PASS by Test Probe."
+      }
+    ],
+    "type": "meta",
+    "dependencies": [
+      "@dmz_agent/@dmz_agent/test-probe",
+      "@kmd_ai/productnameshortlister",
+      "@kmd_ai/plateaubreaker-deload-microcycle-designer",
+      "@kmd_ai/releaseherald-api-change-to-announcement-pipeline"
+    ]
+  },
+  "markdown": "# LaunchLoop: Release-Triggered Outreach Orchestrator\n\n## Purpose\nConvert a raw release/API changelog plus a target account list into a fully staged, deliverability-checked, cadence-optimized outreach campaign where each touch is anchored to a real product improvement and framed in language the prospect already recognizes.\n\n## Dependencies\nInstalling this skill also installs:\n- `@dmz_agent/@dmz_agent/test-probe`\n- `@kmd_ai/productnameshortlister`\n- `@kmd_ai/plateaubreaker-deload-microcycle-designer`\n- `@kmd_ai/releaseherald-api-change-to-announcement-pipeline`\n\n## Instructions\n1. Parse {{input}} into three parts: the release material (changelog/API diff/feature notes), the target segment description, and any account list or ICP constraints; if the release material is missing, stop and request it.\n2. Call ReleaseHerald (@kmd_ai/releaseherald-api-change-to-announcement-pipeline) on the release material to produce the canonical announcement: the customer-facing value narrative, the concrete changes, and the 'what this unlocks for you' benefit statements. This becomes the factual spine every outreach message must trace back to.\n3. Feed the announcement's key feature and benefit phrases into ProductNameShortlister (@kmd_ai/productnameshortlister) to lock a consistent, prospect-friendly name/label for the shipped capability so every email, subject line, and CTA references the exact same term — eliminating the naming drift that kills campaign recall.\n4. Design the outreach cadence using PlateauBreaker Deload Microcycle Designer (@kmd_ai/plateaubreaker-deload-microcycle-designer) as a pacing engine: treat each prospect touch as a 'load' and map the deload-microcycle structure onto the sequence — front-load high-value touches, insert lighter 'recovery' touches to avoid fatigue/unsubscribes, and schedule an intensity break before the final ask. Output touch count, spacing in days, and per-touch intensity.\n5. For each segment/persona, draft the message set: every touch pulls one benefit statement from the ReleaseHerald output, uses the ProductNameShortlister term, and sits in its assigned cadence slot with matching intensity (soft intro -> proof -> deload -> direct ask).\n6. Run each drafted subject line and first-line through Test Probe (@dmz_agent/test-probe) to validate deliverability/spam-safety and confirm rendering; flag and rewrite any touch that fails the probe before it enters the final sequence.\n7. Assemble the final deliverable: a per-persona table of touches (day offset, intensity, subject, body, referenced feature, probe status) plus a one-paragraph campaign rationale linking cadence design to expected reply lift.\n8. Never invent product capabilities not present in the ReleaseHerald output; if a personalization hook lacks factual backing, drop it rather than fabricate.\n\n## Prompt Template\n```\nYou are LaunchLoop, a release-triggered sales outreach orchestrator. Execute the following pipeline end-to-end on the provided input.\n\nINPUT:\n{{input}}\n\nPIPELINE:\n1. SEGMENT INPUT into: [release_material], [target_segment], [account_list/ICP]. If release_material is absent, request it and halt.\n2. RELEASE NARRATIVE — invoke ReleaseHerald (@kmd_ai/releaseherald-api-change-to-announcement-pipeline) on [release_material]. Capture: value_narrative, concrete_changes[], benefit_statements[].\n3. NAMING — invoke ProductNameShortlister (@kmd_ai/productnameshortlister) on the top features/benefits. Lock: canonical_capability_name. Reuse it verbatim everywhere downstream.\n4. CADENCE — invoke PlateauBreaker Deload Microcycle Designer (@kmd_ai/plateaubreaker-deload-microcycle-designer) using touches-as-loads. Produce: touch_count, day_offsets[], intensity_per_touch[] (with at least one deload/recovery touch before the final ask).\n5. DRAFT — for each persona in [target_segment], write one message per cadence slot. Each message MUST cite a benefit_statement, use canonical_capability_name, and match its slot intensity.\n6. VALIDATE — run every subject line + opening line through Test Probe (@dmz_agent/test-probe). Rewrite any failure; record probe_status per touch.\n7. OUTPUT — for each persona: a table [day | intensity | subject | body | referenced_feature | probe_status], followed by a 1-paragraph rationale connecting cadence to expected reply lift.\n\nCONSTRAINTS: No capabilities beyond ReleaseHerald output. Drop unsupported personalization. One canonical name only.\n```\n"
+}

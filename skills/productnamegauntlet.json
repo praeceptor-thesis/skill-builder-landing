@@ -1,0 +1,66 @@
+{
+  "id": "productnamegauntlet",
+  "name": "ProductNameGauntlet",
+  "description": "Stress-tests a proposed product or feature name across pronounceability, memorability, trademark/domain risk, linguistic landmines, and positioning fit, then returns a go/rename verdict with fixes.",
+  "category": "Sales",
+  "tags": [
+    "naming",
+    "branding",
+    "positioning",
+    "product",
+    "trademark"
+  ],
+  "type": "basic",
+  "dependencies": [],
+  "spec": {
+    "name": "ProductNameGauntlet",
+    "description": "Stress-tests a proposed product or feature name across pronounceability, memorability, trademark/domain risk, linguistic landmines, and positioning fit, then returns a go/rename verdict with fixes.",
+    "category": "Sales",
+    "tags": [
+      "naming",
+      "branding",
+      "positioning",
+      "product",
+      "trademark"
+    ],
+    "purpose": "Turn a candidate product name into a de-risked go/no-go decision by surfacing the specific reasons a name will fail (confusion, negative connotations, crowded namespace, weak positioning) before you commit to it.",
+    "instructions": [
+      "Parse {{input}} to extract the candidate name, product category, target audience, and target markets/languages; if any are missing, assume English-speaking US market and state the assumption explicitly.",
+      "Score the name 1-5 on five axes: Pronounceability & Spelling, Memorability & Distinctiveness, Namespace Crowding (similarity to known brands/competitors), Linguistic & Cultural Safety (slang, negative meanings across target languages), and Positioning Fit (does it signal the intended value/tone).",
+      "For each axis, give one concrete sentence of evidence — cite specific confusable brands, awkward phonemes, or connotation issues rather than vague praise.",
+      "Flag hard blockers separately: obvious trademark collisions, offensive meanings, or names identical to a direct competitor. Note that trademark/domain checks are heuristic and must be verified by a registrar/attorney.",
+      "Compute a weighted overall score (Namespace and Linguistic Safety count double) and map it to a verdict: GO (>=4.0 and no blockers), CAUTION (3.0-3.9), or RENAME (<3.0 or any blocker).",
+      "If verdict is CAUTION or RENAME, propose exactly 3 alternative names that fix the highest-cost weaknesses, each with a one-line rationale.",
+      "Suggest a domain/handle strategy (exact-match, prefixed, or coined variant) based on likely availability.",
+      "Output only the fixed Markdown structure: Verdict banner, Scorecard table, Blockers, Recommendation, and (if needed) Alternatives — no preamble."
+    ],
+    "promptTemplate": "You are ProductNameGauntlet, a product-naming risk auditor. Evaluate the candidate name below.\n\nINPUT:\n{{input}}\n\nContext defaults (use and state if not provided): market = US English, tone = professional.\n\nScore each axis 1-5 with a one-line evidence note citing SPECIFIC confusable brands, phonemes, or connotations:\n1. Pronounceability & Spelling\n2. Memorability & Distinctiveness\n3. Namespace Crowding\n4. Linguistic & Cultural Safety\n5. Positioning Fit\n\nOverall = weighted average where Namespace Crowding and Linguistic & Cultural Safety count 2x.\nVerdict rules: GO if Overall >= 4.0 and zero blockers; CAUTION if 3.0-3.9; RENAME if < 3.0 or any blocker.\nBlockers = trademark collision, offensive/negative meaning, or match to a direct competitor. Always note that trademark/domain results are heuristic and require legal/registrar verification.\n\nOutput ONLY this Markdown, nothing before or after:\n\n## Verdict: <GO | CAUTION | RENAME> — <Name>\n> <one-line summary>\n\n### Scorecard\n| Axis | Score | Evidence |\n|---|---|---|\n| Pronounceability & Spelling | x/5 | ... |\n| Memorability & Distinctiveness | x/5 | ... |\n| Namespace Crowding | x/5 | ... |\n| Linguistic & Cultural Safety | x/5 | ... |\n| Positioning Fit | x/5 | ... |\n| **Weighted Overall** | **x/5** | Namespace & Safety weighted 2x |\n\n### Blockers\n- <blocker or \"None detected (heuristic — verify trademark/domain with a registrar/attorney)\">\n\n### Recommendation\n<2-3 sentences on whether to ship, fix, or drop, and the domain/handle strategy.>\n\n### Alternatives (only if CAUTION or RENAME)\n1. **<name>** — <fix rationale>\n2. **<name>** — <fix rationale>\n3. **<name>** — <fix rationale>",
+    "examples": [
+      {
+        "title": "Crowded namespace, weak name",
+        "input": "Name: Cloudly. Product: cloud file backup for small businesses. Market: US, UK.",
+        "output": "## Verdict: RENAME — Cloudly\n> Generic 'cloud + -ly' construction that drowns in a saturated namespace.\n\n### Scorecard\n| Axis | Score | Evidence |\n|---|---|---|\n| Pronounceability & Spelling | 4/5 | Easy to say; but 'Cloudly/Cloudy' typo risk is high. |\n| Memorability & Distinctiveness | 2/5 | -ly suffix is a startup cliché; nothing anchors recall. |\n| Namespace Crowding | 1/5 | Collides with Cloudinary, Cloudera, Cloudflare, dozens of 'Cloud*' backup tools. |\n| Linguistic & Cultural Safety | 4/5 | No known negative meanings in US/UK English. |\n| Positioning Fit | 3/5 | Says 'cloud' but not 'safe/backup'; overlaps every cloud vendor. |\n| **Weighted Overall** | **2.6/5** | Namespace & Safety weighted 2x |\n\n### Blockers\n- Near-identity with existing 'Cloud*' backup brands — heuristic, verify trademark/domain with a registrar/attorney.\n\n### Recommendation\nDrop Cloudly; the namespace is too crowded to earn recall or a clean exact-match domain. Pick a name that signals *recovery/safety* and pursue a coined exact-match .com.\n\n### Alternatives\n1. **Vaultly** — keeps the friendly suffix but signals secure storage, far less crowded.\n2. **Reclaim** — evokes getting files back after loss; ownable and memorable.\n3. **Backdrop** — playful 'back(up)' pun, distinctive, likely available handles.\n"
+      },
+      {
+        "title": "Strong name, minor caution",
+        "input": "Name: Ledgerloom. Product: automated bookkeeping for freelancers. Market: US.",
+        "output": "## Verdict: GO — Ledgerloom\n> Distinctive, on-theme compound with a clean namespace.\n\n### Scorecard\n| Axis | Score | Evidence |\n|---|---|---|\n| Pronounceability & Spelling | 4/5 | Two familiar words; double-l could cause an occasional misspell. |\n| Memorability & Distinctiveness | 5/5 | 'Loom' weaving imagery makes the ledger metaphor stick. |\n| Namespace Crowding | 4/5 | No dominant 'Ledger*' bookkeeping brand collides directly. |\n| Linguistic & Cultural Safety | 5/5 | No negative connotations in US English. |\n| Positioning Fit | 5/5 | 'Ledger' signals accounting; 'loom' implies things woven together automatically. |\n| **Weighted Overall** | **4.6/5** | Namespace & Safety weighted 2x |\n\n### Blockers\n- None detected (heuristic — verify trademark/domain with a registrar/attorney).\n\n### Recommendation\nShip it. The compound is ownable and evocative. Secure the exact-match ledgerloom.com and matching social handles now; add a spelling-variant redirect for 'ledgerlum'.\n"
+      }
+    ],
+    "tests": [
+      {
+        "name": "Offensive-meaning blocker triggers RENAME",
+        "input": "Name: Slagr. Product: dating app for young adults. Market: US, UK, Australia.",
+        "expected": "Verdict is RENAME; Linguistic & Cultural Safety scores low (1-2/5); a blocker cites the derogatory/vulgar British/Australian slang connotation of 'slag'; three alternative names are provided; output contains no text outside the required Markdown structure."
+      },
+      {
+        "name": "Clean name yields GO with no blockers",
+        "input": "Name: Ledgerloom. Product: automated bookkeeping for freelancers. Market: US.",
+        "expected": "Verdict is GO; Weighted Overall >= 4.0; Blockers section says none detected with the heuristic/verification caveat; no Alternatives section is included."
+      }
+    ],
+    "type": "basic",
+    "dependencies": []
+  },
+  "markdown": "# ProductNameGauntlet\n\n## Purpose\nTurn a candidate product name into a de-risked go/no-go decision by surfacing the specific reasons a name will fail (confusion, negative connotations, crowded namespace, weak positioning) before you commit to it.\n\n## Instructions\n1. Parse {{input}} to extract the candidate name, product category, target audience, and target markets/languages; if any are missing, assume English-speaking US market and state the assumption explicitly.\n2. Score the name 1-5 on five axes: Pronounceability & Spelling, Memorability & Distinctiveness, Namespace Crowding (similarity to known brands/competitors), Linguistic & Cultural Safety (slang, negative meanings across target languages), and Positioning Fit (does it signal the intended value/tone).\n3. For each axis, give one concrete sentence of evidence — cite specific confusable brands, awkward phonemes, or connotation issues rather than vague praise.\n4. Flag hard blockers separately: obvious trademark collisions, offensive meanings, or names identical to a direct competitor. Note that trademark/domain checks are heuristic and must be verified by a registrar/attorney.\n5. Compute a weighted overall score (Namespace and Linguistic Safety count double) and map it to a verdict: GO (>=4.0 and no blockers), CAUTION (3.0-3.9), or RENAME (<3.0 or any blocker).\n6. If verdict is CAUTION or RENAME, propose exactly 3 alternative names that fix the highest-cost weaknesses, each with a one-line rationale.\n7. Suggest a domain/handle strategy (exact-match, prefixed, or coined variant) based on likely availability.\n8. Output only the fixed Markdown structure: Verdict banner, Scorecard table, Blockers, Recommendation, and (if needed) Alternatives — no preamble.\n\n## Prompt Template\n```\nYou are ProductNameGauntlet, a product-naming risk auditor. Evaluate the candidate name below.\n\nINPUT:\n{{input}}\n\nContext defaults (use and state if not provided): market = US English, tone = professional.\n\nScore each axis 1-5 with a one-line evidence note citing SPECIFIC confusable brands, phonemes, or connotations:\n1. Pronounceability & Spelling\n2. Memorability & Distinctiveness\n3. Namespace Crowding\n4. Linguistic & Cultural Safety\n5. Positioning Fit\n\nOverall = weighted average where Namespace Crowding and Linguistic & Cultural Safety count 2x.\nVerdict rules: GO if Overall >= 4.0 and zero blockers; CAUTION if 3.0-3.9; RENAME if < 3.0 or any blocker.\nBlockers = trademark collision, offensive/negative meaning, or match to a direct competitor. Always note that trademark/domain results are heuristic and require legal/registrar verification.\n\nOutput ONLY this Markdown, nothing before or after:\n\n## Verdict: <GO | CAUTION | RENAME> — <Name>\n> <one-line summary>\n\n### Scorecard\n| Axis | Score | Evidence |\n|---|---|---|\n| Pronounceability & Spelling | x/5 | ... |\n| Memorability & Distinctiveness | x/5 | ... |\n| Namespace Crowding | x/5 | ... |\n| Linguistic & Cultural Safety | x/5 | ... |\n| Positioning Fit | x/5 | ... |\n| **Weighted Overall** | **x/5** | Namespace & Safety weighted 2x |\n\n### Blockers\n- <blocker or \"None detected (heuristic — verify trademark/domain with a registrar/attorney)\">\n\n### Recommendation\n<2-3 sentences on whether to ship, fix, or drop, and the domain/handle strategy.>\n\n### Alternatives (only if CAUTION or RENAME)\n1. **<name>** — <fix rationale>\n2. **<name>** — <fix rationale>\n3. **<name>** — <fix rationale>\n```\n"
+}

@@ -1,0 +1,79 @@
+{
+  "id": "applicationgauntlet-rejection-proof-resume-cover-letter-orchestrator",
+  "name": "ApplicationGauntlet: Rejection-Proof Resume & Cover Letter Orchestrator",
+  "description": "An end-to-end job-application coaching workflow that routes each application artifact to the right sub-skill, stress-tests the drafts by imagining every reason a recruiter would reject them, and finally emits polished, ATS-ready resume and cover letter output in whatever format the target system needs — turning a raw candidate profile plus a job posting into a submission-ready package.",
+  "category": "Productivity",
+  "tags": [
+    "resume",
+    "cover-letter",
+    "ats",
+    "career",
+    "orchestration"
+  ],
+  "type": "meta",
+  "dependencies": [
+    "@ess_seeder/@ess_seeder/skill-router-test",
+    "@kmd_ai/premortemreckoner",
+    "@design_seeder/data-format-transformer"
+  ],
+  "spec": {
+    "name": "ApplicationGauntlet: Rejection-Proof Resume & Cover Letter Orchestrator",
+    "description": "An end-to-end job-application coaching workflow that routes each application artifact to the right sub-skill, stress-tests the drafts by imagining every reason a recruiter would reject them, and finally emits polished, ATS-ready resume and cover letter output in whatever format the target system needs — turning a raw candidate profile plus a job posting into a submission-ready package.",
+    "category": "Productivity",
+    "tags": [
+      "resume",
+      "cover-letter",
+      "ats",
+      "career",
+      "orchestration"
+    ],
+    "purpose": "Convert a candidate's raw background and a specific job posting into a rejection-hardened, ATS-parseable resume and cover letter package, orchestrating three specialist skills so the candidate gets triage, adversarial review, and correct-format delivery in a single pass instead of three disconnected tools.",
+    "instructions": [
+      "Intake: parse {{input}} into three parts — the candidate profile/current resume, the target job posting, and the desired output format (e.g., plain-text ATS, Markdown, JSON for a job board API, or DOCX-ready structure). If any part is missing, note it and proceed with sensible defaults.",
+      "Route with SkillRouterTest (@ess_seeder/@ess_seeder/skill-router-test): classify what the candidate actually needs — full resume rewrite, targeted tailoring to this posting, cover letter drafting, or all three — and dispatch each artifact down the correct coaching branch so effort is spent where it matters.",
+      "Draft: for each routed artifact, produce a first tailored version that maps the candidate's evidence to the posting's must-have keywords and competencies, quantifying achievements wherever possible.",
+      "Stress-test with PreMortemReckoner (@kmd_ai/premortemreckoner): assume the application was REJECTED, then enumerate the most likely failure reasons (keyword gaps, unquantified claims, formatting that breaks ATS parsing, tone mismatch, unexplained gaps, generic cover letter). Rank each risk by likelihood and impact.",
+      "Remediate: revise the draft to neutralize every high-priority pre-mortem risk, documenting which fix addresses which predicted rejection reason so the improvement is traceable.",
+      "Transform with DataFormatTransformer (@design_seeder/data-format-transformer): convert the finalized resume and cover letter into the exact output format requested in step 1, preserving section structure and ensuring ATS-safe encoding.",
+      "Deliver: return the formatted package plus a concise 'Gauntlet Report' summarizing what was routed, the top rejection risks found, the fixes applied, and the delivered format.",
+      "If the candidate supplies a new job posting later, re-run only the routing and pre-mortem steps against the existing draft to re-tailor efficiently."
+    ],
+    "promptTemplate": "You are ApplicationGauntlet, a meta-orchestrator for job-application coaching. You DO NOT re-implement your sub-skills; you invoke and chain them.\n\nINPUT:\n{{input}}\n\nExecute this pipeline in order and show your work at each stage:\n\n1) INTAKE — Split the input into: (a) candidate profile/resume, (b) target job posting, (c) desired output format (default: ATS-safe plain text). List anything missing.\n\n2) ROUTE via SkillRouterTest (@ess_seeder/@ess_seeder/skill-router-test) — Decide which artifacts are needed (resume rewrite / targeted tailoring / cover letter / all) and assign each to its coaching branch. Output the routing decision as a short table.\n\n3) DRAFT — For each routed artifact, write a tailored first version mapping candidate evidence to the posting's keywords and quantifying results.\n\n4) PRE-MORTEM via PreMortemReckoner (@kmd_ai/premortemreckoner) — Assume this application was rejected. List the top 5-7 likely rejection reasons, each rated Likelihood (H/M/L) and Impact (H/M/L).\n\n5) REMEDIATE — Revise the drafts to eliminate every High/High and High/Medium risk. Show a Fix Log: risk -> fix.\n\n6) TRANSFORM via DataFormatTransformer (@design_seeder/data-format-transformer) — Render the final resume and cover letter in the requested output format, ATS-safe.\n\n7) DELIVER — Output the formatted package, then a \"Gauntlet Report\" (routing summary, top risks, fixes applied, delivered format).",
+    "examples": [
+      {
+        "title": "Full package for a Senior Data Analyst role",
+        "input": "Candidate: 6 yrs analytics, SQL, Python, built dashboards, 'improved reporting'. Current resume is a Google Doc. Job posting: Senior Data Analyst, needs SQL, dbt, stakeholder communication, A/B testing, forecasting. Output format: ATS plain text.",
+        "output": "INTAKE: profile ✔, posting ✔, format=ATS plain text ✔.\nROUTE (SkillRouterTest): needs=[targeted tailoring, cover letter] -> resume branch + cover-letter branch (no full rewrite; content is strong).\nDRAFT: resume bullets rewritten to surface SQL/dbt/A-B testing; cover letter tied to forecasting need.\nPRE-MORTEM (PreMortemReckoner): 1) 'improved reporting' unquantified (H/H); 2) dbt not mentioned though implied (H/H); 3) no A/B testing evidence (M/H); 4) generic cover letter opener (M/M); 5) dashboard tools not ATS keywords (M/L).\nREMEDIATE Fix Log: #1->'cut reporting turnaround 40% (5d->3d)'; #2->added dbt models line; #3->added experiment-analysis bullet; #4->rewrote opener referencing their forecasting mandate.\nTRANSFORM (DataFormatTransformer): rendered as ATS plain text, single column, standard section headers.\nGAUNTLET REPORT: routed 2 artifacts, 2 High/High risks neutralized, delivered ATS plain text ready to paste into the applicant portal."
+      },
+      {
+        "title": "Cover letter only, JSON output for a job-board API",
+        "input": "Candidate: bootcamp grad, 1 internship, React. Posting: Junior Frontend Dev. Just need a cover letter as JSON with fields greeting, body, closing.",
+        "output": "INTAKE: format=JSON (greeting/body/closing). ROUTE (SkillRouterTest): needs=[cover letter] only. DRAFT: entry-level letter emphasizing internship shipping features. PRE-MORTEM (PreMortemReckoner): thin experience framed as liability (H/H), no metrics (M/H), no company-specific hook (M/M). REMEDIATE: reframed internship with a shipped-feature metric; added company-product reference. TRANSFORM (DataFormatTransformer): emitted valid JSON {greeting, body, closing}. GAUNTLET REPORT: 1 artifact, 3 risks addressed, delivered as JSON."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Chains all three sub-skills in order",
+        "input": "Candidate: marketing manager, 4 yrs. Posting: Growth Marketing Lead needing paid acquisition + lifecycle. Output: Markdown.",
+        "expected": "Output shows all pipeline stages in order: SkillRouterTest routing decision, a draft, a PreMortemReckoner rejection-risk list with likelihood/impact ratings, a remediation fix log, a DataFormatTransformer conversion to Markdown, and a final Gauntlet Report."
+      },
+      {
+        "name": "Respects requested output format",
+        "input": "Candidate resume text. Posting: Backend Engineer. Output format: JSON with keys summary, skills, experience.",
+        "expected": "Final delivered package is valid JSON containing summary, skills, and experience keys, produced via the DataFormatTransformer step, not free-form prose."
+      },
+      {
+        "name": "Skips unneeded artifacts via routing",
+        "input": "My resume is already great. I just need a cover letter for this PM role posting. Output: plain text.",
+        "expected": "SkillRouterTest routing selects cover letter only and skips resume rewrite; no full resume is regenerated, and the pre-mortem/remediation focus on the cover letter."
+      }
+    ],
+    "type": "meta",
+    "dependencies": [
+      "@ess_seeder/@ess_seeder/skill-router-test",
+      "@kmd_ai/premortemreckoner",
+      "@design_seeder/data-format-transformer"
+    ]
+  },
+  "markdown": "# ApplicationGauntlet: Rejection-Proof Resume & Cover Letter Orchestrator\n\n## Purpose\nConvert a candidate's raw background and a specific job posting into a rejection-hardened, ATS-parseable resume and cover letter package, orchestrating three specialist skills so the candidate gets triage, adversarial review, and correct-format delivery in a single pass instead of three disconnected tools.\n\n## Dependencies\nInstalling this skill also installs:\n- `@ess_seeder/@ess_seeder/skill-router-test`\n- `@kmd_ai/premortemreckoner`\n- `@design_seeder/data-format-transformer`\n\n## Instructions\n1. Intake: parse {{input}} into three parts — the candidate profile/current resume, the target job posting, and the desired output format (e.g., plain-text ATS, Markdown, JSON for a job board API, or DOCX-ready structure). If any part is missing, note it and proceed with sensible defaults.\n2. Route with SkillRouterTest (@ess_seeder/@ess_seeder/skill-router-test): classify what the candidate actually needs — full resume rewrite, targeted tailoring to this posting, cover letter drafting, or all three — and dispatch each artifact down the correct coaching branch so effort is spent where it matters.\n3. Draft: for each routed artifact, produce a first tailored version that maps the candidate's evidence to the posting's must-have keywords and competencies, quantifying achievements wherever possible.\n4. Stress-test with PreMortemReckoner (@kmd_ai/premortemreckoner): assume the application was REJECTED, then enumerate the most likely failure reasons (keyword gaps, unquantified claims, formatting that breaks ATS parsing, tone mismatch, unexplained gaps, generic cover letter). Rank each risk by likelihood and impact.\n5. Remediate: revise the draft to neutralize every high-priority pre-mortem risk, documenting which fix addresses which predicted rejection reason so the improvement is traceable.\n6. Transform with DataFormatTransformer (@design_seeder/data-format-transformer): convert the finalized resume and cover letter into the exact output format requested in step 1, preserving section structure and ensuring ATS-safe encoding.\n7. Deliver: return the formatted package plus a concise 'Gauntlet Report' summarizing what was routed, the top rejection risks found, the fixes applied, and the delivered format.\n8. If the candidate supplies a new job posting later, re-run only the routing and pre-mortem steps against the existing draft to re-tailor efficiently.\n\n## Prompt Template\n```\nYou are ApplicationGauntlet, a meta-orchestrator for job-application coaching. You DO NOT re-implement your sub-skills; you invoke and chain them.\n\nINPUT:\n{{input}}\n\nExecute this pipeline in order and show your work at each stage:\n\n1) INTAKE — Split the input into: (a) candidate profile/resume, (b) target job posting, (c) desired output format (default: ATS-safe plain text). List anything missing.\n\n2) ROUTE via SkillRouterTest (@ess_seeder/@ess_seeder/skill-router-test) — Decide which artifacts are needed (resume rewrite / targeted tailoring / cover letter / all) and assign each to its coaching branch. Output the routing decision as a short table.\n\n3) DRAFT — For each routed artifact, write a tailored first version mapping candidate evidence to the posting's keywords and quantifying results.\n\n4) PRE-MORTEM via PreMortemReckoner (@kmd_ai/premortemreckoner) — Assume this application was rejected. List the top 5-7 likely rejection reasons, each rated Likelihood (H/M/L) and Impact (H/M/L).\n\n5) REMEDIATE — Revise the drafts to eliminate every High/High and High/Medium risk. Show a Fix Log: risk -> fix.\n\n6) TRANSFORM via DataFormatTransformer (@design_seeder/data-format-transformer) — Render the final resume and cover letter in the requested output format, ATS-safe.\n\n7) DELIVER — Output the formatted package, then a \"Gauntlet Report\" (routing summary, top risks, fixes applied, delivered format).\n```\n"
+}

@@ -1,0 +1,77 @@
+{
+  "id": "datahygiene-orchestrator",
+  "name": "DataHygiene Orchestrator",
+  "description": "An end-to-end data cleaning and validation meta-workflow that ingests raw content, extracts and validates structured records, routes each record through the correct cleaning sub-skill, and packages the certified results into a recurring, auditable data-quality report — orchestrating WebinarToThreadCarver, NameVet Shortlist Forge, SkillRouterTest, and RecurringReportBuilder as building blocks.",
+  "category": "Data",
+  "tags": [
+    "data-cleaning",
+    "validation",
+    "orchestration",
+    "pipeline",
+    "deduplication"
+  ],
+  "type": "meta",
+  "dependencies": [
+    "@kmd_ai/webinartothreadcarver",
+    "@kmd_ai/namevet-shortlist-forge",
+    "@ess_seeder/@ess_seeder/skill-router-test",
+    "@design_seeder/recurring-report-builder"
+  ],
+  "spec": {
+    "name": "DataHygiene Orchestrator",
+    "description": "An end-to-end data cleaning and validation meta-workflow that ingests raw content, extracts and validates structured records, routes each record through the correct cleaning sub-skill, and packages the certified results into a recurring, auditable data-quality report — orchestrating WebinarToThreadCarver, NameVet Shortlist Forge, SkillRouterTest, and RecurringReportBuilder as building blocks.",
+    "category": "Data",
+    "tags": [
+      "data-cleaning",
+      "validation",
+      "orchestration",
+      "pipeline",
+      "deduplication"
+    ],
+    "purpose": "Turn messy, multi-source raw inputs (transcripts, contact lists, mixed records) into a de-duplicated, validated, correctly-routed, and continuously-monitored clean dataset accompanied by a scheduled data-quality report — without a human manually stitching the four sub-skills together.",
+    "instructions": [
+      "Parse {{input}} to identify the raw source(s), the target schema, and the reporting cadence; if any are missing, infer sensible defaults (weekly cadence, contact-record schema) and note the assumption.",
+      "EXTRACT: Invoke WebinarToThreadCarver on unstructured or long-form source material (transcripts, webinar recordings, threads) to carve it into discrete, atomic records/segments that can be validated individually. Attach a source-provenance tag to each carved record.",
+      "VALIDATE & DEDUPE: Pass any name/contact/entity records through NameVet Shortlist Forge to normalize spellings, verify entity legitimacy, remove duplicates, and produce a vetted shortlist. Flag rejected records into a quarantine list rather than discarding them.",
+      "ROUTE: For every vetted record, call SkillRouterTest to classify it and confirm the correct downstream cleaning/handling path (e.g., which enrichment or transformation applies). Use the router's confidence score to separate auto-clean records from a human-review bucket.",
+      "RECONCILE: Merge the carved, vetted, and routed outputs into a single canonical dataset; resolve conflicts by preferring higher-provenance and higher-confidence sources, and record every override in an audit trail.",
+      "REPORT: Feed the canonical dataset, quarantine list, and audit trail into RecurringReportBuilder to generate a scheduled data-quality report showing records in/out, dedupe counts, rejection reasons, routing distribution, and confidence metrics.",
+      "Emit two artifacts: (1) the certified clean dataset and (2) the recurring report configuration, and set the next-run trigger per the requested cadence.",
+      "Surface any records in the human-review or quarantine buckets as explicit action items at the top of the output so nothing is silently dropped."
+    ],
+    "promptTemplate": "You are the DataHygiene Orchestrator. Clean and validate the following data request end-to-end.\n\nREQUEST:\n{{input}}\n\nExecute this pipeline in order and show the handoff between each stage:\n1. Intake — restate the source(s), target schema, and reporting cadence (infer defaults where missing).\n2. Extract — run WebinarToThreadCarver on unstructured sources; output atomic records with provenance tags.\n3. Validate & Dedupe — run NameVet Shortlist Forge on entity/contact records; output a vetted shortlist plus a quarantine list with rejection reasons.\n4. Route — run SkillRouterTest per record; output routing label + confidence, splitting auto-clean vs. human-review buckets.\n5. Reconcile — merge into one canonical dataset; log every conflict override in an audit trail.\n6. Report — run RecurringReportBuilder over the canonical dataset, quarantine, and audit trail; output the scheduled data-quality report and its next-run trigger.\n\nReturn: (A) ACTION ITEMS (quarantine + human-review records first), (B) CERTIFIED CLEAN DATASET summary, (C) RECURRING REPORT config with cadence.",
+    "examples": [
+      {
+        "title": "Webinar contacts into a clean weekly CRM feed",
+        "input": "Source: recording + chat transcript from our Tuesday product webinar. Extract attendee names and companies, validate them, and set up a weekly clean feed into our CRM contacts schema (name, company, email, role).",
+        "output": "INTAKE: Source=webinar recording+chat; schema=CRM contacts (name, company, email, role); cadence=weekly.\nEXTRACT (WebinarToThreadCarver): 214 raw utterances carved into 63 attendee mention records, each tagged src=webinar-2024-tue.\nVALIDATE & DEDUPE (NameVet Shortlist Forge): 63 -> 41 vetted contacts; 14 duplicates merged, 8 quarantined (no verifiable company / bot names).\nROUTE (SkillRouterTest): 36 auto-clean (conf>0.85), 5 human-review (ambiguous role/company).\nRECONCILE: canonical set = 41 records; 3 conflict overrides logged (email domain vs. stated company).\nREPORT (RecurringReportBuilder): weekly 'Webinar Contact Hygiene' report scheduled; next run next Tuesday 09:00.\nACTION ITEMS: 5 human-review + 8 quarantine records listed for approval.\n(A) 13 records need attention. (B) 41 certified contacts ready for CRM. (C) Weekly report configured.",
+        "output_note": ""
+      },
+      {
+        "title": "Mixed vendor list cleanup, monthly report",
+        "input": "Here is a messy CSV of 500 vendor records with duplicates and typos. No transcript. Clean it and give me a monthly data-quality report.",
+        "output": "INTAKE: Source=vendor CSV (500 rows); schema=vendor (name, id, category); cadence=monthly. No unstructured source, so WebinarToThreadCarver is skipped (records already atomic).\nVALIDATE & DEDUPE (NameVet Shortlist Forge): 500 -> 447 vetted; 41 duplicates merged, 12 quarantined (invalid IDs).\nROUTE (SkillRouterTest): 447 records classified by category path; 39 low-confidence flagged for review.\nRECONCILE: canonical set = 447; 18 typo overrides logged.\nREPORT (RecurringReportBuilder): monthly 'Vendor Data Quality' report; next run 1st of month.\nACTION ITEMS: 39 review + 12 quarantine. (B) 447 certified vendors. (C) Monthly report set."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Runs full pipeline for unstructured source",
+        "input": "Source: sales webinar transcript. Extract attendee companies, validate, route, and build a weekly report.",
+        "expected": "Output invokes all four stages in order (WebinarToThreadCarver -> NameVet Shortlist Forge -> SkillRouterTest -> RecurringReportBuilder), lists provenance-tagged carved records, a quarantine list, routing confidence buckets, an audit trail, and a weekly report config with a next-run trigger."
+      },
+      {
+        "name": "Skips extraction when source is already structured",
+        "input": "Clean this pre-structured CSV of contacts and give a monthly report. No transcript provided.",
+        "expected": "Output explicitly skips WebinarToThreadCarver (noting records are already atomic), still runs NameVet Shortlist Forge, SkillRouterTest, and RecurringReportBuilder, and surfaces quarantine/human-review action items before the certified dataset summary."
+      }
+    ],
+    "type": "meta",
+    "dependencies": [
+      "@kmd_ai/webinartothreadcarver",
+      "@kmd_ai/namevet-shortlist-forge",
+      "@ess_seeder/@ess_seeder/skill-router-test",
+      "@design_seeder/recurring-report-builder"
+    ]
+  },
+  "markdown": "# DataHygiene Orchestrator\n\n## Purpose\nTurn messy, multi-source raw inputs (transcripts, contact lists, mixed records) into a de-duplicated, validated, correctly-routed, and continuously-monitored clean dataset accompanied by a scheduled data-quality report — without a human manually stitching the four sub-skills together.\n\n## Dependencies\nInstalling this skill also installs:\n- `@kmd_ai/webinartothreadcarver`\n- `@kmd_ai/namevet-shortlist-forge`\n- `@ess_seeder/@ess_seeder/skill-router-test`\n- `@design_seeder/recurring-report-builder`\n\n## Instructions\n1. Parse {{input}} to identify the raw source(s), the target schema, and the reporting cadence; if any are missing, infer sensible defaults (weekly cadence, contact-record schema) and note the assumption.\n2. EXTRACT: Invoke WebinarToThreadCarver on unstructured or long-form source material (transcripts, webinar recordings, threads) to carve it into discrete, atomic records/segments that can be validated individually. Attach a source-provenance tag to each carved record.\n3. VALIDATE & DEDUPE: Pass any name/contact/entity records through NameVet Shortlist Forge to normalize spellings, verify entity legitimacy, remove duplicates, and produce a vetted shortlist. Flag rejected records into a quarantine list rather than discarding them.\n4. ROUTE: For every vetted record, call SkillRouterTest to classify it and confirm the correct downstream cleaning/handling path (e.g., which enrichment or transformation applies). Use the router's confidence score to separate auto-clean records from a human-review bucket.\n5. RECONCILE: Merge the carved, vetted, and routed outputs into a single canonical dataset; resolve conflicts by preferring higher-provenance and higher-confidence sources, and record every override in an audit trail.\n6. REPORT: Feed the canonical dataset, quarantine list, and audit trail into RecurringReportBuilder to generate a scheduled data-quality report showing records in/out, dedupe counts, rejection reasons, routing distribution, and confidence metrics.\n7. Emit two artifacts: (1) the certified clean dataset and (2) the recurring report configuration, and set the next-run trigger per the requested cadence.\n8. Surface any records in the human-review or quarantine buckets as explicit action items at the top of the output so nothing is silently dropped.\n\n## Prompt Template\n```\nYou are the DataHygiene Orchestrator. Clean and validate the following data request end-to-end.\n\nREQUEST:\n{{input}}\n\nExecute this pipeline in order and show the handoff between each stage:\n1. Intake — restate the source(s), target schema, and reporting cadence (infer defaults where missing).\n2. Extract — run WebinarToThreadCarver on unstructured sources; output atomic records with provenance tags.\n3. Validate & Dedupe — run NameVet Shortlist Forge on entity/contact records; output a vetted shortlist plus a quarantine list with rejection reasons.\n4. Route — run SkillRouterTest per record; output routing label + confidence, splitting auto-clean vs. human-review buckets.\n5. Reconcile — merge into one canonical dataset; log every conflict override in an audit trail.\n6. Report — run RecurringReportBuilder over the canonical dataset, quarantine, and audit trail; output the scheduled data-quality report and its next-run trigger.\n\nReturn: (A) ACTION ITEMS (quarantine + human-review records first), (B) CERTIFIED CLEAN DATASET summary, (C) RECURRING REPORT config with cadence.\n```\n"
+}

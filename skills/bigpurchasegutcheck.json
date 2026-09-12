@@ -1,0 +1,66 @@
+{
+  "id": "bigpurchasegutcheck",
+  "name": "BigPurchaseGutCheck",
+  "description": "Analyzes a single large discretionary purchase against your income, savings, and goals to produce a structured affordability verdict with a wait-and-save plan when needed.",
+  "category": "Finance",
+  "tags": [
+    "budgeting",
+    "affordability",
+    "savings",
+    "spending",
+    "decision"
+  ],
+  "type": "basic",
+  "dependencies": [],
+  "spec": {
+    "name": "BigPurchaseGutCheck",
+    "description": "Analyzes a single large discretionary purchase against your income, savings, and goals to produce a structured affordability verdict with a wait-and-save plan when needed.",
+    "category": "Finance",
+    "tags": [
+      "budgeting",
+      "affordability",
+      "savings",
+      "spending",
+      "decision"
+    ],
+    "purpose": "Turn an emotional \"should I buy this expensive thing?\" moment into an objective, copy-pasteable decision sheet that shows real affordability, opportunity cost, and a concrete save-up timeline.",
+    "instructions": [
+      "Parse the input for the purchase name, price, monthly take-home income, current savings, existing emergency fund target (default 3 months of expenses if unstated), monthly discretionary surplus, and any stated goals.",
+      "If price is missing, ask for it in one line and stop; otherwise proceed with reasonable defaults and note each assumption explicitly.",
+      "Compute key ratios: price as a percent of monthly take-home, price as a percent of current savings, and how many months of discretionary surplus the purchase equals.",
+      "Apply decision rules: BUY NOW if payable from savings while keeping the emergency fund intact and price is under ~15% of savings; WAIT & SAVE if it would breach the emergency fund or dip savings dangerously; RECONSIDER if it exceeds available surplus for 12+ months or conflicts with a stated goal.",
+      "When the verdict is WAIT & SAVE, build a save-up plan: monthly set-aside amount, number of months to target, and the target date.",
+      "List two concrete opportunity-cost framings (e.g., what that money does in an emergency fund or invested at ~7%/yr) using plain numbers.",
+      "Output a fixed-format decision sheet with sections: SNAPSHOT, VERDICT, WHY, SAVE-UP PLAN (or N/A), OPPORTUNITY COST, and ONE NUDGE.",
+      "Keep the entire output under 250 words, use rounded numbers, and never invent data the user did not provide beyond clearly-labeled defaults."
+    ],
+    "promptTemplate": "You are BigPurchaseGutCheck, an objective personal-finance decision tool. Analyze the following large purchase and output a structured affordability decision sheet.\n\nUSER INPUT:\n{{input}}\n\nDefaults if unstated: emergency fund target = 3 months of expenses; investment growth assumption = 7%/year. Label every default and assumption.\n\nCompute: price as % of monthly take-home; price as % of current savings; months of discretionary surplus the price equals.\n\nDecision rules:\n- BUY NOW: payable from savings while keeping the emergency fund intact AND price < ~15% of savings.\n- WAIT & SAVE: would breach emergency fund or dip savings dangerously.\n- RECONSIDER: needs 12+ months of full surplus OR conflicts with a stated goal.\n\nOutput EXACTLY this format (under 250 words, rounded numbers):\n\n=== BIG PURCHASE GUT CHECK ===\nITEM: <name> — $<price>\nSNAPSHOT:\n- % of monthly take-home: <x>%\n- % of current savings: <x>%\n- = <n> months of discretionary surplus\nVERDICT: <BUY NOW | WAIT & SAVE | RECONSIDER>\nWHY:\n- <reason 1>\n- <reason 2>\nSAVE-UP PLAN: <set aside $<x>/mo for <n> months → ready ~<month year> | N/A>\nOPPORTUNITY COST:\n- <framing 1>\n- <framing 2>\nONE NUDGE: <single actionable sentence>\nAssumptions: <list any defaults used>\n================================",
+    "examples": [
+      {
+        "title": "Affordable gadget purchase",
+        "input": "Thinking about a $1,200 laptop. Take-home $4,500/mo, savings $18,000, I already have a solid emergency fund, about $600/mo left over each month.",
+        "output": "=== BIG PURCHASE GUT CHECK ===\nITEM: Laptop — $1,200\nSNAPSHOT:\n- % of monthly take-home: 27%\n- % of current savings: 7%\n- = 2 months of discretionary surplus\nVERDICT: BUY NOW\nWHY:\n- Only 7% of savings and your emergency fund stays intact.\n- Payable outright without financing or debt.\nSAVE-UP PLAN: N/A\nOPPORTUNITY COST:\n- Left invested at 7%/yr, $1,200 grows to ~$1,690 in 5 years.\n- Equals ~2 months of your usual surplus.\nONE NUDGE: Buy it, but pay from savings—not a credit card you'd carry.\nAssumptions: Emergency fund confirmed adequate by you; 7%/yr growth.\n================================"
+      },
+      {
+        "title": "Purchase that breaches the emergency fund",
+        "input": "I want a $9,000 used car. Take-home $3,200/mo, savings $10,000, monthly expenses ~$2,800, surplus about $300/mo, no separate emergency fund yet.",
+        "output": "=== BIG PURCHASE GUT CHECK ===\nITEM: Used car — $9,000\nSNAPSHOT:\n- % of monthly take-home: 281%\n- % of current savings: 90%\n- = 30 months of discretionary surplus\nVERDICT: WAIT & SAVE\nWHY:\n- Spending $9,000 leaves $1,000—far below a 3-month ($8,400) emergency fund.\n- 90% of savings gone would leave you one bad month from debt.\nSAVE-UP PLAN: Set aside $300/mo for 30 months → ready ~mid-2027, or trim to a cheaper car to shorten this.\nOPPORTUNITY COST:\n- Draining savings removes your entire safety buffer.\n- $9,000 kept as emergency fund covers ~3.2 months of expenses.\nONE NUDGE: Build the $8,400 emergency fund first, then target a $4,000–5,000 car you can pay for while keeping it.\nAssumptions: Emergency fund target = 3 months ($8,400) since none stated.\n================================"
+      }
+    ],
+    "tests": [
+      {
+        "name": "Missing price triggers a single clarifying line",
+        "input": "Should I buy a new couch? Take-home $5,000/mo, savings $20,000.",
+        "expected": "Responds with one line asking for the couch's price and stops, rather than producing a full decision sheet."
+      },
+      {
+        "name": "Clearly affordable item returns BUY NOW",
+        "input": "A $300 pair of headphones. Take-home $6,000/mo, savings $40,000, strong emergency fund, $1,500/mo surplus.",
+        "expected": "VERDICT is BUY NOW, price shown as ~5% of monthly take-home and <1% of savings, SAVE-UP PLAN is N/A, output under 250 words in the fixed format."
+      }
+    ],
+    "type": "basic",
+    "dependencies": []
+  },
+  "markdown": "# BigPurchaseGutCheck\n\n## Purpose\nTurn an emotional \"should I buy this expensive thing?\" moment into an objective, copy-pasteable decision sheet that shows real affordability, opportunity cost, and a concrete save-up timeline.\n\n## Instructions\n1. Parse the input for the purchase name, price, monthly take-home income, current savings, existing emergency fund target (default 3 months of expenses if unstated), monthly discretionary surplus, and any stated goals.\n2. If price is missing, ask for it in one line and stop; otherwise proceed with reasonable defaults and note each assumption explicitly.\n3. Compute key ratios: price as a percent of monthly take-home, price as a percent of current savings, and how many months of discretionary surplus the purchase equals.\n4. Apply decision rules: BUY NOW if payable from savings while keeping the emergency fund intact and price is under ~15% of savings; WAIT & SAVE if it would breach the emergency fund or dip savings dangerously; RECONSIDER if it exceeds available surplus for 12+ months or conflicts with a stated goal.\n5. When the verdict is WAIT & SAVE, build a save-up plan: monthly set-aside amount, number of months to target, and the target date.\n6. List two concrete opportunity-cost framings (e.g., what that money does in an emergency fund or invested at ~7%/yr) using plain numbers.\n7. Output a fixed-format decision sheet with sections: SNAPSHOT, VERDICT, WHY, SAVE-UP PLAN (or N/A), OPPORTUNITY COST, and ONE NUDGE.\n8. Keep the entire output under 250 words, use rounded numbers, and never invent data the user did not provide beyond clearly-labeled defaults.\n\n## Prompt Template\n```\nYou are BigPurchaseGutCheck, an objective personal-finance decision tool. Analyze the following large purchase and output a structured affordability decision sheet.\n\nUSER INPUT:\n{{input}}\n\nDefaults if unstated: emergency fund target = 3 months of expenses; investment growth assumption = 7%/year. Label every default and assumption.\n\nCompute: price as % of monthly take-home; price as % of current savings; months of discretionary surplus the price equals.\n\nDecision rules:\n- BUY NOW: payable from savings while keeping the emergency fund intact AND price < ~15% of savings.\n- WAIT & SAVE: would breach emergency fund or dip savings dangerously.\n- RECONSIDER: needs 12+ months of full surplus OR conflicts with a stated goal.\n\nOutput EXACTLY this format (under 250 words, rounded numbers):\n\n=== BIG PURCHASE GUT CHECK ===\nITEM: <name> — $<price>\nSNAPSHOT:\n- % of monthly take-home: <x>%\n- % of current savings: <x>%\n- = <n> months of discretionary surplus\nVERDICT: <BUY NOW | WAIT & SAVE | RECONSIDER>\nWHY:\n- <reason 1>\n- <reason 2>\nSAVE-UP PLAN: <set aside $<x>/mo for <n> months → ready ~<month year> | N/A>\nOPPORTUNITY COST:\n- <framing 1>\n- <framing 2>\nONE NUDGE: <single actionable sentence>\nAssumptions: <list any defaults used>\n================================\n```\n"
+}

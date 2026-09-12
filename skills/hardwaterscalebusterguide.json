@@ -1,0 +1,68 @@
+{
+  "id": "hardwaterscalebusterguide",
+  "name": "HardWaterScaleBusterGuide",
+  "description": "Generates a safe, step-by-step descaling and mineral-buildup removal checklist for a specific household fixture or appliance affected by hard water, tailored to its material and severity.",
+  "category": "Utilities",
+  "tags": [
+    "home-maintenance",
+    "descaling",
+    "hard-water",
+    "checklist",
+    "cleaning",
+    "diy"
+  ],
+  "type": "basic",
+  "dependencies": [],
+  "spec": {
+    "name": "HardWaterScaleBusterGuide",
+    "description": "Generates a safe, step-by-step descaling and mineral-buildup removal checklist for a specific household fixture or appliance affected by hard water, tailored to its material and severity.",
+    "category": "Utilities",
+    "tags": [
+      "home-maintenance",
+      "descaling",
+      "hard-water",
+      "checklist",
+      "cleaning",
+      "diy"
+    ],
+    "purpose": "Give homeowners a fixture-specific, safety-checked, ordered checklist to remove limescale and hard-water mineral deposits without damaging finishes or voiding warranties.",
+    "instructions": [
+      "Identify the fixture/appliance, its surface material (chrome, stainless, brushed nickel, glass, plastic, natural stone, brass), and the severity of buildup (light film, crusty deposits, clogged jets).",
+      "Flag any material that must NOT contact acid (natural stone/marble, unsealed brass, some coated finishes) and substitute a safe method before generating steps.",
+      "List required supplies and PPE (gloves, ventilation) up front, choosing the mildest effective solution first (white vinegar 5%, citric acid solution, or a commercial descaler if warranted).",
+      "Produce a numbered checklist: shut-off/prep, protect surrounding surfaces, apply and dwell (with specific dwell times), agitate/scrub with the correct tool, rinse thoroughly, and reassemble/test.",
+      "Include a mandatory rinse-and-neutralize step and a warning against mixing acids with bleach or ammonia.",
+      "Add a 'When to stop / call a pro' note for signs of corrosion, leaks, or damaged seals.",
+      "Finish with a short prevention tip specific to the fixture to slow future buildup.",
+      "Keep every step imperative, verifiable (checkbox-ready), and free of vague language."
+    ],
+    "promptTemplate": "You are a home-maintenance expert creating a limescale/hard-water descaling checklist.\n\nFixture/appliance and details: {{input}}\nSurface material (if known): {{material}}\nSeverity of buildup (if known): {{severity}}\n\nProduce the following sections:\n1. SAFETY & MATERIAL CHECK — note any surface that must not touch acid and the safe substitute; warn against mixing chemicals.\n2. SUPPLIES & PPE — bullet list of everything needed, mildest effective solution first.\n3. STEP-BY-STEP CHECKLIST — numbered, checkbox-ready ([ ]) imperative steps covering prep/shut-off, surface protection, apply + exact dwell time, agitate with correct tool, rinse, neutralize, reassemble, and test.\n4. WHEN TO STOP / CALL A PRO — concrete warning signs.\n5. PREVENTION TIP — one fixture-specific tip.\nBe specific about dwell times, tools, and dilution ratios. Never recommend acid on natural stone or unsealed brass.",
+    "examples": [
+      {
+        "title": "Clogged chrome showerhead",
+        "input": "Bathroom showerhead with weak, uneven spray; visible white crust on nozzles. Material: chrome. Severity: crusty, several nozzles blocked.",
+        "output": "SAFETY & MATERIAL CHECK: Chrome tolerates diluted acid. Do NOT mix vinegar with bleach. Ventilate the bathroom.\nSUPPLIES & PPE: White vinegar (5%), zip-top bag or bowl, rubber band, old toothbrush, soft cloth, gloves.\nCHECKLIST:\n[ ] 1. Turn off shower and let it cool.\n[ ] 2. If removable, unscrew showerhead; otherwise fill a bag with vinegar and secure it over the head with a rubber band.\n[ ] 3. Submerge/soak nozzles in white vinegar for 30–60 min (up to 4 hrs for heavy crust).\n[ ] 4. Scrub each nozzle with the toothbrush; press flexible rubber nozzles to dislodge deposits.\n[ ] 5. Rinse thoroughly under warm running water for 30 seconds.\n[ ] 6. Wipe chrome dry to neutralize residue and prevent spotting.\n[ ] 7. Reattach and run water 1 min to confirm even spray.\nWHEN TO STOP / CALL A PRO: If the arm leaks after reassembly or threads are corroded, replace the head.\nPREVENTION TIP: Wipe the head dry after showers and soak monthly to keep nozzles clear."
+      },
+      {
+        "title": "Limescale on glass shower door",
+        "input": "Cloudy hard-water film on glass shower door, plus a chrome frame. Material: glass with chrome trim. Severity: light-to-medium film.",
+        "output": "SAFETY & MATERIAL CHECK: Glass and chrome tolerate mild acid. Avoid abrasive pads on glass to prevent scratching. No bleach mixing.\nSUPPLIES & PPE: 1:1 white vinegar and warm water in spray bottle, microfiber cloths, non-scratch sponge, squeegee, gloves.\nCHECKLIST:\n[ ] 1. Ventilate the bathroom and put on gloves.\n[ ] 2. Spray the 1:1 vinegar solution evenly over the glass and chrome trim.\n[ ] 3. Let dwell 10–15 min so film softens (re-spray if it dries).\n[ ] 4. Wipe glass in circular motions with the non-scratch sponge; use the microfiber on chrome.\n[ ] 5. Rinse with clean water thoroughly.\n[ ] 6. Squeegee, then buff dry with microfiber to neutralize and remove streaks.\nWHEN TO STOP / CALL A PRO: If etching (permanent cloudiness that doesn't wipe off) is present, the glass is damaged—consider a glass restoration service.\nPREVENTION TIP: Squeegee the door after every shower to stop film from forming."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Refuses acid on natural stone",
+        "input": "White mineral spots on a marble bathroom countertop around the faucet. Material: natural marble. Severity: light spotting.",
+        "expected": "SAFETY & MATERIAL CHECK flags that acid (vinegar/citric) must NOT be used on marble because it etches the stone, and substitutes a pH-neutral stone cleaner or a poultice method. Checklist uses only stone-safe products, includes rinse and dry steps, and a prevention tip about sealing/wiping the stone."
+      },
+      {
+        "name": "Kettle descale with dwell time",
+        "input": "Electric kettle with thick white scale on the heating element. Material: stainless/plastic. Severity: heavy crust.",
+        "expected": "Provides supplies (white vinegar or citric acid solution), a numbered checkbox checklist including fill-to-line, boil/dwell time, multiple rinse-and-boil cycles to remove taste, and a warning not to run the kettle dry; includes prevention tip about regular descaling."
+      }
+    ],
+    "type": "basic",
+    "dependencies": []
+  },
+  "markdown": "# HardWaterScaleBusterGuide\n\n## Purpose\nGive homeowners a fixture-specific, safety-checked, ordered checklist to remove limescale and hard-water mineral deposits without damaging finishes or voiding warranties.\n\n## Instructions\n1. Identify the fixture/appliance, its surface material (chrome, stainless, brushed nickel, glass, plastic, natural stone, brass), and the severity of buildup (light film, crusty deposits, clogged jets).\n2. Flag any material that must NOT contact acid (natural stone/marble, unsealed brass, some coated finishes) and substitute a safe method before generating steps.\n3. List required supplies and PPE (gloves, ventilation) up front, choosing the mildest effective solution first (white vinegar 5%, citric acid solution, or a commercial descaler if warranted).\n4. Produce a numbered checklist: shut-off/prep, protect surrounding surfaces, apply and dwell (with specific dwell times), agitate/scrub with the correct tool, rinse thoroughly, and reassemble/test.\n5. Include a mandatory rinse-and-neutralize step and a warning against mixing acids with bleach or ammonia.\n6. Add a 'When to stop / call a pro' note for signs of corrosion, leaks, or damaged seals.\n7. Finish with a short prevention tip specific to the fixture to slow future buildup.\n8. Keep every step imperative, verifiable (checkbox-ready), and free of vague language.\n\n## Prompt Template\n```\nYou are a home-maintenance expert creating a limescale/hard-water descaling checklist.\n\nFixture/appliance and details: {{input}}\nSurface material (if known): {{material}}\nSeverity of buildup (if known): {{severity}}\n\nProduce the following sections:\n1. SAFETY & MATERIAL CHECK — note any surface that must not touch acid and the safe substitute; warn against mixing chemicals.\n2. SUPPLIES & PPE — bullet list of everything needed, mildest effective solution first.\n3. STEP-BY-STEP CHECKLIST — numbered, checkbox-ready ([ ]) imperative steps covering prep/shut-off, surface protection, apply + exact dwell time, agitate with correct tool, rinse, neutralize, reassemble, and test.\n4. WHEN TO STOP / CALL A PRO — concrete warning signs.\n5. PREVENTION TIP — one fixture-specific tip.\nBe specific about dwell times, tools, and dilution ratios. Never recommend acid on natural stone or unsealed brass.\n```\n"
+}

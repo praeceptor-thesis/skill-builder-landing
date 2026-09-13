@@ -102,35 +102,73 @@ jobs:
       - name: Cloudflare token preflight
         env:
           CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
           if [ -z "$CF_TOKEN" ]; then
             echo "::error title=CLOUDFLARE_API_TOKEN::secret resolved empty — grant this repository access to the organization secret (org Settings -> Secrets and variables -> Actions -> CLOUDFLARE_API_TOKEN -> Repository access)"
             exit 1
           fi
-          # Fingerprint only — never the value (see CLAUDE.md). Lets whoever
-          # set the secret confirm from the CI log alone, with no Secrets-UI
-          # access needed, that what's resolving here is the value they
-          # actually pasted: run the same command locally against both the
-          # trimmed and untrimmed candidate and compare.
+          # Fingerprint and shape only — never the value (see the house rule on
+          # secrets). Lets whoever set the secret confirm from the CI log alone
+          # that what resolves here is what they pasted:
           #   printf '%s' "$YOUR_TOKEN" | sha256sum | cut -c1-12
           token_fp=$(printf '%s' "$CF_TOKEN" | sha256sum | cut -c1-12)
-          echo "::notice title=CLOUDFLARE_API_TOKEN::resolved length=${#CF_TOKEN} sha256[0:12]=$token_fp — compare against 'printf %s \"\$YOUR_TOKEN\" | sha256sum | cut -c1-12' run locally on the exact value you set (try it both trimmed and untrimmed to also catch a stray trailing newline from a careless paste). A mismatch means something other than what you set is resolving here, e.g. a repo-level shadow — a match means the resolved value itself is not a valid, active Bearer API Token (e.g. a Global API Key pasted in its place)."
-          body=$(curl -sS --max-time 30 \
-            -H "Authorization: Bearer $CF_TOKEN" \
-            -H "Content-Type: application/json" \
-            https://api.cloudflare.com/client/v4/user/tokens/verify) || {
-            echo "::error title=CLOUDFLARE_API_TOKEN::tokens/verify request failed (network/curl error)"
+          case "$CF_TOKEN" in
+            cfat_*) token_kind="account-owned (cfat_ prefix)" ;;
+            *)      token_kind="no cfat_ prefix (user-token shape)" ;;
+          esac
+          echo "::notice title=CLOUDFLARE_API_TOKEN::resolved length=${#CF_TOKEN} sha256[0:12]=$token_fp kind=$token_kind"
+
+          # Two token types, two registries. A *user* API token verifies at
+          # /user/tokens/verify; an *account-owned* token — the type Cloudflare
+          # recommends for CI, marked by the cfat_ prefix — is not in the user
+          # registry at all, so that endpoint answers code 1000 "Invalid API
+          # Token" for a perfectly live credential. Checking only the user
+          # endpoint therefore fails the deploy on exactly the token type this
+          # workflow should be holding. Try both, and accept the token if
+          # either registry calls it active.
+          verify() {
+            curl -sS --max-time 30 \
+              -H "Authorization: Bearer $CF_TOKEN" \
+              -H "Content-Type: application/json" \
+              "$1"
+          }
+          report() {
+            echo "  $1 -> success=$(echo "$2" | jq -r '.success') status=$(echo "$2" | jq -r '.result.status // "none"') errors=$(echo "$2" | jq -c '.errors // []')"
+          }
+          active() {
+            [ "$(echo "$1" | jq -r '.success')" = "true" ] && [ "$(echo "$1" | jq -r '.result.status // "none"')" = "active" ]
+          }
+
+          echo "token verification attempts:"
+          user_body=$(verify "https://api.cloudflare.com/client/v4/user/tokens/verify") || {
+            echo "::error title=CLOUDFLARE_API_TOKEN::user tokens/verify request failed (network/curl error)"
             exit 1
           }
-          success=$(echo "$body" | jq -r '.success')
-          status=$(echo "$body" | jq -r '.result.status // "unknown"')
-          if [ "$success" != "true" ] || [ "$status" != "active" ]; then
-            echo "::error title=CLOUDFLARE_API_TOKEN::token failed verification (status: $status). The value comes from the ORG secret unless a stale repository-level CLOUDFLARE_API_TOKEN shadows it — delete any repo-level copy in this repo's Actions secrets first, and rotate the org secret only if it is itself dead: mint an account token with Zone:Zone:Read, Zone:Workers Routes:Edit, Zone:DNS:Edit on dmzagent.com plus Account:Workers KV Storage:Edit, Account:Workers Scripts:Edit, Account:Cloudflare Pages:Edit, verified with uni's ops/preflight-cf-token.sh before writing."
-            echo "$body" | jq -c '.errors' || true
+          report "user/tokens/verify" "$user_body"
+          if active "$user_body"; then
+            echo "token verified: active (user token)"
+            exit 0
+          fi
+
+          if [ -z "${CF_ACCOUNT_ID:-}" ]; then
+            echo "::error title=CLOUDFLARE_API_TOKEN::the user registry rejected this token and CLOUDFLARE_ACCOUNT_ID is empty, so the account-owned registry cannot be checked. That secret is already used for TF_VAR_cloudflare_account_id in the steps below — grant this repository access to it, or rotate the token."
             exit 1
           fi
-          echo "token verified: active"
+
+          acct_body=$(verify "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID/tokens/verify") || {
+            echo "::error title=CLOUDFLARE_API_TOKEN::account tokens/verify request failed (network/curl error)"
+            exit 1
+          }
+          report "accounts/<id>/tokens/verify" "$acct_body"
+          if active "$acct_body"; then
+            echo "token verified: active (account-owned token)"
+            exit 0
+          fi
+
+          echo "::error title=CLOUDFLARE_API_TOKEN::token rejected by BOTH the user and account-owned registries, so this is the credential and not the endpoint. Delete any repository-level CLOUDFLARE_API_TOKEN shadowing the org secret, then rotate the org secret: mint a token with Zone:Zone:Read, Zone:Workers Routes:Edit, Zone:DNS:Edit on dmzagent.com plus Account:Workers KV Storage:Edit, Account:Workers Scripts:Edit, Account:Cloudflare Pages:Edit."
+          exit 1
 
       - name: Terraform init
         run: terraform init

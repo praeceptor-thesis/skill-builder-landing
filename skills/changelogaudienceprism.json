@@ -1,0 +1,67 @@
+{
+  "id": "changelogaudienceprism",
+  "name": "ChangelogAudiencePrism",
+  "description": "Splits a single raw API/product change into parallel, audience-tuned changelog entries (end-user, integration developer, executive/stakeholder) so one change ships in every voice at once.",
+  "category": "Developer Tools",
+  "tags": [
+    "changelog",
+    "api-docs",
+    "release-notes",
+    "tone-adaptation",
+    "audience"
+  ],
+  "type": "basic",
+  "dependencies": [],
+  "spec": {
+    "name": "ChangelogAudiencePrism",
+    "description": "Splits a single raw API/product change into parallel, audience-tuned changelog entries (end-user, integration developer, executive/stakeholder) so one change ships in every voice at once.",
+    "category": "Developer Tools",
+    "tags": [
+      "changelog",
+      "api-docs",
+      "release-notes",
+      "tone-adaptation",
+      "audience"
+    ],
+    "purpose": "Turn one terse changelog note or diff summary into three ready-to-publish variants, each written in the tone, vocabulary, and detail level the target reader needs, eliminating manual rewrites and inconsistent messaging across docs, release notes, and stakeholder updates.",
+    "instructions": [
+      "Parse the raw change to extract: what changed, the change type (feature, fix, breaking, deprecation, security, perf), affected endpoints/versions, and any migration or action required.",
+      "Classify severity and whether user action is needed; flag breaking changes and deprecations explicitly at the top of each variant.",
+      "Write the END-USER variant in plain, benefit-first language: no HTTP verbs, param names, or status codes; describe the visible outcome and what (if anything) the user must do.",
+      "Write the DEVELOPER variant with precise technical detail: exact endpoints, params, request/response deltas, version/deprecation dates, and copy-pasteable before/after migration steps.",
+      "Write the EXECUTIVE variant in 1-3 sentences focused on business impact, risk, and timeline; avoid jargon and code, quantify impact when possible.",
+      "Preserve factual consistency across all three variants; never invent endpoints, dates, or metrics not present in the input, and mark unknowns as [TBD].",
+      "Prefix each variant with a one-word tag ([Added], [Fixed], [Breaking], [Deprecated], [Security], [Improved]) and keep each variant self-contained.",
+      "If the input lacks required detail (version, date, migration path), list the missing items under a 'Needs from author' note instead of guessing."
+    ],
+    "promptTemplate": "You are ChangelogAudiencePrism. Convert the raw change below into three audience-tuned changelog entries.\n\nRAW CHANGE:\n{{input}}\n\nCONTEXT (optional):\n- Product/API name: {{product_name}}\n- Version / release date: {{version_and_date}}\n- Audiences to include: {{audiences}}  (default: end-user, developer, executive)\n\nSteps:\n1. Identify change type, affected endpoints/features, severity, and whether user action is required.\n2. Produce each requested variant using the correct tone:\n   - END-USER: plain, benefit-first, no code or API jargon.\n   - DEVELOPER: precise; include endpoints, params, request/response deltas, versions/dates, and before/after migration steps.\n   - EXECUTIVE: 1-3 sentences on business impact, risk, and timeline; no code.\n3. Prefix every variant with a change tag: [Added] [Fixed] [Breaking] [Deprecated] [Security] [Improved].\n4. Keep all variants factually consistent. Never invent details; mark gaps as [TBD].\n\nOutput format:\n=== END-USER ===\n[tag] ...\n\n=== DEVELOPER ===\n[tag] ...\nMigration:\n- Before: ...\n- After: ...\n\n=== EXECUTIVE ===\n[tag] ...\n\nNeeds from author (only if info is missing):\n- ...",
+    "examples": [
+      {
+        "title": "Breaking auth change",
+        "input": "Removed API keys as query param; now require Bearer token in Authorization header. v3.0, effective 2025-06-01. Old query-param auth returns 401 after that date.",
+        "output": "=== END-USER ===\n[Breaking] Starting June 1, 2025, older apps that haven't updated may stop connecting until you install the latest version. No action needed if your app auto-updates.\n\n=== DEVELOPER ===\n[Breaking] API v3.0 removes API-key authentication via the `?api_key=` query parameter. Send credentials as `Authorization: Bearer <token>` instead. Effective 2025-06-01, requests using query-param auth return HTTP 401.\nMigration:\n- Before: GET /v3/orders?api_key=abc123\n- After: GET /v3/orders  with header  Authorization: Bearer abc123\n\n=== EXECUTIVE ===\n[Breaking] A security-hardening change requires all integrations to migrate to header-based authentication by June 1, 2025; unmigrated clients lose access, so customer outreach before that date reduces churn risk.",
+        "output_note": ""
+      },
+      {
+        "title": "Performance fix",
+        "input": "Fixed slow /v2/search; p95 latency dropped from 1200ms to 180ms after query index rebuild.",
+        "output": "=== END-USER ===\n[Improved] Search is now much faster, returning results almost instantly.\n\n=== DEVELOPER ===\n[Improved] Optimized `/v2/search` by rebuilding the backing query index. p95 latency reduced from 1200ms to 180ms. No API contract changes; no action required.\nMigration:\n- Before: no change needed\n- After: no change needed\n\n=== EXECUTIVE ===\n[Improved] Search response time improved ~85% (1.2s to 0.18s), enhancing user experience with no client-side work required."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Flags missing migration detail on deprecation",
+        "input": "Deprecating /v1/reports endpoint.",
+        "expected": "Produces three variants tagged [Deprecated], and because no sunset date or replacement endpoint is given, includes a 'Needs from author' note listing sunset date and replacement endpoint as [TBD] rather than inventing them."
+      },
+      {
+        "name": "No code leaks into end-user variant",
+        "input": "Added optional `include_metadata=true` param to GET /v2/users returning profile metadata.",
+        "expected": "END-USER variant uses [Added] and describes seeing more profile details in plain language with no param name, endpoint, or HTTP method; DEVELOPER variant names include_metadata and GET /v2/users."
+      }
+    ],
+    "type": "basic",
+    "dependencies": []
+  },
+  "markdown": "# ChangelogAudiencePrism\n\n## Purpose\nTurn one terse changelog note or diff summary into three ready-to-publish variants, each written in the tone, vocabulary, and detail level the target reader needs, eliminating manual rewrites and inconsistent messaging across docs, release notes, and stakeholder updates.\n\n## Instructions\n1. Parse the raw change to extract: what changed, the change type (feature, fix, breaking, deprecation, security, perf), affected endpoints/versions, and any migration or action required.\n2. Classify severity and whether user action is needed; flag breaking changes and deprecations explicitly at the top of each variant.\n3. Write the END-USER variant in plain, benefit-first language: no HTTP verbs, param names, or status codes; describe the visible outcome and what (if anything) the user must do.\n4. Write the DEVELOPER variant with precise technical detail: exact endpoints, params, request/response deltas, version/deprecation dates, and copy-pasteable before/after migration steps.\n5. Write the EXECUTIVE variant in 1-3 sentences focused on business impact, risk, and timeline; avoid jargon and code, quantify impact when possible.\n6. Preserve factual consistency across all three variants; never invent endpoints, dates, or metrics not present in the input, and mark unknowns as [TBD].\n7. Prefix each variant with a one-word tag ([Added], [Fixed], [Breaking], [Deprecated], [Security], [Improved]) and keep each variant self-contained.\n8. If the input lacks required detail (version, date, migration path), list the missing items under a 'Needs from author' note instead of guessing.\n\n## Prompt Template\n```\nYou are ChangelogAudiencePrism. Convert the raw change below into three audience-tuned changelog entries.\n\nRAW CHANGE:\n{{input}}\n\nCONTEXT (optional):\n- Product/API name: {{product_name}}\n- Version / release date: {{version_and_date}}\n- Audiences to include: {{audiences}}  (default: end-user, developer, executive)\n\nSteps:\n1. Identify change type, affected endpoints/features, severity, and whether user action is required.\n2. Produce each requested variant using the correct tone:\n   - END-USER: plain, benefit-first, no code or API jargon.\n   - DEVELOPER: precise; include endpoints, params, request/response deltas, versions/dates, and before/after migration steps.\n   - EXECUTIVE: 1-3 sentences on business impact, risk, and timeline; no code.\n3. Prefix every variant with a change tag: [Added] [Fixed] [Breaking] [Deprecated] [Security] [Improved].\n4. Keep all variants factually consistent. Never invent details; mark gaps as [TBD].\n\nOutput format:\n=== END-USER ===\n[tag] ...\n\n=== DEVELOPER ===\n[tag] ...\nMigration:\n- Before: ...\n- After: ...\n\n=== EXECUTIVE ===\n[tag] ...\n\nNeeds from author (only if info is missing):\n- ...\n```\n"
+}

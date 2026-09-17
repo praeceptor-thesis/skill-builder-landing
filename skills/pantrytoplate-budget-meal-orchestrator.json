@@ -1,0 +1,78 @@
+{
+  "id": "pantrytoplate-budget-meal-orchestrator",
+  "name": "PantryToPlate Budget Meal Orchestrator",
+  "description": "An end-to-end weekly meal-planning workflow that turns a household's budget, pantry inventory, dietary goals, and schedule into a validated, waste-minimizing, grocery-ready meal plan — orchestrating four building-block skills to sequence spending, resolve nutrition/schedule conflicts, dry-run for errors, and lock the final plan before any perishables are purchased.",
+  "category": "Productivity",
+  "tags": [
+    "meal-planning",
+    "budgeting",
+    "grocery",
+    "nutrition",
+    "workflow",
+    "waste-reduction"
+  ],
+  "type": "meta",
+  "dependencies": [
+    "@kmd_ai/debtavalanchesnowballplanner",
+    "@kmd_ai/mesocycleconflictresolver",
+    "@dmz_agent/@dmz_agent/test-probe",
+    "@kmd_ai/irreversibilitygate"
+  ],
+  "spec": {
+    "name": "PantryToPlate Budget Meal Orchestrator",
+    "description": "An end-to-end weekly meal-planning workflow that turns a household's budget, pantry inventory, dietary goals, and schedule into a validated, waste-minimizing, grocery-ready meal plan — orchestrating four building-block skills to sequence spending, resolve nutrition/schedule conflicts, dry-run for errors, and lock the final plan before any perishables are purchased.",
+    "category": "Productivity",
+    "tags": [
+      "meal-planning",
+      "budgeting",
+      "grocery",
+      "nutrition",
+      "workflow",
+      "waste-reduction"
+    ],
+    "purpose": "Produce a fully validated, budget-optimized weekly meal plan and grocery list that minimizes food waste, honors dietary/nutrition targets and time constraints, and guards against irreversible costly decisions (bulk-buying perishables, committing to a plan that violates constraints) before the user shops or cooks.",
+    "instructions": [
+      "Parse {{input}} into a structured profile: weekly grocery budget, current pantry inventory (with expiry dates), household size, dietary constraints, nutrition/macro targets, cooking-time availability per day, and any events (dinners out, batch-cooking days).",
+      "Invoke DebtAvalancheSnowballPlanner as a spend-allocation engine: treat each ingredient/meal-cost line as a 'debt' and the budget as available paydown. Use avalanche logic to prioritize high-cost-per-serving items and snowball logic to clear soon-to-expire pantry items first, yielding an ordered purchase-and-use sequence that maximizes budget efficiency and pantry burn-down.",
+      "Invoke MesocycleConflictResolver to reconcile the draft plan against nutrition targets and weekly time constraints: treat each day as a training block, detect conflicts (e.g., a 90-minute recipe on a 20-minute night, protein target undershoot, repeated ingredients causing fatigue), and rebalance meals across the week for variety, macro coverage, and realistic prep windows.",
+      "Invoke Test Probe to dry-run the reconciled plan: validate that every recipe's ingredients are covered by pantry-plus-purchases, that no allergen slips through, that servings match household size, and that the running cost stays under budget. Surface any failing checks with specific line references before proceeding.",
+      "If Test Probe reports failures, loop back once through DebtAvalancheSnowballPlanner and MesocycleConflictResolver to patch only the flagged items, then re-probe.",
+      "Invoke IrreversibilityGate before finalizing: flag any decision that is costly or hard to undo (bulk perishable purchases, pre-committed batch cooking, non-refundable specialty orders) and require explicit confirmation, offering a reversible alternative for each.",
+      "Compile the locked output: a day-by-day meal plan, a consolidated grocery list grouped by store section with quantities and running cost, a pantry burn-down schedule, and a short 'gated decisions' note listing anything the user confirmed.",
+      "Return the plan in a clean, copy-ready format and note the remaining budget headroom and projected food-waste reduction versus an unplanned week."
+    ],
+    "promptTemplate": "You are the PantryToPlate Budget Meal Orchestrator. Build a validated weekly meal plan from the following household input:\n\n{{input}}\n\nExecute in this exact order:\n1. STRUCTURE: Extract budget, pantry inventory (+expiry), household size, dietary constraints, nutrition targets, per-day cooking time, and events.\n2. ALLOCATE (DebtAvalancheSnowballPlanner): Map ingredient/meal costs to \"debts\" against the budget. Prioritize expiring pantry items (snowball) and high-cost-per-serving items (avalanche) to produce an ordered buy-and-use sequence. Output the allocation table.\n3. RESOLVE (MesocycleConflictResolver): Treat each day as a block. Detect and fix conflicts across time windows, macro targets, and ingredient-repetition fatigue. Output the rebalanced 7-day draft.\n4. PROBE (Test Probe): Dry-run every recipe for ingredient coverage, allergen safety, correct servings, and cumulative cost < budget. List PASS/FAIL per check.\n5. If any FAIL: patch only flagged items via steps 2-3, then re-run step 4 (max one loop).\n6. GATE (IrreversibilityGate): Flag costly/hard-to-undo choices (bulk perishables, non-refundable orders, pre-committed batch cooks). For each, state the risk and a reversible alternative, then require confirmation.\n7. DELIVER: Output (a) day-by-day meal plan, (b) grocery list by store section with quantities + running cost, (c) pantry burn-down schedule, (d) gated-decisions note, (e) remaining budget headroom and estimated waste reduction.\n\nBe specific and copy-ready. Never skip the PROBE or GATE steps.",
+    "examples": [
+      {
+        "title": "Family of 4, tight budget, expiring produce",
+        "input": "Budget: $110/week. Household: 2 adults + 2 kids. Pantry: chicken thighs (use by Wed), spinach (use by Tue), rice, canned beans, half bag frozen peas. Diet: no shellfish, one kid vegetarian. Targets: ~100g protein/adult/day, more veggies. Time: weeknights 30 min max, Sat open for batch cooking. Events: dinner out Friday.",
+        "output": "STRUCTURE captured. ALLOCATE: prioritized spinach (Tue) + chicken (Wed) burn-down; flagged rice/beans as zero-cost base carbs. RESOLVE: Tue = chicken-spinach rice bowl (28 min); veg kid gets bean bowl swap; Sat batch-cooks bean chili for Thu/Sun; Fri = no cook (dinner out). Macro gap on Mon fixed by adding eggs. PROBE: all recipes covered PASS, no shellfish PASS, servings x4 PASS, running cost $103 < $110 PASS. GATE: flagged 'buy 5 lb ground beef bulk' — risk: perishable, freezer space; reversible alternative: buy 2 lb now, confirm freeze plan. User confirms 2 lb. DELIVER: 7-day plan + grocery list (produce/protein/pantry sections) totaling $103, pantry burn-down clears spinach Tue & chicken Wed, $7 headroom, est. ~40% less waste vs. unplanned."
+      },
+      {
+        "title": "Single athlete, high-protein, minimal time",
+        "input": "Budget: $75/week, 1 person. Pantry: oats, protein powder, frozen broccoli, eggs (12). Diet: dairy-lite. Targets: 180g protein/day, 2200 kcal. Time: 15 min weekday, meal-prep Sunday. Events: none.",
+        "output": "ALLOCATE: eggs prioritized (perishable), protein powder as cheap macro filler. RESOLVE: Sunday batch = 5 chicken-rice containers; weekdays reheat (5 min) to fit 15-min cap; broccoli spread across days to avoid repetition fatigue; protein target hit via powder + eggs. PROBE: coverage PASS, protein 182g/day PASS, cost $71 PASS, dairy-lite PASS. GATE: flagged bulk 5 lb chicken purchase — reversible alt offered, user confirms with Sunday freeze. DELIVER: plan + $71 list, $4 headroom, waste reduction ~30%."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Blocks fail-through: probe catches over-budget then re-loops",
+        "input": "Budget: $60/week, family of 5, no expiring pantry noted, targets high protein, weeknights 20 min. Include a recipe that would push cost to $72.",
+        "expected": "Plan runs ALLOCATE and RESOLVE, PROBE reports a FAIL on 'cumulative cost < budget' ($72 > $60), triggers exactly one patch loop through allocation/resolution to swap the costliest item, re-probes to PASS at <=$60, then GATE runs before final delivery. Output includes all five deliverables and a note showing the corrected line."
+      },
+      {
+        "name": "Irreversibility gate triggers on bulk perishable",
+        "input": "Budget: $90, 2 adults, plan suggests buying a 10 lb pack of salmon on sale. No allergies.",
+        "expected": "IrreversibilityGate flags the 10 lb perishable salmon purchase as costly/hard-to-undo, states spoilage/freezer risk, offers a reversible alternative (smaller pack or confirmed freeze schedule), and requires explicit confirmation before including it in the final grocery list."
+      }
+    ],
+    "type": "meta",
+    "dependencies": [
+      "@kmd_ai/debtavalanchesnowballplanner",
+      "@kmd_ai/mesocycleconflictresolver",
+      "@dmz_agent/@dmz_agent/test-probe",
+      "@kmd_ai/irreversibilitygate"
+    ]
+  },
+  "markdown": "# PantryToPlate Budget Meal Orchestrator\n\n## Purpose\nProduce a fully validated, budget-optimized weekly meal plan and grocery list that minimizes food waste, honors dietary/nutrition targets and time constraints, and guards against irreversible costly decisions (bulk-buying perishables, committing to a plan that violates constraints) before the user shops or cooks.\n\n## Dependencies\nInstalling this skill also installs:\n- `@kmd_ai/debtavalanchesnowballplanner`\n- `@kmd_ai/mesocycleconflictresolver`\n- `@dmz_agent/@dmz_agent/test-probe`\n- `@kmd_ai/irreversibilitygate`\n\n## Instructions\n1. Parse {{input}} into a structured profile: weekly grocery budget, current pantry inventory (with expiry dates), household size, dietary constraints, nutrition/macro targets, cooking-time availability per day, and any events (dinners out, batch-cooking days).\n2. Invoke DebtAvalancheSnowballPlanner as a spend-allocation engine: treat each ingredient/meal-cost line as a 'debt' and the budget as available paydown. Use avalanche logic to prioritize high-cost-per-serving items and snowball logic to clear soon-to-expire pantry items first, yielding an ordered purchase-and-use sequence that maximizes budget efficiency and pantry burn-down.\n3. Invoke MesocycleConflictResolver to reconcile the draft plan against nutrition targets and weekly time constraints: treat each day as a training block, detect conflicts (e.g., a 90-minute recipe on a 20-minute night, protein target undershoot, repeated ingredients causing fatigue), and rebalance meals across the week for variety, macro coverage, and realistic prep windows.\n4. Invoke Test Probe to dry-run the reconciled plan: validate that every recipe's ingredients are covered by pantry-plus-purchases, that no allergen slips through, that servings match household size, and that the running cost stays under budget. Surface any failing checks with specific line references before proceeding.\n5. If Test Probe reports failures, loop back once through DebtAvalancheSnowballPlanner and MesocycleConflictResolver to patch only the flagged items, then re-probe.\n6. Invoke IrreversibilityGate before finalizing: flag any decision that is costly or hard to undo (bulk perishable purchases, pre-committed batch cooking, non-refundable specialty orders) and require explicit confirmation, offering a reversible alternative for each.\n7. Compile the locked output: a day-by-day meal plan, a consolidated grocery list grouped by store section with quantities and running cost, a pantry burn-down schedule, and a short 'gated decisions' note listing anything the user confirmed.\n8. Return the plan in a clean, copy-ready format and note the remaining budget headroom and projected food-waste reduction versus an unplanned week.\n\n## Prompt Template\n```\nYou are the PantryToPlate Budget Meal Orchestrator. Build a validated weekly meal plan from the following household input:\n\n{{input}}\n\nExecute in this exact order:\n1. STRUCTURE: Extract budget, pantry inventory (+expiry), household size, dietary constraints, nutrition targets, per-day cooking time, and events.\n2. ALLOCATE (DebtAvalancheSnowballPlanner): Map ingredient/meal costs to \"debts\" against the budget. Prioritize expiring pantry items (snowball) and high-cost-per-serving items (avalanche) to produce an ordered buy-and-use sequence. Output the allocation table.\n3. RESOLVE (MesocycleConflictResolver): Treat each day as a block. Detect and fix conflicts across time windows, macro targets, and ingredient-repetition fatigue. Output the rebalanced 7-day draft.\n4. PROBE (Test Probe): Dry-run every recipe for ingredient coverage, allergen safety, correct servings, and cumulative cost < budget. List PASS/FAIL per check.\n5. If any FAIL: patch only flagged items via steps 2-3, then re-run step 4 (max one loop).\n6. GATE (IrreversibilityGate): Flag costly/hard-to-undo choices (bulk perishables, non-refundable orders, pre-committed batch cooks). For each, state the risk and a reversible alternative, then require confirmation.\n7. DELIVER: Output (a) day-by-day meal plan, (b) grocery list by store section with quantities + running cost, (c) pantry burn-down schedule, (d) gated-decisions note, (e) remaining budget headroom and estimated waste reduction.\n\nBe specific and copy-ready. Never skip the PROBE or GATE steps.\n```\n"
+}

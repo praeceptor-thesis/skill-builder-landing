@@ -12,6 +12,15 @@
 # normal permission flow. A hook decision never overrides deny or ask rules:
 # https://code.claude.com/docs/en/permissions#extend-permissions-with-hooks
 #
+# That guarantee is only worth as much as the rules it defers to, so the
+# permissions.deny block in .claude/settings.json names this repository's
+# secret-bearing files and the one command that writes a secret. Those denies
+# reach Claude's own file tools and the file commands it recognises in Bash
+# (cat, head, tail, sed, redirections), but not a file read buried inside a
+# script the agent writes. They narrow the blast radius; they are not a
+# sandbox, and nothing here makes an unattended session safe to point at
+# something you would not let it do unattended.
+#
 # Exit 0 with no output means "no decision" and the normal flow applies.
 
 payload=$(cat)

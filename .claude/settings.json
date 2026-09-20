@@ -1,5 +1,19 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "deny": [
+      "Read(/**/.env)",
+      "Read(/**/.env.local)",
+      "Read(/**/.env.*.local)",
+      "Read(/**/*.tfvars)",
+      "Read(/**/terraform.tfstate)",
+      "Read(/**/terraform.tfstate.backup)",
+      "Read(/**/mcp-key.pem)",
+      "Read(/**/.npm-private)",
+      "Bash(wrangler secret put *)",
+      "Bash(npx wrangler secret put *)"
+    ]
+  },
   "hooks": {
     "PreToolUse": [
       {

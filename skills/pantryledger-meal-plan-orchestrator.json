@@ -1,0 +1,67 @@
+{
+  "id": "pantryledger-meal-plan-orchestrator",
+  "name": "PantryLedger Meal-Plan Orchestrator",
+  "description": "An end-to-end meal-planning workflow that treats your recipe collection like a versioned codebase and your grocery budget like a debt payoff plan: it audits recipe changes for \"breaking\" substitutions using SemVerBreakingChangeAuditor, then sequences the week's ingredient purchases to burn down your pantry-waste and grocery-overspend using DebtAvalancheSnowballPlanner — producing a safe, budget-optimal weekly meal plan.",
+  "category": "Productivity",
+  "tags": [
+    "meal-planning",
+    "recipes",
+    "budgeting",
+    "pantry",
+    "orchestration"
+  ],
+  "type": "meta",
+  "dependencies": [
+    "@kmd_ai/semverbreakingchangeauditor",
+    "@kmd_ai/debtavalanchesnowballplanner"
+  ],
+  "spec": {
+    "name": "PantryLedger Meal-Plan Orchestrator",
+    "description": "An end-to-end meal-planning workflow that treats your recipe collection like a versioned codebase and your grocery budget like a debt payoff plan: it audits recipe changes for \"breaking\" substitutions using SemVerBreakingChangeAuditor, then sequences the week's ingredient purchases to burn down your pantry-waste and grocery-overspend using DebtAvalancheSnowballPlanner — producing a safe, budget-optimal weekly meal plan.",
+    "category": "Productivity",
+    "tags": [
+      "meal-planning",
+      "recipes",
+      "budgeting",
+      "pantry",
+      "orchestration"
+    ],
+    "purpose": "Deliver a weekly meal plan that (1) flags which recipe modifications would break a dish or violate dietary/allergen constraints before you commit, and (2) orders your ingredient buying and pantry-usage so you eliminate the most costly waste and overspend first — turning ad-hoc cooking into a governed, budget-driven routine.",
+    "instructions": [
+      "Parse {{input}} into three structures: the current recipe set (with versions/ingredients), the proposed changes for the week (new recipes, substitutions, scaling), and the financial context (weekly grocery budget, current pantry inventory with costs, and any 'debt' items like near-expiry food or overspent categories).",
+      "Call SemVerBreakingChangeAuditor by mapping each recipe to a 'package' and each substitution/scaling/omission to a version diff: allergen additions, removed load-bearing ingredients, or technique changes = MAJOR (breaking); flavor/portion tweaks that keep the dish valid = MINOR; garnish/seasoning-to-taste = PATCH. Capture its breaking-change report.",
+      "Block or require explicit override for every MAJOR (breaking) recipe change flagged in step 2, and annotate each with the failing constraint (allergen, missing core ingredient, incompatible method) so the plan never ships a broken dish.",
+      "Translate the financial context into a 'debt portfolio' for DebtAvalancheSnowballPlanner: each debt = a cost to eliminate (a near-expiry ingredient's sunk value, an over-budget category's overspend, or a high-cost pantry item to use up), with its balance = dollar amount and interest = spoilage/waste rate.",
+      "Run DebtAvalancheSnowballPlanner twice — avalanche mode to prioritize the highest-waste/highest-cost items first, and snowball mode to prioritize the quickest pantry wins for motivation — and keep both payoff schedules.",
+      "Merge the two outputs: schedule meals across the week so that only NON-breaking recipes are used, and so each day's dish consumes the ingredients the payoff schedule says to eliminate next, staying within the weekly budget.",
+      "Produce a final weekly plan containing: a day-by-day menu, a change-safety summary (approved vs. blocked substitutions), the chosen payoff strategy with projected waste/overspend eliminated, and a consolidated shopping list of only the items not already covered by pantry burn-down.",
+      "If a breaking change and a payoff priority conflict (e.g., the item to use up is only in a blocked recipe), surface the tradeoff and recommend a safe alternative recipe that still consumes that ingredient."
+    ],
+    "promptTemplate": "You are the PantryLedger Meal-Plan Orchestrator. Build a safe, budget-optimal weekly meal plan from the following:\n\n{{input}}\n\nStep 1 — Extract: current recipes (with versions/ingredients), proposed changes for the week, weekly budget, pantry inventory (item, cost, expiry), and any overspent categories.\nStep 2 — Recipe safety audit (via SemVerBreakingChangeAuditor): map each recipe change to a semver diff (MAJOR=breaking: allergen added, core ingredient removed, technique broken; MINOR=safe flavor/portion tweak; PATCH=garnish/seasoning). Output a breaking-change report and block every MAJOR unless explicitly overridden.\nStep 3 — Cost/waste payoff plan (via DebtAvalancheSnowballPlanner): model near-expiry ingredients, overspent categories, and costly pantry items as debts (balance=$ value, interest=spoilage rate). Run avalanche (highest waste/cost first) and snowball (quickest wins first); keep both schedules.\nStep 4 — Orchestrate: assign only NON-breaking recipes to days so each day burns down the next payoff-priority ingredient while staying under budget. Resolve any breaking-vs-payoff conflicts with a safe substitute recipe.\n\nReturn:\n1. Day-by-day menu (7 days)\n2. Change-Safety Summary: approved vs. blocked changes with reasons\n3. Payoff Strategy: chosen mode, projected $ waste/overspend eliminated, week-by-week burn-down\n4. Shopping List: only items not covered by pantry burn-down, totaled against budget\n5. Conflicts & Recommendations",
+    "examples": [
+      {
+        "title": "Weekly plan with a risky substitution and expiring produce",
+        "input": "Recipes: Peanut Stir-Fry v1.2 (peanuts, chicken, broccoli), Veggie Chili v2.0 (beans, tomato, onion). Proposed changes: swap peanuts->almonds in stir-fry, scale chili x2. Budget: $80/week. Pantry: 2 lb chicken ($9, expires in 3 days), 1 jar peanut butter ($4, expires in 60 days), 3 bell peppers ($3, expire in 2 days). Overspent: 'snacks' category by $12 last week. Household has a tree-nut allergy.",
+        "output": "Change-Safety Summary — BLOCKED: Peanut-Stir-Fry peanuts->almonds = MAJOR (breaking): introduces tree-nut allergen for household with tree-nut allergy. APPROVED: Veggie Chili scale x2 = MINOR (portion tweak, dish still valid).\n\nPayoff Strategy (Avalanche chosen): highest-waste-first order = bell peppers ($3, expires in 2 days, ~100%/day spoilage) > chicken ($9, 3 days) > peanut butter ($4, 60 days). Projected waste eliminated: $12 of near-expiry food; snacks overspend addressed by cooking-at-home substitution.\n\nDay-by-day: Mon — Chicken & Bell Pepper Stir-Fry (safe recipe, uses peppers + chicken, NO nuts); Tue — Veggie Chili x2 (uses onions/beans, batch for leftovers); Wed — Chili leftovers; Thu–Sun — pantry-first meals rotating peanut-butter-based snacks to retire the $12 snack overspend.\n\nShopping List (under $80): beans, canned tomato, onion, brown rice ≈ $18. Pantry burn-down covers chicken, peppers, peanut butter.\n\nConflicts & Recommendations: Original stir-fry can't ship (allergen). Substituted a nut-free stir-fry that still consumes the top payoff-priority ingredients (peppers + chicken)."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Blocks allergen-introducing substitution and prioritizes expiring item",
+        "input": "Recipe: Basil Pesto Pasta v1.0 (basil, parmesan, pine nuts). Change: add pine nuts to a previously nut-free version. Household: nut allergy. Pantry: fresh basil ($5, expires tomorrow), parmesan ($6, 30 days). Budget $50.",
+        "expected": "Flags the pine-nut addition as a MAJOR breaking change and blocks it due to the nut allergy, then schedules a nut-free pesto that uses the expiring basil first (top avalanche priority), with a shopping list under $50."
+      },
+      {
+        "name": "Resolves conflict when payoff item lives only in a blocked recipe",
+        "input": "Only recipe using expiring shrimp ($10, 1 day) is Shrimp Curry with a shellfish-allergic guest this week. Budget $60.",
+        "expected": "Blocks the shrimp curry as breaking (shellfish allergen for guest), surfaces the conflict between the payoff priority (use the shrimp) and safety, and recommends either a safe shrimp-free plan that writes off/freezes the shrimp or serves it on a guest-free day."
+      }
+    ],
+    "type": "meta",
+    "dependencies": [
+      "@kmd_ai/semverbreakingchangeauditor",
+      "@kmd_ai/debtavalanchesnowballplanner"
+    ]
+  },
+  "markdown": "# PantryLedger Meal-Plan Orchestrator\n\n## Purpose\nDeliver a weekly meal plan that (1) flags which recipe modifications would break a dish or violate dietary/allergen constraints before you commit, and (2) orders your ingredient buying and pantry-usage so you eliminate the most costly waste and overspend first — turning ad-hoc cooking into a governed, budget-driven routine.\n\n## Dependencies\nInstalling this skill also installs:\n- `@kmd_ai/semverbreakingchangeauditor`\n- `@kmd_ai/debtavalanchesnowballplanner`\n\n## Instructions\n1. Parse {{input}} into three structures: the current recipe set (with versions/ingredients), the proposed changes for the week (new recipes, substitutions, scaling), and the financial context (weekly grocery budget, current pantry inventory with costs, and any 'debt' items like near-expiry food or overspent categories).\n2. Call SemVerBreakingChangeAuditor by mapping each recipe to a 'package' and each substitution/scaling/omission to a version diff: allergen additions, removed load-bearing ingredients, or technique changes = MAJOR (breaking); flavor/portion tweaks that keep the dish valid = MINOR; garnish/seasoning-to-taste = PATCH. Capture its breaking-change report.\n3. Block or require explicit override for every MAJOR (breaking) recipe change flagged in step 2, and annotate each with the failing constraint (allergen, missing core ingredient, incompatible method) so the plan never ships a broken dish.\n4. Translate the financial context into a 'debt portfolio' for DebtAvalancheSnowballPlanner: each debt = a cost to eliminate (a near-expiry ingredient's sunk value, an over-budget category's overspend, or a high-cost pantry item to use up), with its balance = dollar amount and interest = spoilage/waste rate.\n5. Run DebtAvalancheSnowballPlanner twice — avalanche mode to prioritize the highest-waste/highest-cost items first, and snowball mode to prioritize the quickest pantry wins for motivation — and keep both payoff schedules.\n6. Merge the two outputs: schedule meals across the week so that only NON-breaking recipes are used, and so each day's dish consumes the ingredients the payoff schedule says to eliminate next, staying within the weekly budget.\n7. Produce a final weekly plan containing: a day-by-day menu, a change-safety summary (approved vs. blocked substitutions), the chosen payoff strategy with projected waste/overspend eliminated, and a consolidated shopping list of only the items not already covered by pantry burn-down.\n8. If a breaking change and a payoff priority conflict (e.g., the item to use up is only in a blocked recipe), surface the tradeoff and recommend a safe alternative recipe that still consumes that ingredient.\n\n## Prompt Template\n```\nYou are the PantryLedger Meal-Plan Orchestrator. Build a safe, budget-optimal weekly meal plan from the following:\n\n{{input}}\n\nStep 1 — Extract: current recipes (with versions/ingredients), proposed changes for the week, weekly budget, pantry inventory (item, cost, expiry), and any overspent categories.\nStep 2 — Recipe safety audit (via SemVerBreakingChangeAuditor): map each recipe change to a semver diff (MAJOR=breaking: allergen added, core ingredient removed, technique broken; MINOR=safe flavor/portion tweak; PATCH=garnish/seasoning). Output a breaking-change report and block every MAJOR unless explicitly overridden.\nStep 3 — Cost/waste payoff plan (via DebtAvalancheSnowballPlanner): model near-expiry ingredients, overspent categories, and costly pantry items as debts (balance=$ value, interest=spoilage rate). Run avalanche (highest waste/cost first) and snowball (quickest wins first); keep both schedules.\nStep 4 — Orchestrate: assign only NON-breaking recipes to days so each day burns down the next payoff-priority ingredient while staying under budget. Resolve any breaking-vs-payoff conflicts with a safe substitute recipe.\n\nReturn:\n1. Day-by-day menu (7 days)\n2. Change-Safety Summary: approved vs. blocked changes with reasons\n3. Payoff Strategy: chosen mode, projected $ waste/overspend eliminated, week-by-week burn-down\n4. Shopping List: only items not covered by pantry burn-down, totaled against budget\n5. Conflicts & Recommendations\n```\n"
+}

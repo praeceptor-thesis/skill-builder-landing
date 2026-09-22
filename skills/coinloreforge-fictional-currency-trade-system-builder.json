@@ -1,0 +1,66 @@
+{
+  "id": "coinloreforge-fictional-currency-trade-system-builder",
+  "name": "CoinLoreForge: Fictional Currency & Trade System Builder",
+  "description": "Turns a short setting brief into a coherent fictional monetary system — denominations, minting authority, exchange rates, everyday prices, black-market wrinkles, and story hooks — as a copy-pasteable worldbuilding sheet.",
+  "category": "Education",
+  "tags": [
+    "worldbuilding",
+    "creative-writing",
+    "economy",
+    "ttrpg",
+    "fiction"
+  ],
+  "type": "basic",
+  "dependencies": [],
+  "spec": {
+    "name": "CoinLoreForge: Fictional Currency & Trade System Builder",
+    "description": "Turns a short setting brief into a coherent fictional monetary system — denominations, minting authority, exchange rates, everyday prices, black-market wrinkles, and story hooks — as a copy-pasteable worldbuilding sheet.",
+    "category": "Education",
+    "tags": [
+      "worldbuilding",
+      "creative-writing",
+      "economy",
+      "ttrpg",
+      "fiction"
+    ],
+    "purpose": "Give fiction writers, GMs, and worldbuilders an internally consistent, story-ready economy they can drop into a novel or campaign without doing spreadsheet math or leaving plot holes.",
+    "instructions": [
+      "Parse the setting brief for genre, tech/magic level, geography, and any economic constraints (scarce resources, dominant power, isolation).",
+      "Choose a currency basis that fits the world's physics and politics (metal-backed, magic-backed, labor/ration tokens, reputation credits, etc.) and name the minting or issuing authority.",
+      "Define 3-5 named denominations from smallest to largest, giving each a physical description, material, and whole-number conversion ratios between them.",
+      "Anchor value with a 'Cost of Living' table: price 6-8 everyday goods/services in the currency so readers feel the scale (a loaf, a night's lodging, a common weapon, a day's wage, a luxury).",
+      "Add friction and realism: describe at least two economic tensions (inflation, counterfeiting, forbidden foreign coin, tax/tithe, debased metal) and how ordinary people cope.",
+      "Surface 3 plot hooks that arise directly from the economy (a heist, a debt bond, a currency collapse, smuggling route).",
+      "Keep every number internally consistent — verify that the Cost of Living prices reconcile with the day's-wage figure and the conversion ratios.",
+      "Output using the fixed section headers so it is copy-pasteable into a wiki or campaign doc."
+    ],
+    "promptTemplate": "You are CoinLoreForge, a worldbuilding economist for fiction. Design a coherent fictional currency and trade system from the setting brief below.\n\nSETTING BRIEF:\n{{input}}\n\nOptional tuning (ignore if blank):\n- Tone/realism: {{tone}}\n- Currency basis preference: {{basis}}\n\nRules:\n- Use whole-number conversion ratios between denominations.\n- Ensure the Cost of Living prices reconcile with a stated day's wage.\n- Introduce at least two economic tensions and three story hooks.\n- Do not invent lore that contradicts the brief.\n\nOutput EXACTLY these sections with these headers:\n\n## Currency System: <name>\n**Basis & Issuing Authority:** <1-2 sentences>\n\n## Denominations (small → large)\n| Coin/Unit | Material/Form | Value | Description |\n|---|---|---|---|\n(3-5 rows, with conversion ratios stated in the Value column)\n\n## Cost of Living\n| Item/Service | Price |\n|---|---|\n(6-8 rows, including \"A laborer's day wage\")\n\n## Economic Tensions\n- <tension 1: cause + how commoners cope>\n- <tension 2: cause + how commoners cope>\n\n## Story Hooks\n1. <hook tied to the economy>\n2. <hook>\n3. <hook>\n\n## Consistency Check\n<2-3 sentences confirming the numbers reconcile.>",
+    "examples": [
+      {
+        "title": "Desert city-state fantasy",
+        "input": "A fantasy city-state in a harsh desert. Water is the scarcest resource, controlled by a priesthood. Bronze-age tech with minor water magic.",
+        "output": "## Currency System: The Cistern Standard\n**Basis & Issuing Authority:** Currency is backed by measured water reserves and issued solely by the Temple of the Deep Cistern, whose priests stamp each coin against the volume held in the sacred aquifer.\n\n## Denominations (small → large)\n| Coin/Unit | Material/Form | Value | Description |\n|---|---|---|---|\n| Drop | clay token | base unit | Fired clay chit worth one cup of temple water |\n| Skin | copper disc | 10 Drops | Green-patina coin stamped with a waterskin |\n| Cistern | bronze octagon | 10 Skins (100 Drops) | Heavy octagonal coin bearing the Deep Cistern's seal |\n\n## Cost of Living\n| Item/Service | Price |\n|---|---|\n| Cup of drinking water | 1 Drop |\n| Flatbread loaf | 3 Drops |\n| Night in a common lodging | 8 Drops |\n| A laborer's day wage | 2 Skins (20 Drops) |\n| Bronze knife | 4 Skins |\n| Riding camel | 6 Cisterns |\n\n## Economic Tensions\n- Priestly debasement: in drought years the Temple issues more Drops than water exists, quietly inflating prices; commoners hoard copper Skins as 'real' water and barter with them.\n- Well-forgery: counterfeiters carve fake clay Drops from riverbed clay; merchants bite or ring each token and refuse unstamped chits.\n\n## Story Hooks\n1. A heist to steal the Temple's stamping die would let thieves mint unlimited water-credit — and collapse the city.\n2. A drought forces the Temple to secretly cut water backing; a clerk who leaks the ledger becomes a hunted whistleblower.\n3. A rival oasis introduces gold coin, threatening the priesthood's monopoly and sparking a currency war.\n\n## Consistency Check\nDay wage of 20 Drops buys ~6 loaves (3 each) plus lodging (8), leaving a survivable margin. Ratios are clean 10:1, so 1 Cistern = 100 Drops = 100 cups of water, matching the Temple's stated backing."
+      },
+      {
+        "title": "Cyberpunk arcology",
+        "input": "Near-future corporate arcology. No physical cash; everything runs on corporate reputation credits tied to employee productivity. Underclass lives outside the credit system.",
+        "output": "## Currency System: Merit\n**Basis & Issuing Authority:** 'Merit' is a non-physical reputation credit issued by the arcology's Zenith Corp, algorithmically minted from each citizen's productivity and social-compliance score.\n\n## Denominations (small → large)\n| Coin/Unit | Material/Form | Value | Description |\n|---|---|---|---|\n| Tick | ledger entry | base unit | Smallest logged credit, earned per verified task |\n| Point | ledger entry | 100 Ticks | Standard spending unit shown on citizen HUDs |\n| Tier | status bracket | 1,000 Points | Threshold unlocking housing floors and privileges |\n\n## Cost of Living\n| Item/Service | Price |\n|---|---|\n| Synthetic meal | 5 Ticks |\n| Transit pod ride | 12 Ticks |\n| Capsule sleep pod (night) | 40 Ticks |\n| A laborer's day wage | 3 Points (300 Ticks) |\n| Mid-floor apartment (month) | 25 Points |\n| Off-log identity scrub | 4 Tiers |\n\n## Economic Tensions\n- Score decay: Merit evaporates if you stop producing, so citizens overwork; the exhausted trade favors and off-books chits with each other.\n- Grey barter: the underclass, locked out of Merit, runs a physical scrip-and-barter economy Zenith periodically raids as 'economic terrorism.'\n\n## Story Hooks\n1. A protagonist's Merit is algorithmically frozen for a compliance flag, forcing them into the illegal barter underworld.\n2. A hacker discovers Merit can be minted from falsified task logs — a fortune, and a death sentence.\n3. Two underclass factions war over control of the only trusted physical scrip, which Zenith wants to erase.\n\n## Consistency Check\nDay wage of 300 Ticks covers meals (5), transit (12), and a sleep pod (40) with margin, but a mid-floor apartment at 2,500 Ticks/month keeps laborers structurally below Tier 1 — reinforcing the class divide. Ratios are clean 100:1 and 1,000:1."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Produces required sections and reconciling numbers",
+        "input": "A seafaring merchant republic on scattered islands. Iron-age tech, no magic. Trade is dominated by spice and salt.",
+        "expected": "Output contains the headers '## Currency System', '## Denominations (small → large)', '## Cost of Living', '## Economic Tensions', '## Story Hooks', and '## Consistency Check'; denominations use whole-number conversion ratios; Cost of Living includes a 'A laborer's day wage' row; at least two tensions and exactly three story hooks appear; the Consistency Check confirms the day wage reconciles with listed prices and ratios."
+      },
+      {
+        "name": "Respects brief constraints (no magic)",
+        "input": "Low-magic-free grim medieval kingdom with a debased royal mint and rampant counterfeiting.",
+        "expected": "Currency basis is metal/commodity-backed with no magical backing; at least one tension explicitly addresses debasement and one addresses counterfeiting; no supernatural currency mechanics are introduced."
+      }
+    ],
+    "type": "basic",
+    "dependencies": []
+  },
+  "markdown": "# CoinLoreForge: Fictional Currency & Trade System Builder\n\n## Purpose\nGive fiction writers, GMs, and worldbuilders an internally consistent, story-ready economy they can drop into a novel or campaign without doing spreadsheet math or leaving plot holes.\n\n## Instructions\n1. Parse the setting brief for genre, tech/magic level, geography, and any economic constraints (scarce resources, dominant power, isolation).\n2. Choose a currency basis that fits the world's physics and politics (metal-backed, magic-backed, labor/ration tokens, reputation credits, etc.) and name the minting or issuing authority.\n3. Define 3-5 named denominations from smallest to largest, giving each a physical description, material, and whole-number conversion ratios between them.\n4. Anchor value with a 'Cost of Living' table: price 6-8 everyday goods/services in the currency so readers feel the scale (a loaf, a night's lodging, a common weapon, a day's wage, a luxury).\n5. Add friction and realism: describe at least two economic tensions (inflation, counterfeiting, forbidden foreign coin, tax/tithe, debased metal) and how ordinary people cope.\n6. Surface 3 plot hooks that arise directly from the economy (a heist, a debt bond, a currency collapse, smuggling route).\n7. Keep every number internally consistent — verify that the Cost of Living prices reconcile with the day's-wage figure and the conversion ratios.\n8. Output using the fixed section headers so it is copy-pasteable into a wiki or campaign doc.\n\n## Prompt Template\n```\nYou are CoinLoreForge, a worldbuilding economist for fiction. Design a coherent fictional currency and trade system from the setting brief below.\n\nSETTING BRIEF:\n{{input}}\n\nOptional tuning (ignore if blank):\n- Tone/realism: {{tone}}\n- Currency basis preference: {{basis}}\n\nRules:\n- Use whole-number conversion ratios between denominations.\n- Ensure the Cost of Living prices reconcile with a stated day's wage.\n- Introduce at least two economic tensions and three story hooks.\n- Do not invent lore that contradicts the brief.\n\nOutput EXACTLY these sections with these headers:\n\n## Currency System: <name>\n**Basis & Issuing Authority:** <1-2 sentences>\n\n## Denominations (small → large)\n| Coin/Unit | Material/Form | Value | Description |\n|---|---|---|---|\n(3-5 rows, with conversion ratios stated in the Value column)\n\n## Cost of Living\n| Item/Service | Price |\n|---|---|\n(6-8 rows, including \"A laborer's day wage\")\n\n## Economic Tensions\n- <tension 1: cause + how commoners cope>\n- <tension 2: cause + how commoners cope>\n\n## Story Hooks\n1. <hook tied to the economy>\n2. <hook>\n3. <hook>\n\n## Consistency Check\n<2-3 sentences confirming the numbers reconcile.>\n```\n"
+}

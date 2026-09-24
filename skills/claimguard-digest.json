@@ -1,0 +1,77 @@
+{
+  "id": "claimguard-digest",
+  "name": "ClaimGuard Digest",
+  "description": "An end-to-end scientific paper summarization workflow that produces a trustworthy plain-language digest AND a \"claim integrity report\" — it first traces which findings are likely to be misread or over-generalized by readers (via MisconceptionTracer), then audits any promotional or persuasion-heavy language in the paper's abstract/press framing for overselling patterns (via ColdEmailRedFlagAuditor), and finally fuses both into a calibrated summary that separates what the paper actually shows from what it merely suggests.",
+  "category": "Research",
+  "tags": [
+    "research",
+    "summarization",
+    "misinformation",
+    "peer-review",
+    "science-communication"
+  ],
+  "type": "meta",
+  "dependencies": [
+    "@kmd_ai/coldemailredflagauditor",
+    "@kmd_ai/misconceptiontracer"
+  ],
+  "spec": {
+    "name": "ClaimGuard Digest",
+    "description": "An end-to-end scientific paper summarization workflow that produces a trustworthy plain-language digest AND a \"claim integrity report\" — it first traces which findings are likely to be misread or over-generalized by readers (via MisconceptionTracer), then audits any promotional or persuasion-heavy language in the paper's abstract/press framing for overselling patterns (via ColdEmailRedFlagAuditor), and finally fuses both into a calibrated summary that separates what the paper actually shows from what it merely suggests.",
+    "category": "Research",
+    "tags": [
+      "research",
+      "summarization",
+      "misinformation",
+      "peer-review",
+      "science-communication"
+    ],
+    "purpose": "Turn a scientific paper into a reader-safe digest that not only summarizes findings but proactively flags where readers commonly misinterpret them and where the paper's own framing oversells its conclusions — giving researchers, journalists, and reviewers a calibrated, hype-adjusted understanding of what the work genuinely supports.",
+    "instructions": [
+      "Ingest the paper text (or abstract + key sections) from {{input}} and extract the core claims: research question, primary findings, effect sizes/statistics, sample/scope, and stated limitations. Build a numbered claim list to anchor the rest of the workflow.",
+      "Run MisconceptionTracer over each core claim to identify the specific ways readers are likely to misread it — over-generalization beyond the studied population, correlation-vs-causation slippage, ignored confounds, or conflation of statistical vs practical significance. Capture each misconception with the exact claim it stems from.",
+      "Extract the persuasion-oriented surfaces of the paper (abstract, title, 'implications' and 'conclusion' sentences, any press-release or highlights text) and run ColdEmailRedFlagAuditor on them, treating overselling language the same way it treats manipulative cold-email tactics: unearned urgency, sweeping superlatives, hedge-stripping ('proves', 'revolutionary'), and CTA-style overreach.",
+      "Cross-reference the two audits: for every red-flagged phrase from step 3, check whether it maps onto a misconception risk from step 2. Where framing hype and reader misconception reinforce each other, mark it as a HIGH-RISK claim that needs the strongest calibration.",
+      "Write the calibrated summary in three tiers: (a) 'What the paper actually shows' (evidence-backed, hedged appropriately), (b) 'What it suggests but does not prove' (speculative extensions), and (c) 'Common misreadings to avoid' drawn from step 2.",
+      "Produce a Claim Integrity Report table listing each core claim, its misconception risk level, any framing red flags detected, and a one-line 'accurate restatement' that a reader can safely quote.",
+      "Add a top-line Hype-Adjusted Confidence score (Low/Moderate/High) reflecting the ratio of red-flagged framing and high-risk misconceptions to well-supported claims, with a one-sentence justification.",
+      "Never invent findings absent from the source; if a section is missing, state the gap explicitly rather than inferring, and keep the digest's tone neutral even when the source is promotional."
+    ],
+    "promptTemplate": "You are ClaimGuard Digest, a meta-skill that summarizes scientific papers while auditing them for reader misconceptions and framing hype.\n\nPAPER INPUT:\n{{input}}\n\nExecute this orchestration in order and show your work concisely:\n\nSTEP 1 — CLAIM EXTRACTION\nList the core claims as C1, C2, ... with question, finding, key stats, scope/sample, and stated limitations.\n\nSTEP 2 — MISCONCEPTION TRACING (invoke MisconceptionTracer per claim)\nFor each claim, output likely reader misconceptions (over-generalization, causation slippage, ignored confounds, significance conflation). Tag each: [Misconception risk: Low/Med/High].\n\nSTEP 3 — FRAMING RED-FLAG AUDIT (invoke ColdEmailRedFlagAuditor on abstract/title/implications/press text)\nList persuasion red flags: unearned urgency, superlatives, hedge-stripping, overreaching CTAs. Quote the offending phrase.\n\nSTEP 4 — CROSS-REFERENCE\nMap red-flagged phrases to the misconceptions they amplify. Mark reinforcing pairs as HIGH-RISK.\n\nSTEP 5 — CALIBRATED SUMMARY\n(a) What the paper actually shows\n(b) What it suggests but does not prove\n(c) Common misreadings to avoid\n\nSTEP 6 — CLAIM INTEGRITY REPORT (table)\n| Claim | Misconception risk | Framing red flags | Accurate restatement |\n\nSTEP 7 — HYPE-ADJUSTED CONFIDENCE\nScore: Low/Moderate/High + one-sentence justification.\n\nRules: Use only what's in the source; flag missing sections explicitly; keep tone neutral.",
+    "examples": [
+      {
+        "title": "Nutrition study with a hyped abstract",
+        "input": "Abstract: 'Our groundbreaking study PROVES that daily green tea consumption dramatically reduces heart disease risk. In a survey of 240 adults, green-tea drinkers showed 18% lower rates of cardiovascular events over 2 years. These revolutionary findings could transform public health today.' Methods: observational cohort, self-reported intake, no control for exercise or income.",
+        "output": "STEP 1 — CLAIMS\nC1: Association between self-reported daily green tea and 18% lower CV events (n=240, 2yr, observational).\nStated limitations: none listed.\n\nSTEP 2 — MISCONCEPTION TRACING\nC1 [High]: Readers will infer green tea *causes* reduced heart disease (causation slippage) and generalize to all adults (over-generalization from a 240-person self-report cohort). Confounds (exercise, income) ignored.\n\nSTEP 3 — FRAMING RED-FLAG AUDIT\n- 'PROVES' → hedge-stripping (observational data cannot prove causation).\n- 'groundbreaking'/'revolutionary' → unearned superlatives.\n- 'transform public health today' → unearned urgency + CTA overreach.\n\nSTEP 4 — CROSS-REFERENCE\n'PROVES' amplifies the causation-slippage misconception on C1 → HIGH-RISK. 'transform...today' amplifies over-generalization → HIGH-RISK.\n\nSTEP 5 — CALIBRATED SUMMARY\n(a) Actually shows: In a 240-person observational cohort, self-reported daily green-tea drinkers had 18% fewer cardiovascular events over 2 years — an association.\n(b) Suggests but doesn't prove: A possible protective effect of green tea worth testing in a controlled trial.\n(c) Misreadings to avoid: This does not prove green tea prevents heart disease; unmeasured factors like exercise and income could explain the link.\n\nSTEP 6 — CLAIM INTEGRITY REPORT\n| Claim | Misconception risk | Framing red flags | Accurate restatement |\n| C1 | High | 'PROVES','revolutionary','today' | Green-tea drinkers in this small observational cohort had fewer CV events, but causation is unestablished. |\n\nSTEP 7 — HYPE-ADJUSTED CONFIDENCE\nLow — a single observational, self-reported study with uncontrolled confounds wrapped in causal, urgent language."
+      },
+      {
+        "title": "Well-hedged ML paper",
+        "input": "Abstract: 'We report a 2.1% accuracy improvement on ImageNet using method X, with gains concentrated in fine-grained classes; results may not transfer to low-resolution domains.' Methods: standard benchmark, 3 seeds, ablations included.",
+        "output": "STEP 1 — CLAIMS\nC1: +2.1% ImageNet accuracy from method X; gains in fine-grained classes; 3 seeds, ablations present.\nLimitations: may not transfer to low-resolution domains (stated).\n\nSTEP 2 — MISCONCEPTION TRACING\nC1 [Low]: Minor risk readers over-generalize to all vision tasks; authors already hedge transfer.\n\nSTEP 3 — FRAMING RED-FLAG AUDIT\nNo red flags: specific number, scoped claim, explicit limitation, no superlatives or urgency.\n\nSTEP 4 — CROSS-REFERENCE\nNo reinforcing hype+misconception pairs. No HIGH-RISK items.\n\nSTEP 5 — CALIBRATED SUMMARY\n(a) Actually shows: Method X yields a 2.1% ImageNet accuracy gain (3 seeds, ablated), strongest on fine-grained classes.\n(b) Suggests: Potential usefulness where fine-grained distinctions matter.\n(c) Misreadings to avoid: Don't assume gains hold at low resolution — the authors caution against this.\n\nSTEP 6 — CLAIM INTEGRITY REPORT\n| Claim | Misconception risk | Framing red flags | Accurate restatement |\n| C1 | Low | None | Method X improves ImageNet accuracy by 2.1%, mainly on fine-grained classes, with stated transfer caveats. |\n\nSTEP 7 — HYPE-ADJUSTED CONFIDENCE\nHigh — scoped, replicated, ablated claim with honest limitations and no promotional framing."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Hype triggers low confidence and HIGH-RISK cross-reference",
+        "input": "Abstract: 'This revolutionary trial PROVES our drug cures depression in everyone — act now.' Methods: n=12, no control group, 4-week follow-up.",
+        "expected": "Flags 'PROVES','revolutionary','cures everyone','act now' as framing red flags; traces over-generalization + causation misconceptions on the tiny uncontrolled sample; marks the claim HIGH-RISK by cross-referencing hype to misconception; outputs a Low Hype-Adjusted Confidence with an accurate, hedged restatement."
+      },
+      {
+        "name": "Neutral scoped paper yields no false red flags",
+        "input": "Abstract: 'In 500 patients, drug Y reduced symptom scores by 3 points vs placebo (p=0.01); effect size was modest and results are limited to adults under 65.'",
+        "expected": "Reports no or minimal framing red flags, Low misconception risk, no HIGH-RISK items, and a Moderate-to-High Hype-Adjusted Confidence, without inventing hype that is absent from the source."
+      },
+      {
+        "name": "Missing section handled explicitly",
+        "input": "Title only: 'Effects of sleep on memory consolidation.' (no abstract or methods provided)",
+        "expected": "States the gap that methods/results are missing rather than inferring findings, and does not fabricate claims, misconceptions, or a confidence score based on absent content."
+      }
+    ],
+    "type": "meta",
+    "dependencies": [
+      "@kmd_ai/coldemailredflagauditor",
+      "@kmd_ai/misconceptiontracer"
+    ]
+  },
+  "markdown": "# ClaimGuard Digest\n\n## Purpose\nTurn a scientific paper into a reader-safe digest that not only summarizes findings but proactively flags where readers commonly misinterpret them and where the paper's own framing oversells its conclusions — giving researchers, journalists, and reviewers a calibrated, hype-adjusted understanding of what the work genuinely supports.\n\n## Dependencies\nInstalling this skill also installs:\n- `@kmd_ai/coldemailredflagauditor`\n- `@kmd_ai/misconceptiontracer`\n\n## Instructions\n1. Ingest the paper text (or abstract + key sections) from {{input}} and extract the core claims: research question, primary findings, effect sizes/statistics, sample/scope, and stated limitations. Build a numbered claim list to anchor the rest of the workflow.\n2. Run MisconceptionTracer over each core claim to identify the specific ways readers are likely to misread it — over-generalization beyond the studied population, correlation-vs-causation slippage, ignored confounds, or conflation of statistical vs practical significance. Capture each misconception with the exact claim it stems from.\n3. Extract the persuasion-oriented surfaces of the paper (abstract, title, 'implications' and 'conclusion' sentences, any press-release or highlights text) and run ColdEmailRedFlagAuditor on them, treating overselling language the same way it treats manipulative cold-email tactics: unearned urgency, sweeping superlatives, hedge-stripping ('proves', 'revolutionary'), and CTA-style overreach.\n4. Cross-reference the two audits: for every red-flagged phrase from step 3, check whether it maps onto a misconception risk from step 2. Where framing hype and reader misconception reinforce each other, mark it as a HIGH-RISK claim that needs the strongest calibration.\n5. Write the calibrated summary in three tiers: (a) 'What the paper actually shows' (evidence-backed, hedged appropriately), (b) 'What it suggests but does not prove' (speculative extensions), and (c) 'Common misreadings to avoid' drawn from step 2.\n6. Produce a Claim Integrity Report table listing each core claim, its misconception risk level, any framing red flags detected, and a one-line 'accurate restatement' that a reader can safely quote.\n7. Add a top-line Hype-Adjusted Confidence score (Low/Moderate/High) reflecting the ratio of red-flagged framing and high-risk misconceptions to well-supported claims, with a one-sentence justification.\n8. Never invent findings absent from the source; if a section is missing, state the gap explicitly rather than inferring, and keep the digest's tone neutral even when the source is promotional.\n\n## Prompt Template\n```\nYou are ClaimGuard Digest, a meta-skill that summarizes scientific papers while auditing them for reader misconceptions and framing hype.\n\nPAPER INPUT:\n{{input}}\n\nExecute this orchestration in order and show your work concisely:\n\nSTEP 1 — CLAIM EXTRACTION\nList the core claims as C1, C2, ... with question, finding, key stats, scope/sample, and stated limitations.\n\nSTEP 2 — MISCONCEPTION TRACING (invoke MisconceptionTracer per claim)\nFor each claim, output likely reader misconceptions (over-generalization, causation slippage, ignored confounds, significance conflation). Tag each: [Misconception risk: Low/Med/High].\n\nSTEP 3 — FRAMING RED-FLAG AUDIT (invoke ColdEmailRedFlagAuditor on abstract/title/implications/press text)\nList persuasion red flags: unearned urgency, superlatives, hedge-stripping, overreaching CTAs. Quote the offending phrase.\n\nSTEP 4 — CROSS-REFERENCE\nMap red-flagged phrases to the misconceptions they amplify. Mark reinforcing pairs as HIGH-RISK.\n\nSTEP 5 — CALIBRATED SUMMARY\n(a) What the paper actually shows\n(b) What it suggests but does not prove\n(c) Common misreadings to avoid\n\nSTEP 6 — CLAIM INTEGRITY REPORT (table)\n| Claim | Misconception risk | Framing red flags | Accurate restatement |\n\nSTEP 7 — HYPE-ADJUSTED CONFIDENCE\nScore: Low/Moderate/High + one-sentence justification.\n\nRules: Use only what's in the source; flag missing sections explicitly; keep tone neutral.\n```\n"
+}

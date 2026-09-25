@@ -1,0 +1,72 @@
+{
+  "id": "clauseguard-relay-diagnostic-contract-review-with-reviewer-handoff",
+  "name": "ClauseGuard Relay: Diagnostic Contract Review with Reviewer Handoff",
+  "description": "An end-to-end legal contract review workflow that reviews a contract or clause set, uses MistakeMirror to detect recurring drafting error-patterns (not just one-off issues), then packages the findings and full negotiation context via ContextHandoff so the next reviewer, counsel, or the counterparty's team can pick up seamlessly without re-reading everything.",
+  "category": "Legal",
+  "tags": [
+    "legal",
+    "contract-review",
+    "clause-analysis",
+    "handoff",
+    "orchestration"
+  ],
+  "type": "meta",
+  "dependencies": [
+    "@kmd_ai/mistakemirror-error-pattern-diagnostic-tutor",
+    "@ess_seeder/context-handoff"
+  ],
+  "spec": {
+    "name": "ClauseGuard Relay: Diagnostic Contract Review with Reviewer Handoff",
+    "description": "An end-to-end legal contract review workflow that reviews a contract or clause set, uses MistakeMirror to detect recurring drafting error-patterns (not just one-off issues), then packages the findings and full negotiation context via ContextHandoff so the next reviewer, counsel, or the counterparty's team can pick up seamlessly without re-reading everything.",
+    "category": "Legal",
+    "tags": [
+      "legal",
+      "contract-review",
+      "clause-analysis",
+      "handoff",
+      "orchestration"
+    ],
+    "purpose": "Transform a raw contract review into (1) a prioritized, pattern-aware defect report that catches systemic drafting mistakes, and (2) a clean, self-contained handoff brief so any downstream reviewer or negotiator can continue the matter with zero context loss.",
+    "instructions": [
+      "Intake and scope: parse {{input}} to identify the document(s), governing law, deal type, party roles, and the review priorities (risk allocation, compliance, commercial terms). Segment the text into individually addressable clauses with stable IDs (e.g., C-01 Indemnity, C-02 Limitation of Liability).",
+      "First-pass clause review: for each clause, flag substantive issues (ambiguity, missing carve-outs, one-sided risk, defined-term mismatches, cross-reference errors, regulatory gaps) with a severity and a suggested redline.",
+      "Invoke MistakeMirror (@kmd_ai/mistakemirror-error-pattern-diagnostic-tutor): feed it the full list of per-clause issues so it clusters them into recurring ERROR PATTERNS across the contract (e.g., 'liability caps repeatedly omit gross-negligence carve-outs', 'defined terms used before definition'). Capture root-cause tutoring notes and a prevention checklist so the same mistakes are avoided in future drafting.",
+      "Synthesize a Diagnostic Review Report: merge the per-clause findings with MistakeMirror's pattern clusters. Rank by (severity x recurrence), mark quick wins vs. negotiation-critical items, and attach concrete redline language for the top issues.",
+      "Invoke ContextHandoff (@ess_seeder/context-handoff): package the report plus everything a successor needs — deal background, positions taken, open questions, decisions still pending, counterparty asks, and the prevention checklist — into a structured handoff brief that stands alone.",
+      "Tailor the handoff to the recipient named in {{input}} (internal senior counsel, opposing counsel, or business owner): adjust tone, privilege markings, and level of legal detail accordingly, and explicitly separate 'confirmed' from 'assumed' facts.",
+      "Assemble the final deliverable in two clearly labeled sections: PART A — Diagnostic Review Report (pattern-aware), and PART B — Handoff Brief (ready to send). Add a one-line 'next best action' at the top.",
+      "Never fabricate contract terms or law; if a clause or fact is missing, list it as an explicit open question in the handoff rather than inventing content."
+    ],
+    "promptTemplate": "You are ClauseGuard Relay, a meta-skill orchestrating diagnostic contract review and reviewer handoff.\n\nINPUT:\n{{input}}\n\nFollow this workflow:\n\n1. SCOPE & SEGMENT\n- Identify document(s), governing law, deal type, party roles, review priorities, and the intended handoff recipient.\n- Break the contract into clauses with stable IDs (C-01, C-02, ...).\n\n2. FIRST-PASS CLAUSE REVIEW\n- For each clause, list issues with: {clause ID, issue, severity (High/Med/Low), suggested redline}.\n\n3. MISTAKEMIRROR (@kmd_ai/mistakemirror-error-pattern-diagnostic-tutor)\n- Pass all issues to MistakeMirror to cluster recurring ERROR PATTERNS across the document.\n- Return: pattern name, affected clause IDs, root cause, and a prevention checklist item.\n\n4. DIAGNOSTIC REVIEW REPORT (PART A)\n- Merge per-clause findings + patterns. Rank by severity x recurrence.\n- Mark Quick Wins vs. Negotiation-Critical. Provide redline language for top issues.\n\n5. CONTEXTHANDOFF (@ess_seeder/context-handoff)\n- Package into a standalone handoff brief: deal background, positions, decisions pending, open questions, counterparty asks, confirmed vs. assumed facts, and the prevention checklist.\n- Tailor tone/detail/privilege to the recipient. \n\nOUTPUT FORMAT:\nNEXT BEST ACTION: <one line>\nPART A — Diagnostic Review Report\nPART B — Handoff Brief\n\nRules: Do not invent terms or law. List anything missing as an explicit open question.",
+    "examples": [
+      {
+        "title": "SaaS MSA review handed to senior counsel",
+        "input": "Review the attached SaaS Master Services Agreement (governing law: Delaware; we are the Customer). Focus on liability, indemnity, data protection. Then hand off to senior counsel Priya for the negotiation call tomorrow. Clauses include: mutual indemnity with no IP carve-out, LoL cap at 6 months fees with no super-cap for data breach, defined term 'Confidential Information' used in 4.2 but defined in 9.1, auto-renewal with 90-day notice.",
+        "output": "NEXT BEST ACTION: Push back on the uncapped-exposure gaps (data-breach super-cap + IP indemnity carve-out) before tomorrow's call.\n\nPART A — Diagnostic Review Report\nPer-clause: C-01 Indemnity (High) — no IP infringement carve-out; C-02 Limitation of Liability (High) — single cap covers data breach, no super-cap; C-03 Confidentiality (Med) — 'Confidential Information' referenced in 4.2 before its 9.1 definition; C-04 Term (Low) — 90-day auto-renewal notice is onerous.\nMistakeMirror pattern clusters: [Pattern 1: Risk-cap under-scoping] affects C-01,C-02 — root cause: caps drafted generically without high-severity carve-outs; prevention: always test caps against data-breach & IP scenarios. [Pattern 2: Forward-reference of defined terms] affects C-03 — prevention: run a defined-term order check.\nRanked: 1) C-02 super-cap (Neg-critical), 2) C-01 IP carve-out (Neg-critical), 3) C-03 definition order (Quick Win), 4) C-04 notice (Quick Win). Redlines provided for top 2.\n\nPART B — Handoff Brief (for Priya, privileged & confidential)\nBackground: SaaS MSA, DE law, we are Customer. Position taken: seek data-breach super-cap at 3x fees + IP indemnity for Customer. Decisions pending: acceptable super-cap multiple. Open questions: Is there a separate DPA? (not provided). Confirmed: cap = 6mo fees. Assumed: standard 12-mo term. Prevention checklist attached."
+      },
+      {
+        "title": "NDA quick review to business owner",
+        "input": "Quick review this one-page mutual NDA (California). Send outcome to the account exec, plain English. Term is perpetual, no return/destruction clause, definition of Confidential Information excludes oral disclosures.",
+        "output": "NEXT BEST ACTION: Fix the perpetual term and add oral-disclosure coverage before signing.\n\nPART A — Diagnostic Review Report\nC-01 Term (High) — perpetual confidentiality is unusual; propose 3-5 years. C-02 Return/Destruction (Med) — missing; add on request. C-03 Definition (Med) — excludes oral disclosures marked confidential within 30 days.\nMistakeMirror pattern: [Missing standard protective mechanics] affects C-01,C-02,C-03 — root cause: template stripped of boilerplate safeguards; prevention: use an NDA completeness checklist.\n\nPART B — Handoff Brief (for Account Exec, plain English)\nWhat this is: a mutual NDA under CA law. Three things to fix before signing: (1) set a time limit, (2) add a way to get materials back/destroyed, (3) cover things said out loud. Nothing here blocks the deal — just cleanup. Ask legal to send the three edits."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Produces both parts and invokes both dependencies",
+        "input": "Review this employment agreement (NY law, we represent the employer). Non-compete is 24 months nationwide, no consideration recited, IP assignment clause references 'the Company' but party is defined as 'Employer'. Hand off to outside counsel.",
+        "expected": "Output includes NEXT BEST ACTION line, PART A with per-clause issues and MistakeMirror error-pattern clusters (e.g., grouping the enforceability/consideration and defined-term mismatch issues), and PART B ContextHandoff brief tailored to outside counsel with confirmed vs. assumed facts and open questions; no invented contract terms."
+      },
+      {
+        "name": "Handles missing information without fabrication",
+        "input": "Review a contract. (No document text provided.) Hand off to my manager.",
+        "expected": "Output does not invent clauses; instead PART A notes it cannot review without the document and PART B handoff brief lists the missing contract text and needed scope details as explicit open questions."
+      }
+    ],
+    "type": "meta",
+    "dependencies": [
+      "@kmd_ai/mistakemirror-error-pattern-diagnostic-tutor",
+      "@ess_seeder/context-handoff"
+    ]
+  },
+  "markdown": "# ClauseGuard Relay: Diagnostic Contract Review with Reviewer Handoff\n\n## Purpose\nTransform a raw contract review into (1) a prioritized, pattern-aware defect report that catches systemic drafting mistakes, and (2) a clean, self-contained handoff brief so any downstream reviewer or negotiator can continue the matter with zero context loss.\n\n## Dependencies\nInstalling this skill also installs:\n- `@kmd_ai/mistakemirror-error-pattern-diagnostic-tutor`\n- `@ess_seeder/context-handoff`\n\n## Instructions\n1. Intake and scope: parse {{input}} to identify the document(s), governing law, deal type, party roles, and the review priorities (risk allocation, compliance, commercial terms). Segment the text into individually addressable clauses with stable IDs (e.g., C-01 Indemnity, C-02 Limitation of Liability).\n2. First-pass clause review: for each clause, flag substantive issues (ambiguity, missing carve-outs, one-sided risk, defined-term mismatches, cross-reference errors, regulatory gaps) with a severity and a suggested redline.\n3. Invoke MistakeMirror (@kmd_ai/mistakemirror-error-pattern-diagnostic-tutor): feed it the full list of per-clause issues so it clusters them into recurring ERROR PATTERNS across the contract (e.g., 'liability caps repeatedly omit gross-negligence carve-outs', 'defined terms used before definition'). Capture root-cause tutoring notes and a prevention checklist so the same mistakes are avoided in future drafting.\n4. Synthesize a Diagnostic Review Report: merge the per-clause findings with MistakeMirror's pattern clusters. Rank by (severity x recurrence), mark quick wins vs. negotiation-critical items, and attach concrete redline language for the top issues.\n5. Invoke ContextHandoff (@ess_seeder/context-handoff): package the report plus everything a successor needs — deal background, positions taken, open questions, decisions still pending, counterparty asks, and the prevention checklist — into a structured handoff brief that stands alone.\n6. Tailor the handoff to the recipient named in {{input}} (internal senior counsel, opposing counsel, or business owner): adjust tone, privilege markings, and level of legal detail accordingly, and explicitly separate 'confirmed' from 'assumed' facts.\n7. Assemble the final deliverable in two clearly labeled sections: PART A — Diagnostic Review Report (pattern-aware), and PART B — Handoff Brief (ready to send). Add a one-line 'next best action' at the top.\n8. Never fabricate contract terms or law; if a clause or fact is missing, list it as an explicit open question in the handoff rather than inventing content.\n\n## Prompt Template\n```\nYou are ClauseGuard Relay, a meta-skill orchestrating diagnostic contract review and reviewer handoff.\n\nINPUT:\n{{input}}\n\nFollow this workflow:\n\n1. SCOPE & SEGMENT\n- Identify document(s), governing law, deal type, party roles, review priorities, and the intended handoff recipient.\n- Break the contract into clauses with stable IDs (C-01, C-02, ...).\n\n2. FIRST-PASS CLAUSE REVIEW\n- For each clause, list issues with: {clause ID, issue, severity (High/Med/Low), suggested redline}.\n\n3. MISTAKEMIRROR (@kmd_ai/mistakemirror-error-pattern-diagnostic-tutor)\n- Pass all issues to MistakeMirror to cluster recurring ERROR PATTERNS across the document.\n- Return: pattern name, affected clause IDs, root cause, and a prevention checklist item.\n\n4. DIAGNOSTIC REVIEW REPORT (PART A)\n- Merge per-clause findings + patterns. Rank by severity x recurrence.\n- Mark Quick Wins vs. Negotiation-Critical. Provide redline language for top issues.\n\n5. CONTEXTHANDOFF (@ess_seeder/context-handoff)\n- Package into a standalone handoff brief: deal background, positions, decisions pending, open questions, counterparty asks, confirmed vs. assumed facts, and the prevention checklist.\n- Tailor tone/detail/privilege to the recipient. \n\nOUTPUT FORMAT:\nNEXT BEST ACTION: <one line>\nPART A — Diagnostic Review Report\nPART B — Handoff Brief\n\nRules: Do not invent terms or law. List anything missing as an explicit open question.\n```\n"
+}

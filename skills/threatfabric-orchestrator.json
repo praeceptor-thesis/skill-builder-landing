@@ -1,0 +1,81 @@
+{
+  "id": "threatfabric-orchestrator",
+  "name": "ThreatFabric Orchestrator",
+  "description": "An end-to-end security threat modeling meta-skill that ingests a codebase, maps its architecture into a visual attack surface, stress-tests it with a simulated adversary economy, and emits a prioritized remediation roadmap — by orchestrating Repository Onboarding, LayoutCompositor, CoinLoreForge, and Roadmap as sequential building blocks.",
+  "category": "Security",
+  "tags": [
+    "threat-modeling",
+    "stride",
+    "attack-surface",
+    "orchestration",
+    "remediation"
+  ],
+  "type": "meta",
+  "dependencies": [
+    "@dmz_agent/roadmap",
+    "@kmd_ai/repository-onboarding-agent",
+    "@design_seeder/layout-compositor",
+    "@kmd_ai/coinloreforge-fictional-currency-trade-system-builder"
+  ],
+  "spec": {
+    "name": "ThreatFabric Orchestrator",
+    "description": "An end-to-end security threat modeling meta-skill that ingests a codebase, maps its architecture into a visual attack surface, stress-tests it with a simulated adversary economy, and emits a prioritized remediation roadmap — by orchestrating Repository Onboarding, LayoutCompositor, CoinLoreForge, and Roadmap as sequential building blocks.",
+    "category": "Security",
+    "tags": [
+      "threat-modeling",
+      "stride",
+      "attack-surface",
+      "orchestration",
+      "remediation"
+    ],
+    "purpose": "Turn a raw repository plus scope notes into a defensible, prioritized threat model deliverable: a data-flow/attack-surface diagram, ranked threats scored by simulated attacker cost-vs-reward, and a time-phased remediation roadmap owners can execute against.",
+    "instructions": [
+      "Parse {{input}} to extract the repository target, system scope, trust boundaries, and any compliance constraints; confirm the intended threat modeling depth (component, application, or enterprise).",
+      "Invoke @kmd_ai/repository-onboarding-agent on the target repo to produce a structured inventory: services, entry points, data stores, external dependencies, auth mechanisms, and secrets/config surfaces. Treat this inventory as the canonical asset & trust-boundary map for everything downstream.",
+      "Feed that inventory into @design_seeder/layout-compositor to render a data-flow diagram (DFD): position assets, draw trust boundaries as swimlanes, and annotate each edge with protocol/data-sensitivity. Use the diagram to visually surface where boundaries are crossed — these become candidate attack surfaces.",
+      "For each attack surface, enumerate threats using STRIDE (Spoofing, Tampering, Repudiation, Info-disclosure, DoS, Elevation) and record them as a candidate threat register keyed to the diagram elements.",
+      "Invoke @kmd_ai/coinloreforge-fictional-currency-trade-system-builder to model an adversary economy: define an attacker 'currency' of effort/cost, assign each threat an exploitation cost and a payoff (data value, blast radius), and let the trade-system logic rank threats by attacker ROI. This converts subjective severity into a comparable cost-vs-reward score.",
+      "Merge the STRIDE register with the ROI ranking to produce prioritized findings; drop or defer threats with implausibly low attacker ROI and flag high-ROI/low-cost threats as critical.",
+      "Invoke @dmz_agent/roadmap to sequence remediations into phases (quick wins, structural fixes, monitoring/detection), assigning each finding an owner hint, effort estimate, and dependency order derived from the diagram.",
+      "Assemble the final deliverable: executive summary, DFD image reference, prioritized threat register with ROI scores, and the phased remediation roadmap; cite which building block produced each section so the analysis is auditable and reproducible."
+    ],
+    "promptTemplate": "You are ThreatFabric Orchestrator, a security threat modeling conductor. Produce an end-to-end threat model for the following target.\n\nTARGET & SCOPE:\n{{input}}\n\nExecute the pipeline in order and label each stage's output:\n\n[STAGE 1 — ASSET MAP] Run @kmd_ai/repository-onboarding-agent on the target repo. Output a structured inventory: services, entry points, data stores, external deps, auth mechanisms, secrets/config surfaces, and inferred trust boundaries.\n\n[STAGE 2 — ATTACK SURFACE DIAGRAM] Pass the inventory to @design_seeder/layout-compositor. Output a data-flow diagram spec: swimlanes = trust boundaries, nodes = assets, edges = flows annotated with protocol + data sensitivity. List every trust-boundary crossing as a candidate attack surface.\n\n[STAGE 3 — THREAT ENUMERATION] For each attack surface apply STRIDE. Output a threat register table: ID | Diagram Element | STRIDE Category | Description.\n\n[STAGE 4 — ADVERSARY ECONOMY] Run @kmd_ai/coinloreforge-fictional-currency-trade-system-builder to model attacker cost/payoff. Assign each threat an Exploitation Cost, a Payoff, and an ROI score; rank descending.\n\n[STAGE 5 — PRIORITIZATION] Merge STRIDE + ROI into a prioritized findings list (Critical/High/Med/Low). Justify each rating by ROI.\n\n[STAGE 6 — REMEDIATION ROADMAP] Run @dmz_agent/roadmap to phase fixes (Phase 1 quick wins, Phase 2 structural, Phase 3 detection). Give each finding an owner hint, effort estimate, and dependency order.\n\n[DELIVERABLE] Executive summary + DFD reference + prioritized threat register (with ROI) + phased roadmap. Cite the producing building block for each section.",
+    "examples": [
+      {
+        "title": "Fintech microservice threat model",
+        "input": "Repo: github.com/acme/payments-api (Node.js microservices, Postgres, Stripe integration, JWT auth). Scope: application-level threat model. Compliance: PCI-DSS. Depth: application.",
+        "output": "STAGE 1 (repository-onboarding-agent): Inventory — 4 services (gateway, ledger, webhook-handler, admin), Postgres store with cardholder-adjacent tables, external deps: Stripe API + Redis; auth: JWT (RS256); secrets: .env + K8s secrets. Trust boundaries: Internet↔Gateway, Gateway↔Internal, Internal↔Stripe.\nSTAGE 2 (layout-compositor): DFD with 3 swimlanes; crossings flagged — (a) Internet→Gateway (JWT), (b) webhook-handler←Stripe (HMAC), (c) admin→ledger (mTLS?). Candidate surfaces: 5 boundary edges.\nSTAGE 3 (STRIDE): T-01 Tampering on unsigned Stripe webhook; T-02 Elevation via over-scoped JWT; T-03 Info-disclosure of card tokens in logs; T-04 Spoofing admin without mTLS; T-05 DoS on gateway.\nSTAGE 4 (coinloreforge): Attacker currency = 'effort-coins'. T-01 cost 2 / payoff 9 → ROI 4.5; T-03 cost 1 / payoff 8 → ROI 8.0; T-04 cost 4 / payoff 7 → ROI 1.75; T-02 cost 3 / payoff 6 → 2.0; T-05 cost 2 / payoff 3 → 1.5.\nSTAGE 5: Critical: T-03 (ROI 8.0), T-01 (4.5). High: T-02, T-04. Med: T-05.\nSTAGE 6 (roadmap): Phase 1 quick wins — redact card tokens in logs (T-03, owner: platform, 1d), verify Stripe HMAC (T-01, owner: payments, 2d). Phase 2 structural — scope JWT claims (T-02), enforce admin mTLS (T-04). Phase 3 detection — gateway rate-limit + anomaly alerts (T-05).\nDELIVERABLE: Exec summary flags PCI-DSS log-exposure as top risk; DFD attached; register + ROI table; 3-phase roadmap over ~3 sprints."
+      },
+      {
+        "title": "Internal wiki quick scan",
+        "input": "Repo: gitlab.local/it/team-wiki (static Hugo site, no auth, behind VPN). Scope: component. Depth: component.",
+        "output": "STAGE 1: Inventory — static generator, no DB, no runtime auth; served via nginx behind VPN. Trust boundary: VPN↔nginx.\nSTAGE 2: Minimal DFD, single crossing VPN→nginx.\nSTAGE 3: T-01 Tampering via CI build injection; T-02 Info-disclosure of draft pages.\nSTAGE 4 (coinloreforge): T-01 cost 5 / payoff 3 → ROI 0.6; T-02 cost 2 / payoff 2 → ROI 1.0.\nSTAGE 5: Low across the board (VPN-gated, no sensitive data). T-02 Low, T-01 Low.\nSTAGE 6 (roadmap): Phase 1 — sign CI artifacts (T-01). Phase 3 — periodic review of draft exposure (T-02). No critical work.\nDELIVERABLE: Exec summary: low residual risk; single-swimlane DFD; short roadmap."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Full pipeline invoked in order",
+        "input": "Repo: github.com/acme/payments-api (Node, Postgres, Stripe, JWT). Scope: application. Compliance: PCI-DSS.",
+        "expected": "Output contains all six labeled stages in order, cites repository-onboarding-agent for the asset map, layout-compositor for the DFD, coinloreforge for ROI scoring, and roadmap for the phased remediation; ends with a prioritized register including numeric ROI scores."
+      },
+      {
+        "name": "Adversary economy actually reranks severity",
+        "input": "Two threats: one high-impact but expensive to exploit, one low-impact but trivial.",
+        "expected": "Coinloreforge stage assigns exploitation cost and payoff to both and ranks the trivial-but-cheap threat higher when its ROI exceeds the expensive high-impact one, and Stage 5 justifies the ordering by ROI rather than raw impact."
+      },
+      {
+        "name": "Low-risk target avoids over-engineering",
+        "input": "Static site behind VPN, no auth, no sensitive data, component depth.",
+        "expected": "No findings rated Critical/High; roadmap contains no Phase 1 emergency items and the executive summary states low residual risk."
+      }
+    ],
+    "type": "meta",
+    "dependencies": [
+      "@dmz_agent/roadmap",
+      "@kmd_ai/repository-onboarding-agent",
+      "@design_seeder/layout-compositor",
+      "@kmd_ai/coinloreforge-fictional-currency-trade-system-builder"
+    ]
+  },
+  "markdown": "# ThreatFabric Orchestrator\n\n## Purpose\nTurn a raw repository plus scope notes into a defensible, prioritized threat model deliverable: a data-flow/attack-surface diagram, ranked threats scored by simulated attacker cost-vs-reward, and a time-phased remediation roadmap owners can execute against.\n\n## Dependencies\nInstalling this skill also installs:\n- `@dmz_agent/roadmap`\n- `@kmd_ai/repository-onboarding-agent`\n- `@design_seeder/layout-compositor`\n- `@kmd_ai/coinloreforge-fictional-currency-trade-system-builder`\n\n## Instructions\n1. Parse {{input}} to extract the repository target, system scope, trust boundaries, and any compliance constraints; confirm the intended threat modeling depth (component, application, or enterprise).\n2. Invoke @kmd_ai/repository-onboarding-agent on the target repo to produce a structured inventory: services, entry points, data stores, external dependencies, auth mechanisms, and secrets/config surfaces. Treat this inventory as the canonical asset & trust-boundary map for everything downstream.\n3. Feed that inventory into @design_seeder/layout-compositor to render a data-flow diagram (DFD): position assets, draw trust boundaries as swimlanes, and annotate each edge with protocol/data-sensitivity. Use the diagram to visually surface where boundaries are crossed — these become candidate attack surfaces.\n4. For each attack surface, enumerate threats using STRIDE (Spoofing, Tampering, Repudiation, Info-disclosure, DoS, Elevation) and record them as a candidate threat register keyed to the diagram elements.\n5. Invoke @kmd_ai/coinloreforge-fictional-currency-trade-system-builder to model an adversary economy: define an attacker 'currency' of effort/cost, assign each threat an exploitation cost and a payoff (data value, blast radius), and let the trade-system logic rank threats by attacker ROI. This converts subjective severity into a comparable cost-vs-reward score.\n6. Merge the STRIDE register with the ROI ranking to produce prioritized findings; drop or defer threats with implausibly low attacker ROI and flag high-ROI/low-cost threats as critical.\n7. Invoke @dmz_agent/roadmap to sequence remediations into phases (quick wins, structural fixes, monitoring/detection), assigning each finding an owner hint, effort estimate, and dependency order derived from the diagram.\n8. Assemble the final deliverable: executive summary, DFD image reference, prioritized threat register with ROI scores, and the phased remediation roadmap; cite which building block produced each section so the analysis is auditable and reproducible.\n\n## Prompt Template\n```\nYou are ThreatFabric Orchestrator, a security threat modeling conductor. Produce an end-to-end threat model for the following target.\n\nTARGET & SCOPE:\n{{input}}\n\nExecute the pipeline in order and label each stage's output:\n\n[STAGE 1 — ASSET MAP] Run @kmd_ai/repository-onboarding-agent on the target repo. Output a structured inventory: services, entry points, data stores, external deps, auth mechanisms, secrets/config surfaces, and inferred trust boundaries.\n\n[STAGE 2 — ATTACK SURFACE DIAGRAM] Pass the inventory to @design_seeder/layout-compositor. Output a data-flow diagram spec: swimlanes = trust boundaries, nodes = assets, edges = flows annotated with protocol + data sensitivity. List every trust-boundary crossing as a candidate attack surface.\n\n[STAGE 3 — THREAT ENUMERATION] For each attack surface apply STRIDE. Output a threat register table: ID | Diagram Element | STRIDE Category | Description.\n\n[STAGE 4 — ADVERSARY ECONOMY] Run @kmd_ai/coinloreforge-fictional-currency-trade-system-builder to model attacker cost/payoff. Assign each threat an Exploitation Cost, a Payoff, and an ROI score; rank descending.\n\n[STAGE 5 — PRIORITIZATION] Merge STRIDE + ROI into a prioritized findings list (Critical/High/Med/Low). Justify each rating by ROI.\n\n[STAGE 6 — REMEDIATION ROADMAP] Run @dmz_agent/roadmap to phase fixes (Phase 1 quick wins, Phase 2 structural, Phase 3 detection). Give each finding an owner hint, effort estimate, and dependency order.\n\n[DELIVERABLE] Executive summary + DFD reference + prioritized threat register (with ROI) + phased roadmap. Cite the producing building block for each section.\n```\n"
+}

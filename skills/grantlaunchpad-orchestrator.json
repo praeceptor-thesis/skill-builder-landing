@@ -1,0 +1,67 @@
+{
+  "id": "grantlaunchpad-orchestrator",
+  "name": "GrantLaunchpad Orchestrator",
+  "description": "An end-to-end grant and proposal writing workflow that turns a raw funding opportunity plus project brief into a submission-ready proposal: it first names/brands the initiative via ProductNameShortlister, then drafts the full proposal narrative, and finally stands up a funder-facing recurring progress report cadence via RecurringReportBuilder so your post-award reporting is defined before you even submit.",
+  "category": "Productivity",
+  "tags": [
+    "grants",
+    "proposal-writing",
+    "orchestration",
+    "fundraising",
+    "reporting"
+  ],
+  "type": "meta",
+  "dependencies": [
+    "@kmd_ai/productnameshortlister",
+    "@design_seeder/recurring-report-builder"
+  ],
+  "spec": {
+    "name": "GrantLaunchpad Orchestrator",
+    "description": "An end-to-end grant and proposal writing workflow that turns a raw funding opportunity plus project brief into a submission-ready proposal: it first names/brands the initiative via ProductNameShortlister, then drafts the full proposal narrative, and finally stands up a funder-facing recurring progress report cadence via RecurringReportBuilder so your post-award reporting is defined before you even submit.",
+    "category": "Productivity",
+    "tags": [
+      "grants",
+      "proposal-writing",
+      "orchestration",
+      "fundraising",
+      "reporting"
+    ],
+    "purpose": "Deliver a complete, fundable grant package — a memorable initiative name, an aligned proposal narrative, and a pre-configured recurring reporting plan that satisfies the funder's accountability requirements — from a single project brief and call-for-proposals input.",
+    "instructions": [
+      "Parse {{input}} to extract the funder's requirements (deadline, eligibility, priorities, word/section limits), the applicant org details, the project goals, the budget ask, and the funder's reporting/monitoring expectations. Flag any missing mandatory fields and ask for them before proceeding.",
+      "Invoke @kmd_ai/productnameshortlister on the project concept to generate a shortlist of initiative/program names, then select one name per funder tone (formal vs. community-facing) and reserve 2 alternates. Use the chosen name consistently as the program identity throughout the proposal.",
+      "Map the funder's stated priorities to project goals and build a compliance matrix (requirement -> where it is addressed), ensuring every mandatory criterion has a home in the narrative.",
+      "Draft the full proposal narrative section by section (executive summary, statement of need, objectives & measurable outcomes, methodology/workplan, organizational capacity, evaluation plan, budget justification, sustainability) using the chosen name and staying within the funder's section/word limits.",
+      "Define the measurement framework: convert each objective into KPIs, baselines, targets, and data sources — this becomes the shared schema for both the evaluation section and the downstream reporting plan.",
+      "Invoke @design_seeder/recurring-report-builder using the KPIs and the funder's required reporting frequency to generate a recurring progress-report template and cadence (e.g., quarterly), pre-populated with the metrics the funder will expect post-award.",
+      "Attach the recurring report plan to the proposal as the monitoring/accountability appendix, and produce a submission checklist that maps the final package against the funder's compliance matrix.",
+      "Output the branded, submission-ready proposal plus the reporting cadence, and surface a prioritized list of weak spots or unmet requirements for the author to strengthen before submitting."
+    ],
+    "promptTemplate": "You are the GrantLaunchpad Orchestrator, coordinating a grant-writing workflow.\n\nINPUT:\n{{input}}\n\nExecute in order:\n1) REQUIREMENTS: Extract funder requirements, applicant details, project goals, budget ask, and reporting expectations. List any missing mandatory items.\n2) NAMING: Call @kmd_ai/productnameshortlister on the project concept. Present the shortlist, pick a primary name matched to funder tone, and keep 2 alternates.\n3) COMPLIANCE MATRIX: Map each funder priority/requirement to a proposal section.\n4) NARRATIVE: Draft all required sections using the chosen name, respecting word/section limits.\n5) MEASUREMENT: Turn objectives into KPIs with baselines, targets, and data sources.\n6) REPORTING: Call @design_seeder/recurring-report-builder with those KPIs and the funder's required frequency to generate a recurring progress-report template and cadence.\n7) ASSEMBLE: Attach the reporting plan as the monitoring appendix; produce a submission checklist against the compliance matrix.\n8) DELIVER: Return the branded proposal, the reporting cadence, and a prioritized list of gaps to fix before submission.",
+    "examples": [
+      {
+        "title": "Nonprofit youth-coding grant",
+        "input": "Funder: State Digital Equity Fund, up to $150k, deadline 2024-11-30. Priorities: underserved youth, measurable skills outcomes, quarterly reporting. Applicant: Bridgetown Community Center. Project: after-school coding program for 60 teens over 12 months. Budget ask: $140k.",
+        "output": "1) Requirements captured; all mandatory fields present. 2) Name shortlist via ProductNameShortlister -> primary 'CodeBridge Teens' (community-facing), alternates 'FutureStack' / 'LaunchCode Youth'. 3) Compliance matrix maps 'underserved youth' -> Statement of Need, 'measurable outcomes' -> Objectives/Evaluation, 'quarterly reporting' -> Monitoring Appendix. 4) Full narrative drafted for CodeBridge Teens within limits. 5) KPIs: # youth served (target 60, baseline 0), % completing certification (target 70%), skills assessment gain. 6) RecurringReportBuilder generates a QUARTERLY progress report template pre-filled with those KPIs and budget burn-rate. 7) Monitoring appendix attached; submission checklist all green except letters of support. 8) Gaps to fix: add 2 community letters of support; tighten sustainability section."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Orchestrates both dependencies in order",
+        "input": "Funder: Green Cities Foundation, $75k, biannual reporting required, deadline 2025-03-15. Applicant: RiverKeep Alliance. Project: urban stream restoration with volunteer monitoring, 18 months. Budget ask: $72k.",
+        "expected": "Output includes a ProductNameShortlister-derived branded program name, a full proposal narrative using that name, KPIs with baselines/targets, and a RecurringReportBuilder-generated BIANNUAL report template populated with those KPIs, plus a compliance checklist and a prioritized gap list."
+      },
+      {
+        "name": "Flags missing mandatory input",
+        "input": "Project: literacy tutoring program. We want a grant.",
+        "expected": "Workflow halts at step 1 and requests missing mandatory fields (funder name, amount, deadline, reporting frequency, applicant org, measurable goals, budget) before naming or drafting."
+      }
+    ],
+    "type": "meta",
+    "dependencies": [
+      "@kmd_ai/productnameshortlister",
+      "@design_seeder/recurring-report-builder"
+    ]
+  },
+  "markdown": "# GrantLaunchpad Orchestrator\n\n## Purpose\nDeliver a complete, fundable grant package — a memorable initiative name, an aligned proposal narrative, and a pre-configured recurring reporting plan that satisfies the funder's accountability requirements — from a single project brief and call-for-proposals input.\n\n## Dependencies\nInstalling this skill also installs:\n- `@kmd_ai/productnameshortlister`\n- `@design_seeder/recurring-report-builder`\n\n## Instructions\n1. Parse {{input}} to extract the funder's requirements (deadline, eligibility, priorities, word/section limits), the applicant org details, the project goals, the budget ask, and the funder's reporting/monitoring expectations. Flag any missing mandatory fields and ask for them before proceeding.\n2. Invoke @kmd_ai/productnameshortlister on the project concept to generate a shortlist of initiative/program names, then select one name per funder tone (formal vs. community-facing) and reserve 2 alternates. Use the chosen name consistently as the program identity throughout the proposal.\n3. Map the funder's stated priorities to project goals and build a compliance matrix (requirement -> where it is addressed), ensuring every mandatory criterion has a home in the narrative.\n4. Draft the full proposal narrative section by section (executive summary, statement of need, objectives & measurable outcomes, methodology/workplan, organizational capacity, evaluation plan, budget justification, sustainability) using the chosen name and staying within the funder's section/word limits.\n5. Define the measurement framework: convert each objective into KPIs, baselines, targets, and data sources — this becomes the shared schema for both the evaluation section and the downstream reporting plan.\n6. Invoke @design_seeder/recurring-report-builder using the KPIs and the funder's required reporting frequency to generate a recurring progress-report template and cadence (e.g., quarterly), pre-populated with the metrics the funder will expect post-award.\n7. Attach the recurring report plan to the proposal as the monitoring/accountability appendix, and produce a submission checklist that maps the final package against the funder's compliance matrix.\n8. Output the branded, submission-ready proposal plus the reporting cadence, and surface a prioritized list of weak spots or unmet requirements for the author to strengthen before submitting.\n\n## Prompt Template\n```\nYou are the GrantLaunchpad Orchestrator, coordinating a grant-writing workflow.\n\nINPUT:\n{{input}}\n\nExecute in order:\n1) REQUIREMENTS: Extract funder requirements, applicant details, project goals, budget ask, and reporting expectations. List any missing mandatory items.\n2) NAMING: Call @kmd_ai/productnameshortlister on the project concept. Present the shortlist, pick a primary name matched to funder tone, and keep 2 alternates.\n3) COMPLIANCE MATRIX: Map each funder priority/requirement to a proposal section.\n4) NARRATIVE: Draft all required sections using the chosen name, respecting word/section limits.\n5) MEASUREMENT: Turn objectives into KPIs with baselines, targets, and data sources.\n6) REPORTING: Call @design_seeder/recurring-report-builder with those KPIs and the funder's required frequency to generate a recurring progress-report template and cadence.\n7) ASSEMBLE: Attach the reporting plan as the monitoring appendix; produce a submission checklist against the compliance matrix.\n8) DELIVER: Return the branded proposal, the reporting cadence, and a prioritized list of gaps to fix before submission.\n```\n"
+}

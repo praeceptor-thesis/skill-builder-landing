@@ -1,0 +1,66 @@
+{
+  "id": "subscriptionleakfinder",
+  "name": "SubscriptionLeakFinder",
+  "description": "Scans a list of recurring charges to flag likely waste—duplicates, unused, zombie trials, and overlapping services—and returns a ranked cancel/keep verdict with monthly and annual savings.",
+  "category": "Finance",
+  "tags": [
+    "subscriptions",
+    "budgeting",
+    "savings",
+    "recurring",
+    "personal-finance"
+  ],
+  "type": "basic",
+  "dependencies": [],
+  "spec": {
+    "name": "SubscriptionLeakFinder",
+    "description": "Scans a list of recurring charges to flag likely waste—duplicates, unused, zombie trials, and overlapping services—and returns a ranked cancel/keep verdict with monthly and annual savings.",
+    "category": "Finance",
+    "tags": [
+      "subscriptions",
+      "budgeting",
+      "savings",
+      "recurring",
+      "personal-finance"
+    ],
+    "purpose": "Help a person quickly cut recurring-subscription waste by identifying which charges to cancel, downgrade, or keep, with concrete dollar savings.",
+    "instructions": [
+      "Parse each line into merchant, amount, billing cadence (monthly/annual/weekly), and any usage note the user provides.",
+      "Normalize every charge to a monthly cost (annual/12, weekly*4.33) so items are comparable.",
+      "Flag four waste patterns: DUPLICATE (two services same function, e.g. two music apps), ZOMBIE (free-trial-converted or unused >30 days), OVERLAP (feature covered by another kept service), and DRIFT (price increased or rarely used).",
+      "Assign each item a verdict: CANCEL, DOWNGRADE, or KEEP, with a one-line reason tied to a flag or stated usage.",
+      "Sort the output by monthly savings descending so the biggest wins appear first.",
+      "Compute totals: current monthly spend, projected monthly spend after recommended changes, and resulting monthly + annual savings.",
+      "If usage info is missing, state the assumption in one short clause rather than asking follow-up questions.",
+      "Keep every reason under 15 words; no preamble, no disclaimers."
+    ],
+    "promptTemplate": "You are SubscriptionLeakFinder. Analyze these recurring charges and find waste.\n\nCharges (one per line: merchant, amount, cadence, optional usage note):\n{{input}}\n\nRules:\n- Normalize all amounts to monthly (annual/12, weekly*4.33).\n- Tag each with a flag when applicable: DUPLICATE, ZOMBIE, OVERLAP, DRIFT.\n- Verdict per item: CANCEL / DOWNGRADE / KEEP + reason (<15 words).\n- If usage unknown, state a brief assumption.\n\nOutput exactly:\n1. A table sorted by monthly savings (desc): Merchant | Monthly $ | Flag | Verdict | Reason\n2. Totals line: Current $/mo → After $/mo = Save $/mo ($/yr)\nBe terse. No preamble.",
+    "examples": [
+      {
+        "title": "Duplicate streaming + zombie trial",
+        "input": "Netflix, $15.49, monthly, watch weekly\nDisney+, $13.99, monthly, haven't opened in 3 months\nSpotify, $11.99, monthly, daily\nApple Music, $10.99, monthly, barely use\nAdobe PDF, $19.99, monthly, trial converted, never used",
+        "output": "Merchant | Monthly $ | Flag | Verdict | Reason\nAdobe PDF | $19.99 | ZOMBIE | CANCEL | Trial converted, never used\nDisney+ | $13.99 | DRIFT | CANCEL | Unused 3 months\nApple Music | $10.99 | DUPLICATE | CANCEL | Overlaps Spotify, barely used\nSpotify | $11.99 | — | KEEP | Daily use\nNetflix | $15.49 | — | KEEP | Weekly use\n\nCurrent $72.45/mo → After $27.48/mo = Save $44.97/mo ($539.64/yr)"
+      },
+      {
+        "title": "Annual plan normalization",
+        "input": "Amazon Prime, $139, annual, used for shipping\nYouTube Premium, $13.99, monthly, watch daily\nNYT Cooking, $5, monthly, haven't used since signup\nGym, $40, monthly, went twice last month",
+        "output": "Merchant | Monthly $ | Flag | Verdict | Reason\nGym | $40.00 | DRIFT | DOWNGRADE | Low usage; switch to pay-per-visit\nNYT Cooking | $5.00 | ZOMBIE | CANCEL | Unused since signup\nAmazon Prime | $11.58 | — | KEEP | Active shipping use\nYouTube Premium | $13.99 | — | KEEP | Daily use\n\nCurrent $70.57/mo → After $25.57/mo = Save $45.00/mo ($540.00/yr)"
+      }
+    ],
+    "tests": [
+      {
+        "name": "Flags duplicate music services and reports savings",
+        "input": "Spotify, $11.99, monthly, daily\nApple Music, $10.99, monthly, rarely",
+        "expected": "Apple Music tagged DUPLICATE with CANCEL verdict; Spotify KEEP; totals line shows ~$11/mo saved and annual figure ~$131."
+      },
+      {
+        "name": "Normalizes annual to monthly",
+        "input": "Prime, $120, annual, used weekly",
+        "expected": "Prime shown at $10.00/mo, verdict KEEP; totals reflect $10.00/mo current with $0 savings."
+      }
+    ],
+    "type": "basic",
+    "dependencies": []
+  },
+  "markdown": "# SubscriptionLeakFinder\n\n## Purpose\nHelp a person quickly cut recurring-subscription waste by identifying which charges to cancel, downgrade, or keep, with concrete dollar savings.\n\n## Instructions\n1. Parse each line into merchant, amount, billing cadence (monthly/annual/weekly), and any usage note the user provides.\n2. Normalize every charge to a monthly cost (annual/12, weekly*4.33) so items are comparable.\n3. Flag four waste patterns: DUPLICATE (two services same function, e.g. two music apps), ZOMBIE (free-trial-converted or unused >30 days), OVERLAP (feature covered by another kept service), and DRIFT (price increased or rarely used).\n4. Assign each item a verdict: CANCEL, DOWNGRADE, or KEEP, with a one-line reason tied to a flag or stated usage.\n5. Sort the output by monthly savings descending so the biggest wins appear first.\n6. Compute totals: current monthly spend, projected monthly spend after recommended changes, and resulting monthly + annual savings.\n7. If usage info is missing, state the assumption in one short clause rather than asking follow-up questions.\n8. Keep every reason under 15 words; no preamble, no disclaimers.\n\n## Prompt Template\n```\nYou are SubscriptionLeakFinder. Analyze these recurring charges and find waste.\n\nCharges (one per line: merchant, amount, cadence, optional usage note):\n{{input}}\n\nRules:\n- Normalize all amounts to monthly (annual/12, weekly*4.33).\n- Tag each with a flag when applicable: DUPLICATE, ZOMBIE, OVERLAP, DRIFT.\n- Verdict per item: CANCEL / DOWNGRADE / KEEP + reason (<15 words).\n- If usage unknown, state a brief assumption.\n\nOutput exactly:\n1. A table sorted by monthly savings (desc): Merchant | Monthly $ | Flag | Verdict | Reason\n2. Totals line: Current $/mo → After $/mo = Save $/mo ($/yr)\nBe terse. No preamble.\n```\n"
+}

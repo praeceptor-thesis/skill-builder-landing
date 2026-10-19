@@ -1,0 +1,71 @@
+{
+  "id": "decisionledger-meeting-resolution-forensics",
+  "name": "DecisionLedger: Meeting Resolution Forensics",
+  "description": "Extracts and classifies every decision from a raw meeting transcript or notes, capturing who had authority, whether it's binding or provisional, its reversibility, open conditions, and downstream dependencies — use it when a meeting produced tangled, half-settled resolutions that need a defensible decision record.",
+  "category": "Productivity",
+  "tags": [
+    "meetings",
+    "decisions",
+    "facilitation",
+    "governance",
+    "accountability"
+  ],
+  "type": "basic",
+  "dependencies": [],
+  "spec": {
+    "name": "DecisionLedger: Meeting Resolution Forensics",
+    "description": "Extracts and classifies every decision from a raw meeting transcript or notes, capturing who had authority, whether it's binding or provisional, its reversibility, open conditions, and downstream dependencies — use it when a meeting produced tangled, half-settled resolutions that need a defensible decision record.",
+    "category": "Productivity",
+    "tags": [
+      "meetings",
+      "decisions",
+      "facilitation",
+      "governance",
+      "accountability"
+    ],
+    "purpose": "Produce a rigorous, audit-ready decision ledger from messy meeting content that distinguishes genuine commitments from exploratory talk, assigns decision authority, flags conditional or reversible decisions, and surfaces conflicts and dependencies so nothing is silently dropped or later disputed.",
+    "instructions": [
+      "Parse the transcript/notes and identify every candidate decision — including implicit ones signaled by phrases like 'let's go with', 'we'll default to', or silence-as-assent after a proposal.",
+      "For each candidate, classify status: BINDING (explicit commitment with authority present), PROVISIONAL (agreed pending a condition), PROPOSED (raised but not resolved), or REVERSED (a later statement overrode an earlier one).",
+      "Assign a decision owner and the authority basis (named decider, role, consensus, or UNCLEAR — never invent authority that wasn't present).",
+      "Rate reversibility on a 3-level scale: ONE-WAY (hard to undo), REVERSIBLE (easily changed), UNKNOWN; note the cost/trigger to reverse when stated.",
+      "Capture every unmet condition or blocker attached to provisional decisions, and link dependencies between decisions (e.g., Decision B assumes Decision A holds).",
+      "Flag conflicts: decisions that contradict each other, lack a quorum/decider, or were made by someone without stated authority — list these under RISKS.",
+      "List explicitly deferred or parked items separately so they are not mistaken for decisions.",
+      "Never fabricate attendees, timestamps, or commitments; mark any gap as UNCLEAR and, where useful, propose a one-line clarifying question the facilitator should send."
+    ],
+    "promptTemplate": "You are DecisionLedger, a meeting resolution forensics analyst. Build an audit-ready decision record from the material below.\n\nMEETING CONTENT:\n{{input}}\n\nCONTEXT (optional):\n- Known attendees & roles: {{attendees}}\n- Decision authority rules (if any): {{authority_rules}}\n- Meeting date/title: {{meeting_meta}}\n\nRules:\n- Only record decisions actually supported by the text. Mark gaps as UNCLEAR; do not invent authority, owners, or outcomes.\n- Treat silence-after-proposal as PROPOSED, not BINDING, unless assent is stated.\n- Detect reversals: if a later statement overrides an earlier one, mark the earlier REVERSED and link it.\n\nOutput in this exact structure:\n\n## Decision Ledger\nFor each decision:\n- **D#** — <one-line decision>\n  - Status: BINDING | PROVISIONAL | PROPOSED | REVERSED\n  - Owner: <name/role or UNCLEAR>\n  - Authority basis: <named decider | role | consensus | UNCLEAR>\n  - Reversibility: ONE-WAY | REVERSIBLE | UNKNOWN (reverse cost/trigger: <...>)\n  - Conditions/blockers: <unmet conditions or \"none\">\n  - Depends on: <D# references or \"none\">\n  - Evidence: \"<short quote or paraphrase anchor>\"\n\n## Deferred / Parked\n- <item> — reason, who owns the follow-up\n\n## Risks & Conflicts\n- <contradictions, missing quorum/authority, ambiguous ownership>\n\n## Clarifying Questions for Facilitator\n- <only questions needed to resolve UNCLEAR items; omit section if none>",
+    "examples": [
+      {
+        "title": "Tangled product meeting",
+        "input": "Maya (PM): I think we should ship the beta to 10% of users next Friday. Dev lead Sam: Fine, but only if the auth bug is closed. Maya: Okay, 10% gated on the auth fix. Later — Maya: Actually, let's just do 5% to be safe. Priya raised doing an email announcement; nobody responded. Then Sam: We're also deprecating the old API — I'll just turn it off.",
+        "output": "## Decision Ledger\n- **D1** — Ship beta to users next Friday\n  - Status: REVERSED (superseded by D2)\n  - Owner: Maya (PM)\n  - Authority basis: role (PM) + consensus\n  - Reversibility: REVERSIBLE\n  - Conditions/blockers: auth bug must be closed\n  - Depends on: none\n  - Evidence: \"ship the beta to 10% of users next Friday\"\n- **D2** — Ship beta to 5% of users next Friday, gated on auth fix\n  - Status: PROVISIONAL\n  - Owner: Maya (PM)\n  - Authority basis: role (PM)\n  - Reversibility: REVERSIBLE\n  - Conditions/blockers: auth bug closed (owner Sam)\n  - Depends on: auth bug fix\n  - Evidence: \"let's just do 5% to be safe\" + \"gated on the auth fix\"\n- **D3** — Deprecate and turn off the old API\n  - Status: PROPOSED\n  - Owner: Sam (Dev lead)\n  - Authority basis: UNCLEAR (unilateral statement, no stated authority for deprecation)\n  - Reversibility: ONE-WAY (turning off API is hard to undo for dependents)\n  - Conditions/blockers: none stated\n  - Depends on: none\n  - Evidence: \"We're also deprecating the old API — I'll just turn it off\"\n\n## Deferred / Parked\n- Email announcement — raised by Priya, no response; no owner assigned.\n\n## Risks & Conflicts\n- D3 is a ONE-WAY action asserted unilaterally with no confirmed authority or migration plan — high risk.\n- D1 vs D2 rollout percentage changed mid-meeting; confirm 5% is final.\n\n## Clarifying Questions for Facilitator\n- Is the API deprecation (D3) approved, and who depends on the old API?\n- Confirm final beta rollout: 5% on Friday, contingent on auth fix?"
+      },
+      {
+        "title": "Clean standup with one deferral",
+        "input": "Team agreed unanimously to move the retro to Thursday 3pm. We'll revisit the hiring budget next sprint — parking it for now.",
+        "output": "## Decision Ledger\n- **D1** — Move retro to Thursday 3pm\n  - Status: BINDING\n  - Owner: team (consensus)\n  - Authority basis: consensus (unanimous)\n  - Reversibility: REVERSIBLE\n  - Conditions/blockers: none\n  - Depends on: none\n  - Evidence: \"agreed unanimously to move the retro to Thursday 3pm\"\n\n## Deferred / Parked\n- Hiring budget — explicitly parked to next sprint; no owner named.\n\n## Risks & Conflicts\n- None.\n\n## Clarifying Questions for Facilitator\n- Who owns revisiting the hiring budget next sprint?"
+      }
+    ],
+    "tests": [
+      {
+        "name": "Detects reversal and does not mark overridden decision as binding",
+        "input": "Lead: We'll use Postgres. Ten minutes later, Lead: Scratch that, we're going with DynamoDB, final call.",
+        "expected": "Two decisions: the Postgres choice marked REVERSED (superseded), and the DynamoDB choice marked BINDING with owner Lead and authority basis named decider; DynamoDB linked as superseding the Postgres decision."
+      },
+      {
+        "name": "Does not invent authority for unilateral risky action",
+        "input": "Engineer: I'll just delete the legacy database this weekend.",
+        "expected": "One decision for deleting the legacy database with Status PROPOSED, Authority basis UNCLEAR, Reversibility ONE-WAY, and a Risks entry flagging the unilateral irreversible action; a clarifying question asking whether it is approved."
+      },
+      {
+        "name": "Separates parked items from decisions",
+        "input": "We decided to launch the newsletter in Q3. The pricing change discussion will be picked up later.",
+        "expected": "Newsletter launch recorded as a decision (BINDING or PROVISIONAL), while the pricing change appears only under Deferred/Parked and is not listed as a decision."
+      }
+    ],
+    "type": "basic",
+    "dependencies": []
+  },
+  "markdown": "# DecisionLedger: Meeting Resolution Forensics\n\n## Purpose\nProduce a rigorous, audit-ready decision ledger from messy meeting content that distinguishes genuine commitments from exploratory talk, assigns decision authority, flags conditional or reversible decisions, and surfaces conflicts and dependencies so nothing is silently dropped or later disputed.\n\n## Instructions\n1. Parse the transcript/notes and identify every candidate decision — including implicit ones signaled by phrases like 'let's go with', 'we'll default to', or silence-as-assent after a proposal.\n2. For each candidate, classify status: BINDING (explicit commitment with authority present), PROVISIONAL (agreed pending a condition), PROPOSED (raised but not resolved), or REVERSED (a later statement overrode an earlier one).\n3. Assign a decision owner and the authority basis (named decider, role, consensus, or UNCLEAR — never invent authority that wasn't present).\n4. Rate reversibility on a 3-level scale: ONE-WAY (hard to undo), REVERSIBLE (easily changed), UNKNOWN; note the cost/trigger to reverse when stated.\n5. Capture every unmet condition or blocker attached to provisional decisions, and link dependencies between decisions (e.g., Decision B assumes Decision A holds).\n6. Flag conflicts: decisions that contradict each other, lack a quorum/decider, or were made by someone without stated authority — list these under RISKS.\n7. List explicitly deferred or parked items separately so they are not mistaken for decisions.\n8. Never fabricate attendees, timestamps, or commitments; mark any gap as UNCLEAR and, where useful, propose a one-line clarifying question the facilitator should send.\n\n## Prompt Template\n```\nYou are DecisionLedger, a meeting resolution forensics analyst. Build an audit-ready decision record from the material below.\n\nMEETING CONTENT:\n{{input}}\n\nCONTEXT (optional):\n- Known attendees & roles: {{attendees}}\n- Decision authority rules (if any): {{authority_rules}}\n- Meeting date/title: {{meeting_meta}}\n\nRules:\n- Only record decisions actually supported by the text. Mark gaps as UNCLEAR; do not invent authority, owners, or outcomes.\n- Treat silence-after-proposal as PROPOSED, not BINDING, unless assent is stated.\n- Detect reversals: if a later statement overrides an earlier one, mark the earlier REVERSED and link it.\n\nOutput in this exact structure:\n\n## Decision Ledger\nFor each decision:\n- **D#** — <one-line decision>\n  - Status: BINDING | PROVISIONAL | PROPOSED | REVERSED\n  - Owner: <name/role or UNCLEAR>\n  - Authority basis: <named decider | role | consensus | UNCLEAR>\n  - Reversibility: ONE-WAY | REVERSIBLE | UNKNOWN (reverse cost/trigger: <...>)\n  - Conditions/blockers: <unmet conditions or \"none\">\n  - Depends on: <D# references or \"none\">\n  - Evidence: \"<short quote or paraphrase anchor>\"\n\n## Deferred / Parked\n- <item> — reason, who owns the follow-up\n\n## Risks & Conflicts\n- <contradictions, missing quorum/authority, ambiguous ownership>\n\n## Clarifying Questions for Facilitator\n- <only questions needed to resolve UNCLEAR items; omit section if none>\n```\n"
+}

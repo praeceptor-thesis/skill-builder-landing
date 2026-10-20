@@ -1,0 +1,69 @@
+{
+  "id": "a11yauditorchestrator-accessibility-to-discoverability-pipeline",
+  "name": "A11yAuditOrchestrator — Accessibility-to-Discoverability Pipeline",
+  "description": "An end-to-end web accessibility auditing workflow that crawls page content, runs a WCAG-oriented audit, then uses DataFormatTransformer to convert raw findings into structured remediation data and the SEO Meta Description Generator to produce accessible, descriptive metadata for each audited page — delivering a single report that improves both compliance and discoverability.",
+  "category": "Compliance",
+  "tags": [
+    "accessibility",
+    "wcag",
+    "seo",
+    "audit",
+    "orchestration",
+    "compliance"
+  ],
+  "type": "meta",
+  "dependencies": [
+    "@dmz_agent/seo-meta-description-generator",
+    "@design_seeder/data-format-transformer"
+  ],
+  "spec": {
+    "name": "A11yAuditOrchestrator — Accessibility-to-Discoverability Pipeline",
+    "description": "An end-to-end web accessibility auditing workflow that crawls page content, runs a WCAG-oriented audit, then uses DataFormatTransformer to convert raw findings into structured remediation data and the SEO Meta Description Generator to produce accessible, descriptive metadata for each audited page — delivering a single report that improves both compliance and discoverability.",
+    "category": "Compliance",
+    "tags": [
+      "accessibility",
+      "wcag",
+      "seo",
+      "audit",
+      "orchestration",
+      "compliance"
+    ],
+    "purpose": "Turn a list of web pages (or raw HTML) into a prioritized, machine-readable accessibility remediation report plus accessibility-aware SEO metadata, so teams fix WCAG issues and improve how assistive tech and search engines interpret each page in one coordinated pass.",
+    "instructions": [
+      "Ingest the input: accept one or more page URLs or raw HTML snippets plus optional target WCAG level (A, AA, AAA — default AA) and a page title/topic for each page.",
+      "Audit each page against WCAG success criteria: detect missing alt text, poor heading structure, insufficient color contrast, unlabeled form controls, missing landmarks/lang attributes, and non-descriptive link text. Record each finding with criterion ID, severity, location, and suggested fix.",
+      "Invoke DataFormatTransformer (@design_seeder/data-format-transformer) to normalize the raw audit findings into a consistent schema — e.g. convert the mixed free-text findings into clean JSON (and optionally CSV) with fields: page, criterion, level, severity, element, recommendation, status.",
+      "For pages flagged with missing or non-descriptive meta/summary content, extract the page's main topic and visible text, then invoke SEO Meta Description Generator (@dmz_agent/seo-meta-description-generator) to create a concise, human-readable, accessibility-friendly meta description that accurately reflects page content for both screen-reader context and search snippets.",
+      "Merge the structured findings and the generated metadata per page, cross-linking each new meta description to the specific accessibility issue it resolves (e.g. missing/empty description, vague summary).",
+      "Prioritize the combined output: sort issues by severity and WCAG level, compute a per-page compliance score and an overall rollup.",
+      "Emit a final deliverable containing: (a) an executive summary with scores, (b) the normalized machine-readable findings from DataFormatTransformer, and (c) the accessibility-aware meta descriptions from the SEO generator, each tagged to its page.",
+      "Flag any finding that cannot be auto-remediated and mark it as 'needs manual review' so humans can triage."
+    ],
+    "promptTemplate": "You are the A11yAuditOrchestrator. Run an end-to-end accessibility-to-discoverability pipeline on the following input.\n\nINPUT:\n{{input}}\n\nTARGET WCAG LEVEL: {{wcag_level}} (default AA)\nOUTPUT FORMATS: {{output_formats}} (default JSON + markdown summary)\n\nSteps:\n1. Audit each page/HTML against WCAG {{wcag_level}} criteria (alt text, headings, contrast, labels, landmarks, lang, link text).\n2. Call @design_seeder/data-format-transformer to normalize all findings into clean {{output_formats}} with fields: page, criterion, level, severity, element, recommendation, status.\n3. For any page with a missing or non-descriptive meta description, call @dmz_agent/seo-meta-description-generator using the page topic + main text to produce an accessibility-aware meta description (<=155 chars).\n4. Merge findings + generated metadata per page, cross-linking each new description to the issue it resolves.\n5. Compute per-page and overall compliance scores; sort issues by severity then WCAG level.\n6. Return: (a) executive summary with scores, (b) normalized findings, (c) generated meta descriptions, (d) a 'needs manual review' list.\n\nProduce the full report now.",
+    "examples": [
+      {
+        "title": "Single-page audit with metadata fix",
+        "input": "URL: https://shop.example.com/boots — topic: 'waterproof hiking boots'. HTML has 3 images without alt text, an empty <meta name=\"description\">, and an h3 before any h1. Target: AA. Output: JSON + markdown.",
+        "output": "Executive Summary: Compliance score 62/100 (AA). 4 issues (2 serious, 1 moderate, 1 minor).\n\nNormalized Findings (via DataFormatTransformer):\n[\n  {\"page\":\"/boots\",\"criterion\":\"1.1.1\",\"level\":\"A\",\"severity\":\"serious\",\"element\":\"img x3\",\"recommendation\":\"Add descriptive alt text\",\"status\":\"open\"},\n  {\"page\":\"/boots\",\"criterion\":\"1.3.1\",\"level\":\"A\",\"severity\":\"moderate\",\"element\":\"h3 before h1\",\"recommendation\":\"Fix heading order\",\"status\":\"open\"},\n  {\"page\":\"/boots\",\"criterion\":\"meta-description\",\"level\":\"best-practice\",\"severity\":\"minor\",\"element\":\"<meta name=description>\",\"recommendation\":\"Generate description\",\"status\":\"auto-fixed\"}\n]\n\nGenerated Meta Description (via SEO Meta Description Generator):\n/boots -> \"Shop durable waterproof hiking boots built for all-terrain comfort — breathable, grippy, and trail-ready for every adventure.\" (cross-linked to criterion: meta-description)\n\nNeeds Manual Review: Alt text wording for product images should be confirmed by a copywriter."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Orchestrates both dependencies and merges output",
+        "input": "URL: https://blog.example.com/post-1 — topic: 'remote team productivity'. HTML has 1 image missing alt, empty meta description. Target: AA. Output: JSON.",
+        "expected": "Report includes: (1) normalized JSON findings produced via DataFormatTransformer containing criterion 1.1.1 for the missing alt and a meta-description finding; (2) an accessibility-aware meta description generated via SEO Meta Description Generator, cross-linked to the meta-description finding and <=155 chars; (3) a per-page compliance score and executive summary; (4) a needs-manual-review section."
+      },
+      {
+        "name": "No metadata issue skips SEO generator",
+        "input": "URL: https://example.com/ok — already has a valid descriptive meta description and all alt text; only a contrast issue. Target: AA.",
+        "expected": "Findings list contains the contrast issue (criterion 1.4.3) normalized via DataFormatTransformer; the SEO Meta Description Generator is NOT invoked because no missing/non-descriptive meta exists, and the report notes metadata as compliant."
+      }
+    ],
+    "type": "meta",
+    "dependencies": [
+      "@dmz_agent/seo-meta-description-generator",
+      "@design_seeder/data-format-transformer"
+    ]
+  },
+  "markdown": "# A11yAuditOrchestrator — Accessibility-to-Discoverability Pipeline\n\n## Purpose\nTurn a list of web pages (or raw HTML) into a prioritized, machine-readable accessibility remediation report plus accessibility-aware SEO metadata, so teams fix WCAG issues and improve how assistive tech and search engines interpret each page in one coordinated pass.\n\n## Dependencies\nInstalling this skill also installs:\n- `@dmz_agent/seo-meta-description-generator`\n- `@design_seeder/data-format-transformer`\n\n## Instructions\n1. Ingest the input: accept one or more page URLs or raw HTML snippets plus optional target WCAG level (A, AA, AAA — default AA) and a page title/topic for each page.\n2. Audit each page against WCAG success criteria: detect missing alt text, poor heading structure, insufficient color contrast, unlabeled form controls, missing landmarks/lang attributes, and non-descriptive link text. Record each finding with criterion ID, severity, location, and suggested fix.\n3. Invoke DataFormatTransformer (@design_seeder/data-format-transformer) to normalize the raw audit findings into a consistent schema — e.g. convert the mixed free-text findings into clean JSON (and optionally CSV) with fields: page, criterion, level, severity, element, recommendation, status.\n4. For pages flagged with missing or non-descriptive meta/summary content, extract the page's main topic and visible text, then invoke SEO Meta Description Generator (@dmz_agent/seo-meta-description-generator) to create a concise, human-readable, accessibility-friendly meta description that accurately reflects page content for both screen-reader context and search snippets.\n5. Merge the structured findings and the generated metadata per page, cross-linking each new meta description to the specific accessibility issue it resolves (e.g. missing/empty description, vague summary).\n6. Prioritize the combined output: sort issues by severity and WCAG level, compute a per-page compliance score and an overall rollup.\n7. Emit a final deliverable containing: (a) an executive summary with scores, (b) the normalized machine-readable findings from DataFormatTransformer, and (c) the accessibility-aware meta descriptions from the SEO generator, each tagged to its page.\n8. Flag any finding that cannot be auto-remediated and mark it as 'needs manual review' so humans can triage.\n\n## Prompt Template\n```\nYou are the A11yAuditOrchestrator. Run an end-to-end accessibility-to-discoverability pipeline on the following input.\n\nINPUT:\n{{input}}\n\nTARGET WCAG LEVEL: {{wcag_level}} (default AA)\nOUTPUT FORMATS: {{output_formats}} (default JSON + markdown summary)\n\nSteps:\n1. Audit each page/HTML against WCAG {{wcag_level}} criteria (alt text, headings, contrast, labels, landmarks, lang, link text).\n2. Call @design_seeder/data-format-transformer to normalize all findings into clean {{output_formats}} with fields: page, criterion, level, severity, element, recommendation, status.\n3. For any page with a missing or non-descriptive meta description, call @dmz_agent/seo-meta-description-generator using the page topic + main text to produce an accessibility-aware meta description (<=155 chars).\n4. Merge findings + generated metadata per page, cross-linking each new description to the issue it resolves.\n5. Compute per-page and overall compliance scores; sort issues by severity then WCAG level.\n6. Return: (a) executive summary with scores, (b) normalized findings, (c) generated meta descriptions, (d) a 'needs manual review' list.\n\nProduce the full report now.\n```\n"
+}

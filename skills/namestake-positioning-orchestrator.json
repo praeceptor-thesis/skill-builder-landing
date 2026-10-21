@@ -1,0 +1,62 @@
+{
+  "id": "namestake-positioning-orchestrator",
+  "name": "NameStake Positioning Orchestrator",
+  "description": "An end-to-end meta-workflow that turns a raw product concept into a defensible name-and-positioning package by first grounding the launch in a realistic budget (via BudgetClarityForge), then pressure-testing every claim and proof point behind the positioning (via MethodsCredibilityDissector), and finally synthesizing names, a positioning statement, and a go-to-market message that only promise what the evidence and budget can actually back.",
+  "category": "Sales",
+  "tags": [
+    "naming",
+    "positioning",
+    "go-to-market",
+    "orchestration",
+    "branding"
+  ],
+  "type": "meta",
+  "dependencies": [
+    "@kmd_ai/budgetclarityforge",
+    "@kmd_ai/methodscredibilitydissector"
+  ],
+  "spec": {
+    "name": "NameStake Positioning Orchestrator",
+    "description": "An end-to-end meta-workflow that turns a raw product concept into a defensible name-and-positioning package by first grounding the launch in a realistic budget (via BudgetClarityForge), then pressure-testing every claim and proof point behind the positioning (via MethodsCredibilityDissector), and finally synthesizing names, a positioning statement, and a go-to-market message that only promise what the evidence and budget can actually back.",
+    "category": "Sales",
+    "tags": [
+      "naming",
+      "positioning",
+      "go-to-market",
+      "orchestration",
+      "branding"
+    ],
+    "purpose": "Produce a launch-ready naming and positioning package — candidate names, a one-line positioning statement, and a value proposition — that is simultaneously financially feasible (scoped to real budget) and credibility-safe (every differentiating claim backed by vetted evidence), so teams don't ship names or promises they can't afford or defend.",
+    "instructions": [
+      "Parse {{input}} into a structured brief: product concept, target audience, category, draft claims/differentiators, available launch budget, and any research or data the team cites as proof.",
+      "Invoke @kmd_ai/budgetclarityforge on the launch budget and concept to clarify what the team can realistically fund (naming research, trademark search, campaign reach, positioning testing). Capture the resulting budget tiers and constraints as hard inputs for the rest of the workflow.",
+      "Invoke @kmd_ai/methodscredibilitydissector on each cited proof point, benchmark, or research claim behind the differentiators. Tag every claim as DEFENSIBLE, QUALIFIED, or UNSUPPORTED based on its output, and record the exact qualifiers it surfaces.",
+      "Build the positioning statement using ONLY claims tagged DEFENSIBLE or QUALIFIED — rewrite or drop any UNSUPPORTED claim, and attach the credibility qualifiers to any QUALIFIED claim so the messaging stays honest.",
+      "Generate 5-8 candidate names scoped to what the budget tier allows (e.g., skip names needing deep trademark clearance or global linguistic testing if the budget can't fund it), and flag each name's rough clearance/research cost against the BudgetClarityForge tiers.",
+      "Cross-check that each name's implied promise matches the credibility-vetted positioning — reject any name that implies a claim the evidence does not support.",
+      "Output a single package: a shortlist of feasible, defensible names; the evidence-backed positioning statement; a one-line value proposition; and a 'cut list' of claims and name ideas that were removed with the budget or credibility reason for each.",
+      "If budget data or proof points are missing, state the specific gap and show the best package achievable with what was provided, noting what would unlock stronger options."
+    ],
+    "promptTemplate": "You are the NameStake Positioning Orchestrator. Turn the brief below into a launch-ready naming and positioning package that is both budget-feasible and credibility-safe.\n\nBRIEF:\n{{input}}\n\nExecute in order:\n1. Extract concept, audience, category, draft claims/differentiators, launch budget, and cited proof into a structured brief.\n2. Run @kmd_ai/budgetclarityforge on the budget + concept. Summarize affordable budget tiers and which naming/positioning activities (trademark search, linguistic testing, concept testing, campaign reach) they cover.\n3. Run @kmd_ai/methodscredibilitydissector on every cited proof point. Tag each as DEFENSIBLE / QUALIFIED / UNSUPPORTED and list its required qualifiers.\n4. Draft the positioning statement using only DEFENSIBLE/QUALIFIED claims, attaching qualifiers where needed.\n5. Generate 5-8 names scoped to the affordable budget tier, with a rough clearance cost note for each.\n6. Reject names whose implied promise exceeds the vetted evidence.\n\nOUTPUT:\n- Budget-feasible context (tier + what it funds)\n- Evidence-backed positioning statement\n- One-line value proposition\n- Name shortlist (name | vibe | clearance cost note | credibility fit)\n- Cut list (removed claim/name + budget or credibility reason)\n- Gaps & unlocks (what missing data would improve the package)",
+    "examples": [
+      {
+        "title": "B2B analytics tool launch on a tight budget",
+        "input": "We're launching a new analytics tool for mid-market finance teams. Draft claims: '10x faster than spreadsheets', 'cuts close time by 40% (based on 3 pilot customers)', 'bank-grade security'. Launch budget: $25k. We want 5 name ideas and a positioning line.",
+        "output": "BUDGET-FEASIBLE CONTEXT (via BudgetClarityForge): $25k maps to the 'Lean Launch' tier — covers US-only trademark knockout search + light concept testing, but NOT global linguistic screening or large paid-reach campaigns. Name clearance should favor coined/invented marks to reduce legal cost.\n\nEVIDENCE-BACKED POSITIONING (via MethodsCredibilityDissector): '10x faster' = UNSUPPORTED (no benchmark method) -> dropped. 'cuts close time by 40%' = QUALIFIED (n=3 pilots; small sample) -> kept with qualifier 'in early pilots'. 'bank-grade security' = UNSUPPORTED (no certification cited) -> softened to 'encrypted, access-controlled'.\n\nPositioning statement: 'For mid-market finance teams, [Name] is the close-management analytics tool that cut close time by up to 40% in early pilots — with encrypted, access-controlled data.'\n\nValue proposition: 'Close the books faster, on evidence you can audit.'\n\nName shortlist:\n- Ledgerly | approachable, invented | low clearance cost, fits Lean tier | credibility fit: good\n- Closeline | descriptive of close process | medium clearance (descriptive risk) | good\n- Veritable | implies trust/accuracy | medium clearance | fits 'auditable' promise\n- Cadence Books | implies rhythm of closing | low clearance | good\n- Tallyforth | coined, distinctive | low clearance, cheapest to defend | good\n\nCUT LIST:\n- '10x faster' claim: removed (UNSUPPORTED, no method).\n- 'bank-grade security' claim: removed (UNSUPPORTED, no cert).\n- Name 'VaultAnalytics': rejected — implies security certification the evidence can't back.\n\nGAPS & UNLOCKS: A documented benchmark vs. spreadsheets would restore a speed claim; a SOC 2 cert would unlock a security claim. A $40k+ budget would fund global linguistic screening, widening safe name options."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Suppresses unsupported claims in naming",
+        "input": "Launch a sleep supplement. Claim: 'clinically proven to cure insomnia'. Only proof: one unpublished internal survey. Budget: $8k. Give 4 names and a positioning line.",
+        "expected": "BudgetClarityForge scopes the $8k to a minimal tier (no large testing/clearance). MethodsCredibilityDissector tags 'clinically proven to cure insomnia' as UNSUPPORTED (unpublished internal survey, no RCT). The positioning statement omits any 'cure'/'clinically proven' language, names avoid clinical/medical promises, and the cut list records the removed claim and any rejected clinical-sounding names with the credibility reason."
+      }
+    ],
+    "type": "meta",
+    "dependencies": [
+      "@kmd_ai/budgetclarityforge",
+      "@kmd_ai/methodscredibilitydissector"
+    ]
+  },
+  "markdown": "# NameStake Positioning Orchestrator\n\n## Purpose\nProduce a launch-ready naming and positioning package — candidate names, a one-line positioning statement, and a value proposition — that is simultaneously financially feasible (scoped to real budget) and credibility-safe (every differentiating claim backed by vetted evidence), so teams don't ship names or promises they can't afford or defend.\n\n## Dependencies\nInstalling this skill also installs:\n- `@kmd_ai/budgetclarityforge`\n- `@kmd_ai/methodscredibilitydissector`\n\n## Instructions\n1. Parse {{input}} into a structured brief: product concept, target audience, category, draft claims/differentiators, available launch budget, and any research or data the team cites as proof.\n2. Invoke @kmd_ai/budgetclarityforge on the launch budget and concept to clarify what the team can realistically fund (naming research, trademark search, campaign reach, positioning testing). Capture the resulting budget tiers and constraints as hard inputs for the rest of the workflow.\n3. Invoke @kmd_ai/methodscredibilitydissector on each cited proof point, benchmark, or research claim behind the differentiators. Tag every claim as DEFENSIBLE, QUALIFIED, or UNSUPPORTED based on its output, and record the exact qualifiers it surfaces.\n4. Build the positioning statement using ONLY claims tagged DEFENSIBLE or QUALIFIED — rewrite or drop any UNSUPPORTED claim, and attach the credibility qualifiers to any QUALIFIED claim so the messaging stays honest.\n5. Generate 5-8 candidate names scoped to what the budget tier allows (e.g., skip names needing deep trademark clearance or global linguistic testing if the budget can't fund it), and flag each name's rough clearance/research cost against the BudgetClarityForge tiers.\n6. Cross-check that each name's implied promise matches the credibility-vetted positioning — reject any name that implies a claim the evidence does not support.\n7. Output a single package: a shortlist of feasible, defensible names; the evidence-backed positioning statement; a one-line value proposition; and a 'cut list' of claims and name ideas that were removed with the budget or credibility reason for each.\n8. If budget data or proof points are missing, state the specific gap and show the best package achievable with what was provided, noting what would unlock stronger options.\n\n## Prompt Template\n```\nYou are the NameStake Positioning Orchestrator. Turn the brief below into a launch-ready naming and positioning package that is both budget-feasible and credibility-safe.\n\nBRIEF:\n{{input}}\n\nExecute in order:\n1. Extract concept, audience, category, draft claims/differentiators, launch budget, and cited proof into a structured brief.\n2. Run @kmd_ai/budgetclarityforge on the budget + concept. Summarize affordable budget tiers and which naming/positioning activities (trademark search, linguistic testing, concept testing, campaign reach) they cover.\n3. Run @kmd_ai/methodscredibilitydissector on every cited proof point. Tag each as DEFENSIBLE / QUALIFIED / UNSUPPORTED and list its required qualifiers.\n4. Draft the positioning statement using only DEFENSIBLE/QUALIFIED claims, attaching qualifiers where needed.\n5. Generate 5-8 names scoped to the affordable budget tier, with a rough clearance cost note for each.\n6. Reject names whose implied promise exceeds the vetted evidence.\n\nOUTPUT:\n- Budget-feasible context (tier + what it funds)\n- Evidence-backed positioning statement\n- One-line value proposition\n- Name shortlist (name | vibe | clearance cost note | credibility fit)\n- Cut list (removed claim/name + budget or credibility reason)\n- Gaps & unlocks (what missing data would improve the package)\n```\n"
+}

@@ -1,0 +1,69 @@
+{
+  "id": "trainingplatform-launchpad-orchestrator",
+  "name": "TrainingPlatform Launchpad Orchestrator",
+  "description": "An end-to-end meta-workflow that turns a raw fitness/training-program codebase into a launch-ready coaching product by onboarding the repository, scaffolding the trainee-facing UI from a component library, and financially vetting the program's monetization and operating plan before go-live.",
+  "category": "Automation",
+  "tags": [
+    "fitness",
+    "orchestration",
+    "launch-readiness",
+    "training-programs",
+    "meta-skill"
+  ],
+  "type": "meta",
+  "dependencies": [
+    "@kmd_ai/repository-onboarding-agent",
+    "@kmd_ai/frontend-component-library",
+    "@kmd_ai/budgetjustificationriskauditor"
+  ],
+  "spec": {
+    "name": "TrainingPlatform Launchpad Orchestrator",
+    "description": "An end-to-end meta-workflow that turns a raw fitness/training-program codebase into a launch-ready coaching product by onboarding the repository, scaffolding the trainee-facing UI from a component library, and financially vetting the program's monetization and operating plan before go-live.",
+    "category": "Automation",
+    "tags": [
+      "fitness",
+      "orchestration",
+      "launch-readiness",
+      "training-programs",
+      "meta-skill"
+    ],
+    "purpose": "Deliver a shippable, financially-sound fitness training application from a half-built repository, by orchestrating code onboarding, UI assembly, and budget/risk auditing so a coaching business can launch a program with confidence instead of stitching these steps together manually.",
+    "instructions": [
+      "Parse {{input}} to extract the three launch dimensions: (a) the training-program repository location/description, (b) the trainee-facing experience to build (dashboards, workout logging, progress charts), and (c) the monetization/operating plan (pricing tiers, coach payroll, equipment/content costs).",
+      "Invoke @kmd_ai/repository-onboarding-agent on the repository to produce a structured onboarding map: architecture overview, how training-program data models (plans, workouts, sets/reps, athlete profiles) are represented, available APIs/endpoints, and the gaps that must be filled before a UI can be attached.",
+      "Translate the onboarding map into a UI requirements brief — list the concrete screens and data bindings the trainee product needs (program calendar, session logger, progress/PR tracker, coach messaging) derived strictly from the models and endpoints the onboarding agent surfaced.",
+      "Invoke @kmd_ai/frontend-component-library using that brief to scaffold each screen from reusable components, wiring component props to the repository's actual data contracts so the generated UI is buildable, not hypothetical.",
+      "Assemble the commercial plan: combine the program's monetization tiers, projected coach/athlete volumes, and any infrastructure or content-production costs implied by the onboarded features into a single budget narrative.",
+      "Invoke @kmd_ai/budgetjustificationriskauditor on that budget narrative to validate pricing-to-cost margins, flag unjustified spend, and surface financial/operational risks (churn sensitivity, coach-time scaling, content cost creep).",
+      "Reconcile cross-skill findings: if the audit flags a feature whose cost outweighs value, loop back and mark the corresponding UI screen as deferred; if onboarding revealed a missing model, note it as a launch blocker rather than scaffolding UI on top of it.",
+      "Produce one consolidated Launch Readiness Report: onboarding summary, scaffolded screen inventory with data bindings, audited budget verdict with risk flags, and a prioritized go/no-go action list with owners."
+    ],
+    "promptTemplate": "You are the TrainingPlatform Launchpad Orchestrator. Given the launch request below, run the full workflow and return a Launch Readiness Report.\n\nLAUNCH REQUEST:\n{{input}}\n\nExecute in order and show the output of each stage:\n1. REPOSITORY ONBOARDING — Call @kmd_ai/repository-onboarding-agent on the training-program repo. Output: architecture map, training data models (plans/workouts/sets/athletes), available endpoints, and gaps/blockers.\n2. UI REQUIREMENTS BRIEF — Derive the exact trainee-facing screens and their data bindings ONLY from models/endpoints found in step 1.\n3. UI SCAFFOLD — Call @kmd_ai/frontend-component-library with the brief. Output: per-screen component inventory with props wired to real data contracts.\n4. COMMERCIAL PLAN — Assemble monetization tiers, volume projections, and feature-driven operating costs into a budget narrative.\n5. BUDGET & RISK AUDIT — Call @kmd_ai/budgetjustificationriskauditor on the budget narrative. Output: margin verdict, unjustified-spend flags, financial/operational risks.\n6. RECONCILIATION — Cross-reference: defer UI screens that fail the cost-value test; mark missing-model blockers; never scaffold UI atop unresolved onboarding gaps.\n7. LAUNCH READINESS REPORT — Consolidate all stages into a prioritized go/no-go action list with owners.",
+    "examples": [
+      {
+        "title": "Launching a strength-coaching web app from an inherited repo",
+        "input": "Repo: github.com/peakform/strength-core (a Node/Postgres backend for periodized strength programs, partly built). Build a trainee web app with a program calendar, daily session logger, and 1RM/PR progress tracker. Monetization: $29/mo Solo and $79/mo Coach-managed tiers; we expect 400 athletes and 12 part-time coaches at $25/hr; plus $600/mo video content hosting.",
+        "output": "LAUNCH READINESS REPORT\n1. Onboarding: Found Program, Mesocycle, Workout, SetEntry, Athlete models + REST endpoints for plans/sessions. Gap: no PR/1RM aggregation endpoint; messaging table absent.\n2. UI Brief: Calendar (binds Mesocycle→Workout), Session Logger (binds SetEntry CRUD), PR Tracker (NEEDS missing 1RM endpoint — flagged), Coach Messaging (BLOCKED, no model).\n3. Scaffold: CalendarGrid + WorkoutCard (wired), SetLoggerForm (wired to SetEntry), ProgressChart (stubbed pending endpoint). Messaging screen NOT scaffolded.\n4. Commercial Plan: Revenue ~$29–79×400; coach cost 12×~20hr×$25; +$600 content.\n5. Audit Verdict: Healthy margin on Solo tier; Coach-managed tier margin thin — coach-hours scale linearly with athletes, churn-sensitive. Flag: $600 content spend unjustified until retention proven.\n6. Reconciliation: Defer Coach Messaging to v2 (blocker + low early ROI). PR Tracker gated on building 1RM endpoint. Trim content budget to usage-based.\n7. Go/No-Go: CONDITIONAL GO. Actions: (a) build 1RM endpoint [backend], (b) ship Calendar+Logger MVP [frontend], (c) cap coach hours & re-price Coach tier [ops/finance], (d) defer messaging [product]."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Respects onboarding gaps before scaffolding UI",
+        "input": "Repo: a HIIT-program API with Workout and Athlete models but NO progress/metrics model. Build a trainee app with workout player AND a long-term progress analytics dashboard. Pricing: $15/mo, 1000 users, $200/mo infra.",
+        "expected": "Workflow onboards the repo and identifies the missing progress/metrics model as a blocker; scaffolds the workout player (backed by real Workout model) but marks the progress analytics dashboard as BLOCKED/not-scaffolded pending a new model; the audit assesses the $15×1000 vs $200 infra margin; the final report lists building the metrics model as a prioritized go/no-go action with an owner rather than generating a UI on top of a nonexistent data contract."
+      },
+      {
+        "name": "Audit feedback defers a costly low-value feature",
+        "input": "Repo: complete yoga-class booking backend. Build booking UI plus an AI pose-correction video feature. Pricing: $10/mo, 150 users; pose feature needs $3000/mo GPU hosting.",
+        "expected": "Onboarding confirms booking models exist; UI brief/scaffold produces booking screens; commercial plan includes the $3000/mo GPU cost; the budget/risk audit flags the pose feature as unjustified against $10×150 revenue; reconciliation defers the pose-correction UI screen and the report issues a CONDITIONAL GO shipping booking first with pose-correction deferred."
+      }
+    ],
+    "type": "meta",
+    "dependencies": [
+      "@kmd_ai/repository-onboarding-agent",
+      "@kmd_ai/frontend-component-library",
+      "@kmd_ai/budgetjustificationriskauditor"
+    ]
+  },
+  "markdown": "# TrainingPlatform Launchpad Orchestrator\n\n## Purpose\nDeliver a shippable, financially-sound fitness training application from a half-built repository, by orchestrating code onboarding, UI assembly, and budget/risk auditing so a coaching business can launch a program with confidence instead of stitching these steps together manually.\n\n## Dependencies\nInstalling this skill also installs:\n- `@kmd_ai/repository-onboarding-agent`\n- `@kmd_ai/frontend-component-library`\n- `@kmd_ai/budgetjustificationriskauditor`\n\n## Instructions\n1. Parse {{input}} to extract the three launch dimensions: (a) the training-program repository location/description, (b) the trainee-facing experience to build (dashboards, workout logging, progress charts), and (c) the monetization/operating plan (pricing tiers, coach payroll, equipment/content costs).\n2. Invoke @kmd_ai/repository-onboarding-agent on the repository to produce a structured onboarding map: architecture overview, how training-program data models (plans, workouts, sets/reps, athlete profiles) are represented, available APIs/endpoints, and the gaps that must be filled before a UI can be attached.\n3. Translate the onboarding map into a UI requirements brief — list the concrete screens and data bindings the trainee product needs (program calendar, session logger, progress/PR tracker, coach messaging) derived strictly from the models and endpoints the onboarding agent surfaced.\n4. Invoke @kmd_ai/frontend-component-library using that brief to scaffold each screen from reusable components, wiring component props to the repository's actual data contracts so the generated UI is buildable, not hypothetical.\n5. Assemble the commercial plan: combine the program's monetization tiers, projected coach/athlete volumes, and any infrastructure or content-production costs implied by the onboarded features into a single budget narrative.\n6. Invoke @kmd_ai/budgetjustificationriskauditor on that budget narrative to validate pricing-to-cost margins, flag unjustified spend, and surface financial/operational risks (churn sensitivity, coach-time scaling, content cost creep).\n7. Reconcile cross-skill findings: if the audit flags a feature whose cost outweighs value, loop back and mark the corresponding UI screen as deferred; if onboarding revealed a missing model, note it as a launch blocker rather than scaffolding UI on top of it.\n8. Produce one consolidated Launch Readiness Report: onboarding summary, scaffolded screen inventory with data bindings, audited budget verdict with risk flags, and a prioritized go/no-go action list with owners.\n\n## Prompt Template\n```\nYou are the TrainingPlatform Launchpad Orchestrator. Given the launch request below, run the full workflow and return a Launch Readiness Report.\n\nLAUNCH REQUEST:\n{{input}}\n\nExecute in order and show the output of each stage:\n1. REPOSITORY ONBOARDING — Call @kmd_ai/repository-onboarding-agent on the training-program repo. Output: architecture map, training data models (plans/workouts/sets/athletes), available endpoints, and gaps/blockers.\n2. UI REQUIREMENTS BRIEF — Derive the exact trainee-facing screens and their data bindings ONLY from models/endpoints found in step 1.\n3. UI SCAFFOLD — Call @kmd_ai/frontend-component-library with the brief. Output: per-screen component inventory with props wired to real data contracts.\n4. COMMERCIAL PLAN — Assemble monetization tiers, volume projections, and feature-driven operating costs into a budget narrative.\n5. BUDGET & RISK AUDIT — Call @kmd_ai/budgetjustificationriskauditor on the budget narrative. Output: margin verdict, unjustified-spend flags, financial/operational risks.\n6. RECONCILIATION — Cross-reference: defer UI screens that fail the cost-value test; mark missing-model blockers; never scaffold UI atop unresolved onboarding gaps.\n7. LAUNCH READINESS REPORT — Consolidate all stages into a prioritized go/no-go action list with owners.\n```\n"
+}

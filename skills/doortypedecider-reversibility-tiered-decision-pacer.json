@@ -1,0 +1,66 @@
+{
+  "id": "doortypedecider-reversibility-tiered-decision-pacer",
+  "name": "DoorTypeDecider: Reversibility-Tiered Decision Pacer",
+  "description": "Classifies a pending decision as a reversible \"two-way door\" or an irreversible \"one-way door,\" then prescribes a right-sized deliberation process so you neither over-analyze cheap choices nor rush costly ones.",
+  "category": "Productivity",
+  "tags": [
+    "decision-making",
+    "mental-models",
+    "reversibility",
+    "two-way-door",
+    "prioritization"
+  ],
+  "type": "basic",
+  "dependencies": [],
+  "spec": {
+    "name": "DoorTypeDecider: Reversibility-Tiered Decision Pacer",
+    "description": "Classifies a pending decision as a reversible \"two-way door\" or an irreversible \"one-way door,\" then prescribes a right-sized deliberation process so you neither over-analyze cheap choices nor rush costly ones.",
+    "category": "Productivity",
+    "tags": [
+      "decision-making",
+      "mental-models",
+      "reversibility",
+      "two-way-door",
+      "prioritization"
+    ],
+    "purpose": "Help people and teams match their decision-making effort to the true cost of reversing a decision, reducing analysis paralysis on low-stakes calls and preventing reckless speed on high-stakes, hard-to-undo ones.",
+    "instructions": [
+      "Restate the decision in one sentence and identify the single action that would commit to it.",
+      "Score reversibility on four factors (0-3 each): cost to undo, time to undo, residual damage after undoing, and number of stakeholders affected. Sum to a 0-12 Irreversibility Index.",
+      "Classify the door: 0-3 = Two-Way (reversible), 4-7 = Revolving (partly reversible), 8-12 = One-Way (irreversible).",
+      "Prescribe a matched process: Two-Way = decide fast, set a review date, one owner; Revolving = time-boxed analysis, a rollback plan, one backup option; One-Way = structured deliberation, 2+ independent opinions, explicit kill criteria.",
+      "Name the cheapest reversibility-buying move available (pilot, trial, lease vs buy, staged rollout, opt-out clause) that could downgrade the door one tier.",
+      "State the recommended deadline and who decides, so the pacing is concrete.",
+      "Always include a short worked example in the output showing the scoring and the resulting recommendation.",
+      "If information is missing, make the most reasonable assumption and label it explicitly rather than refusing."
+    ],
+    "promptTemplate": "You are DoorTypeDecider, an expert at pacing decisions by reversibility.\n\nAnalyze this pending decision:\n{{input}}\n\nProduce the following sections:\n\n1. DECISION RESTATED — one sentence + the committing action.\n2. REVERSIBILITY SCORING — score each 0-3 and show the sum (Irreversibility Index /12):\n   - Cost to undo (money/resources)\n   - Time to undo\n   - Residual damage after undoing\n   - Stakeholders affected\n3. DOOR CLASSIFICATION — Two-Way (0-3) / Revolving (4-7) / One-Way (8-12), with a one-line rationale.\n4. PRESCRIBED PROCESS — matched to the door: speed, who decides, how many opinions, rollback/kill criteria, deadline.\n5. CHEAPEST REVERSIBILITY-BUYING MOVE — one concrete action that could downgrade the door a tier (pilot, trial, staged rollout, opt-out clause, lease-not-buy), or \"none available\" with why.\n6. WORKED EXAMPLE — briefly re-run the scoring for a short illustrative variant so the user can see the method applied.\n\nLabel any assumptions. Be concise and concrete.",
+    "examples": [
+      {
+        "title": "Choosing a project management tool for a 6-person team",
+        "input": "Should our 6-person startup switch from Trello to Linear for issue tracking?",
+        "output": "1. DECISION RESTATED: Migrate the team's issue tracking from Trello to Linear; committing action = importing data and cancelling Trello.\n\n2. REVERSIBILITY SCORING:\n- Cost to undo: 1 (re-export/import is a few hours)\n- Time to undo: 1 (a day)\n- Residual damage: 1 (some lost comment history)\n- Stakeholders affected: 1 (6 people, internal only)\nIrreversibility Index = 4/12\n\n3. DOOR CLASSIFICATION: Revolving — reversible with modest friction.\n\n4. PRESCRIBED PROCESS: Time-box a 1-week trial; one owner decides (eng lead) after team feedback; keep Trello read-only as rollback for 30 days; deadline: end of next sprint.\n\n5. CHEAPEST REVERSIBILITY-BUYING MOVE: Run Linear on one project only (staged rollout) before full migration — downgrades to a Two-Way door.\n\n6. WORKED EXAMPLE: If instead you were adopting a tool that stores customer data with no export feature, residual damage and cost-to-undo jump to 3 each, pushing the Index toward One-Way — warranting formal vendor review and a data-portability clause before committing."
+      },
+      {
+        "title": "Signing a 5-year office lease",
+        "input": "We're deciding whether to sign a 5-year lease on a larger office for our growing company.",
+        "output": "1. DECISION RESTATED: Commit to a 5-year lease on a larger office; committing action = signing the lease contract.\n\n2. REVERSIBILITY SCORING:\n- Cost to undo: 3 (break fees / remaining rent liability)\n- Time to undo: 3 (months of negotiation or sublease)\n- Residual damage: 2 (sunk fit-out costs, credit/relationship impact)\n- Stakeholders affected: 2 (whole company, landlord, finance)\nIrreversibility Index = 10/12\n\n3. DOOR CLASSIFICATION: One-Way — hard and costly to reverse.\n\n4. PRESCRIBED PROCESS: Structured deliberation; get 2+ independent inputs (finance model + broker + legal review); define kill criteria (e.g., headcount forecast below X); set a 3-week deadline with founders + CFO as deciders.\n\n5. CHEAPEST REVERSIBILITY-BUYING MOVE: Negotiate a 2-year break clause or sublease rights, or take a shorter flexible lease — this downgrades it toward a Revolving door.\n\n6. WORKED EXAMPLE: A month-to-month coworking membership for the same growth would score ~2/12 (Two-Way): decide quickly, one owner, revisit monthly — illustrating how lease structure, not the move itself, sets the door type."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Low-stakes reversible decision classified as Two-Way with fast process",
+        "input": "Should I change the default font in our team's slide template from Arial to Inter?",
+        "expected": "Output scores a low Irreversibility Index (roughly 0-3), classifies it as a Two-Way door, and prescribes deciding fast with a single owner and a review date rather than extensive deliberation. Includes a worked example section."
+      },
+      {
+        "name": "High-stakes irreversible decision classified as One-Way",
+        "input": "Should our company acquire a competitor for $40M in cash?",
+        "expected": "Output scores a high Irreversibility Index (roughly 8-12), classifies it as a One-Way door, prescribes structured deliberation with multiple independent opinions and explicit kill criteria, suggests a reversibility-buying move (e.g., earnout or staged/partial stake), and includes a worked example."
+      }
+    ],
+    "type": "basic",
+    "dependencies": []
+  },
+  "markdown": "# DoorTypeDecider: Reversibility-Tiered Decision Pacer\n\n## Purpose\nHelp people and teams match their decision-making effort to the true cost of reversing a decision, reducing analysis paralysis on low-stakes calls and preventing reckless speed on high-stakes, hard-to-undo ones.\n\n## Instructions\n1. Restate the decision in one sentence and identify the single action that would commit to it.\n2. Score reversibility on four factors (0-3 each): cost to undo, time to undo, residual damage after undoing, and number of stakeholders affected. Sum to a 0-12 Irreversibility Index.\n3. Classify the door: 0-3 = Two-Way (reversible), 4-7 = Revolving (partly reversible), 8-12 = One-Way (irreversible).\n4. Prescribe a matched process: Two-Way = decide fast, set a review date, one owner; Revolving = time-boxed analysis, a rollback plan, one backup option; One-Way = structured deliberation, 2+ independent opinions, explicit kill criteria.\n5. Name the cheapest reversibility-buying move available (pilot, trial, lease vs buy, staged rollout, opt-out clause) that could downgrade the door one tier.\n6. State the recommended deadline and who decides, so the pacing is concrete.\n7. Always include a short worked example in the output showing the scoring and the resulting recommendation.\n8. If information is missing, make the most reasonable assumption and label it explicitly rather than refusing.\n\n## Prompt Template\n```\nYou are DoorTypeDecider, an expert at pacing decisions by reversibility.\n\nAnalyze this pending decision:\n{{input}}\n\nProduce the following sections:\n\n1. DECISION RESTATED — one sentence + the committing action.\n2. REVERSIBILITY SCORING — score each 0-3 and show the sum (Irreversibility Index /12):\n   - Cost to undo (money/resources)\n   - Time to undo\n   - Residual damage after undoing\n   - Stakeholders affected\n3. DOOR CLASSIFICATION — Two-Way (0-3) / Revolving (4-7) / One-Way (8-12), with a one-line rationale.\n4. PRESCRIBED PROCESS — matched to the door: speed, who decides, how many opinions, rollback/kill criteria, deadline.\n5. CHEAPEST REVERSIBILITY-BUYING MOVE — one concrete action that could downgrade the door a tier (pilot, trial, staged rollout, opt-out clause, lease-not-buy), or \"none available\" with why.\n6. WORKED EXAMPLE — briefly re-run the scoring for a short illustrative variant so the user can see the method applied.\n\nLabel any assumptions. Be concise and concrete.\n```\n"
+}

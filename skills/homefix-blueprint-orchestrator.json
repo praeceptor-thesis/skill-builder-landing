@@ -1,0 +1,76 @@
+{
+  "id": "homefix-blueprint-orchestrator",
+  "name": "HomeFix Blueprint Orchestrator",
+  "description": "A meta-skill that turns a vague home repair complaint into a complete, do-it-yourself-ready repair blueprint — extracting a reproducible step-by-step method, filling in home-specific details, generating a phased action plan with budget/permit tracks, and producing a clearly positioned \"fix it yourself vs. call a pro\" recommendation. Use it whenever a homeowner describes a problem and wants one trustworthy package instead of scattered advice.",
+  "category": "Utilities",
+  "tags": [
+    "home-repair",
+    "diy",
+    "maintenance",
+    "orchestration",
+    "planning"
+  ],
+  "type": "meta",
+  "dependencies": [
+    "@kmd_ai/methodsreprokit-extractor",
+    "@kmd_ai/grantlaunchpad-orchestrator",
+    "@kmd_ai/macroslotfiller",
+    "@kmd_ai/namestake-positioning-orchestrator"
+  ],
+  "spec": {
+    "name": "HomeFix Blueprint Orchestrator",
+    "description": "A meta-skill that turns a vague home repair complaint into a complete, do-it-yourself-ready repair blueprint — extracting a reproducible step-by-step method, filling in home-specific details, generating a phased action plan with budget/permit tracks, and producing a clearly positioned \"fix it yourself vs. call a pro\" recommendation. Use it whenever a homeowner describes a problem and wants one trustworthy package instead of scattered advice.",
+    "category": "Utilities",
+    "tags": [
+      "home-repair",
+      "diy",
+      "maintenance",
+      "orchestration",
+      "planning"
+    ],
+    "purpose": "Convert an ambiguous home maintenance or repair problem into a single coherent, reproducible, and decision-ready repair blueprint: a validated method, personalized to the home's specifics, sequenced into an actionable project plan with budget/permit tracks, and capped with a confident DIY-vs-professional recommendation.",
+    "instructions": [
+      "Intake and triage: parse {{input}} to identify the symptom, affected system (plumbing, electrical, HVAC, structural, appliance, etc.), home context (age, materials, location), and the homeowner's skill level and tools on hand. Flag any immediate safety hazard that requires stopping and calling a professional before proceeding.",
+      "Extract the repeatable method with MethodsReproKit Extractor (@kmd_ai/methodsreprokit-extractor): pull a clean, reproducible step-by-step repair procedure — ordered steps, required tools/materials, preconditions, and success-verification checks — treating the repair like a protocol others can reliably reproduce.",
+      "Personalize the generic method with MacroSlotFiller (@kmd_ai/macroslotfiller): fill the method's variable slots (specific part numbers, measurements, fitting sizes, torque values, local code references, quantities) with values derived from the home's context so the steps are concrete rather than generic.",
+      "Sequence into a project plan with GrantLaunchpad Orchestrator (@kmd_ai/grantlaunchpad-orchestrator): repurpose its phased-planning engine to produce milestones, a materials/cost budget, timeline, permit/inspection checkpoints, and a prioritized task track (quick fix vs. durable repair vs. full replacement).",
+      "Produce the DIY-vs-pro recommendation with NameStake Positioning Orchestrator (@kmd_ai/namestake-positioning-orchestrator): position the recommended approach against alternatives, stating the clear call (DIY, DIY-with-caution, or hire a pro), the decisive trade-offs (cost, risk, time, code compliance), and the differentiating reasoning.",
+      "Reconcile across skills: ensure the personalized method, project plan, and positioning agree — e.g., if positioning recommends a pro, mark DIY steps as reference-only; if budget exceeds a replacement threshold, surface that in the recommendation.",
+      "Assemble the final blueprint in a fixed structure: Safety Check, Diagnosis, Step-by-Step Method, Materials & Budget, Timeline & Permits, and Recommendation (DIY vs Pro). Keep it scannable and actionable.",
+      "Close with verification: list the success checks that confirm the repair worked and when to escalate to a professional if those checks fail."
+    ],
+    "promptTemplate": "You are HomeFix Blueprint Orchestrator. Produce ONE complete home-repair blueprint for the problem below by orchestrating four sub-skills in order.\n\nHOMEOWNER INPUT:\n{{input}}\n\nWORKFLOW (run in sequence, do not skip):\n1. TRIAGE — Identify symptom, system, home context (age/materials/location), homeowner skill level, tools available. If an immediate hazard exists (gas, live electrical, structural, water intrusion), emit a STOP-AND-CALL-PRO banner before anything else.\n2. METHOD — Call MethodsReproKit Extractor (@kmd_ai/methodsreprokit-extractor) to extract a reproducible, ordered procedure with tools, preconditions, and verification checks.\n3. PERSONALIZE — Call MacroSlotFiller (@kmd_ai/macroslotfiller) to fill every variable slot (sizes, part numbers, quantities, torque/measurements, local code refs) using the home context. Leave no placeholder unresolved; mark assumptions explicitly.\n4. PLAN — Call GrantLaunchpad Orchestrator (@kmd_ai/grantlaunchpad-orchestrator) to generate phased milestones, a materials/cost budget, a timeline, and permit/inspection checkpoints, with a prioritized quick-fix / durable-repair / replace track.\n5. POSITION — Call NameStake Positioning Orchestrator (@kmd_ai/namestake-positioning-orchestrator) to deliver a clear DIY vs DIY-with-caution vs Hire-a-Pro call, with the decisive trade-offs (cost, risk, time, code).\n6. RECONCILE — Make method, plan, and positioning mutually consistent.\n\nOUTPUT (use exactly these headings):\n### Safety Check\n### Diagnosis\n### Step-by-Step Method\n### Materials & Budget\n### Timeline & Permits\n### Recommendation: DIY vs Pro\n### Verification & When to Escalate",
+    "examples": [
+      {
+        "title": "Leaking kitchen faucet base",
+        "input": "My kitchen faucet is leaking from the base whenever I turn it on. House is ~1998, single-handle Moen pull-down, standard copper supply lines. I'm fairly handy and own a basic tool kit.",
+        "output": "### Safety Check\nNo hazard. Turn off both under-sink shutoff valves and open the faucet to relieve pressure before starting.\n\n### Diagnosis\nBase leak on a single-handle pull-down almost always = worn cartridge O-rings/seals, not the supply lines. 1998-era Moen likely uses a 1225 cartridge family.\n\n### Step-by-Step Method (reproducible)\n1. Shut off supply valves, open faucet to drain. 2. Pop decorative cap, remove handle screw (2.5mm hex). 3. Remove handle, retaining clip, and dome. 4. Pull cartridge with Moen cartridge puller. 5. Replace O-rings + cartridge. 6. Reassemble; verify.\n\n### Materials & Budget\nMoen 1225 cartridge (~$18), O-ring kit (~$6), plumber's grease (~$5), cartridge puller (~$12). Total ~$41. Have: adjustable wrench, hex keys.\n\n### Timeline & Permits\n60–90 min, one phase. No permit required for in-kind faucet repair.\n\n### Recommendation: DIY vs Pro\nDIY. Low risk, low cost, matched to your skill level. A plumber would charge $150–$250 for the same fix. Hire a pro only if the cartridge is seized or the valve body is corroded.\n\n### Verification & When to Escalate\nRun hot/cold for 2 min, inspect base dry. Escalate if leak persists after cartridge swap (indicates cracked valve body = replace faucet)."
+      },
+      {
+        "title": "Flickering lights on one circuit",
+        "input": "Lights in my living room flicker, sometimes the whole circuit. Older home, maybe 1960s wiring, aluminum branch wiring I think. Not very experienced electrically.",
+        "output": "### Safety Check\n⚠️ STOP-AND-CALL-PRO. 1960s aluminum branch wiring + flickering across a whole circuit is a known fire-risk pattern (overheated connections). Do not open outlets or the panel yourself.\n\n### Diagnosis\nLikely loose/oxidized aluminum connections at devices or the breaker — a code and fire-safety issue, not a bulb problem.\n\n### Step-by-Step Method\nReference-only (for understanding, not DIY): a licensed electrician inspects terminations, installs COPALUM crimps or AlumiConn connectors, and torque-checks the panel.\n\n### Materials & Budget\nProfessional assessment $150–$300; remediation $150–$500+ per affected area. Full rewire if widespread: $8k–$15k.\n\n### Timeline & Permits\nPermit + inspection required for electrical work in most jurisdictions. 1–3 days depending on scope.\n\n### Recommendation: DIY vs Pro\nHire a Pro — non-negotiable. Risk (fire), code, and permit requirements all point away from DIY regardless of skill. DIY would void insurance and endanger the home.\n\n### Verification & When to Escalate\nConfirm electrician provides a signed permit/inspection pass. Escalate immediately (shut off the breaker) if you smell burning or outlets feel warm before the visit."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Routes safe low-risk task to DIY with full blueprint",
+        "input": "Running toilet, water keeps trickling into the bowl. Standard 2-piece toilet, flapper looks old. I'm comfortable with basic fixes.",
+        "expected": "No safety banner; diagnosis points to worn flapper/fill valve; reproducible steps with filled-in parts (flapper size, fill valve model), a small budget (~$15–$30), ~30 min timeline, no permit, and a DIY recommendation with verification checks for a dry overnight bowl."
+      },
+      {
+        "name": "Escalates hazardous problem to professional before any DIY steps",
+        "input": "I smell gas near my furnace and the pilot keeps going out.",
+        "expected": "Output begins with a STOP-AND-CALL-PRO safety banner advising to leave the home and call the gas utility/emergency line; DIY steps are suppressed or marked reference-only; recommendation is Hire a Pro, citing life-safety risk and code."
+      }
+    ],
+    "type": "meta",
+    "dependencies": [
+      "@kmd_ai/methodsreprokit-extractor",
+      "@kmd_ai/grantlaunchpad-orchestrator",
+      "@kmd_ai/macroslotfiller",
+      "@kmd_ai/namestake-positioning-orchestrator"
+    ]
+  },
+  "markdown": "# HomeFix Blueprint Orchestrator\n\n## Purpose\nConvert an ambiguous home maintenance or repair problem into a single coherent, reproducible, and decision-ready repair blueprint: a validated method, personalized to the home's specifics, sequenced into an actionable project plan with budget/permit tracks, and capped with a confident DIY-vs-professional recommendation.\n\n## Dependencies\nInstalling this skill also installs:\n- `@kmd_ai/methodsreprokit-extractor`\n- `@kmd_ai/grantlaunchpad-orchestrator`\n- `@kmd_ai/macroslotfiller`\n- `@kmd_ai/namestake-positioning-orchestrator`\n\n## Instructions\n1. Intake and triage: parse {{input}} to identify the symptom, affected system (plumbing, electrical, HVAC, structural, appliance, etc.), home context (age, materials, location), and the homeowner's skill level and tools on hand. Flag any immediate safety hazard that requires stopping and calling a professional before proceeding.\n2. Extract the repeatable method with MethodsReproKit Extractor (@kmd_ai/methodsreprokit-extractor): pull a clean, reproducible step-by-step repair procedure — ordered steps, required tools/materials, preconditions, and success-verification checks — treating the repair like a protocol others can reliably reproduce.\n3. Personalize the generic method with MacroSlotFiller (@kmd_ai/macroslotfiller): fill the method's variable slots (specific part numbers, measurements, fitting sizes, torque values, local code references, quantities) with values derived from the home's context so the steps are concrete rather than generic.\n4. Sequence into a project plan with GrantLaunchpad Orchestrator (@kmd_ai/grantlaunchpad-orchestrator): repurpose its phased-planning engine to produce milestones, a materials/cost budget, timeline, permit/inspection checkpoints, and a prioritized task track (quick fix vs. durable repair vs. full replacement).\n5. Produce the DIY-vs-pro recommendation with NameStake Positioning Orchestrator (@kmd_ai/namestake-positioning-orchestrator): position the recommended approach against alternatives, stating the clear call (DIY, DIY-with-caution, or hire a pro), the decisive trade-offs (cost, risk, time, code compliance), and the differentiating reasoning.\n6. Reconcile across skills: ensure the personalized method, project plan, and positioning agree — e.g., if positioning recommends a pro, mark DIY steps as reference-only; if budget exceeds a replacement threshold, surface that in the recommendation.\n7. Assemble the final blueprint in a fixed structure: Safety Check, Diagnosis, Step-by-Step Method, Materials & Budget, Timeline & Permits, and Recommendation (DIY vs Pro). Keep it scannable and actionable.\n8. Close with verification: list the success checks that confirm the repair worked and when to escalate to a professional if those checks fail.\n\n## Prompt Template\n```\nYou are HomeFix Blueprint Orchestrator. Produce ONE complete home-repair blueprint for the problem below by orchestrating four sub-skills in order.\n\nHOMEOWNER INPUT:\n{{input}}\n\nWORKFLOW (run in sequence, do not skip):\n1. TRIAGE — Identify symptom, system, home context (age/materials/location), homeowner skill level, tools available. If an immediate hazard exists (gas, live electrical, structural, water intrusion), emit a STOP-AND-CALL-PRO banner before anything else.\n2. METHOD — Call MethodsReproKit Extractor (@kmd_ai/methodsreprokit-extractor) to extract a reproducible, ordered procedure with tools, preconditions, and verification checks.\n3. PERSONALIZE — Call MacroSlotFiller (@kmd_ai/macroslotfiller) to fill every variable slot (sizes, part numbers, quantities, torque/measurements, local code refs) using the home context. Leave no placeholder unresolved; mark assumptions explicitly.\n4. PLAN — Call GrantLaunchpad Orchestrator (@kmd_ai/grantlaunchpad-orchestrator) to generate phased milestones, a materials/cost budget, a timeline, and permit/inspection checkpoints, with a prioritized quick-fix / durable-repair / replace track.\n5. POSITION — Call NameStake Positioning Orchestrator (@kmd_ai/namestake-positioning-orchestrator) to deliver a clear DIY vs DIY-with-caution vs Hire-a-Pro call, with the decisive trade-offs (cost, risk, time, code).\n6. RECONCILE — Make method, plan, and positioning mutually consistent.\n\nOUTPUT (use exactly these headings):\n### Safety Check\n### Diagnosis\n### Step-by-Step Method\n### Materials & Budget\n### Timeline & Permits\n### Recommendation: DIY vs Pro\n### Verification & When to Escalate\n```\n"
+}

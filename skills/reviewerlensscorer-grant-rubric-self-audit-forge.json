@@ -1,0 +1,66 @@
+{
+  "id": "reviewerlensscorer-grant-rubric-self-audit-forge",
+  "name": "ReviewerLensScorer: Grant Rubric Self-Audit Forge",
+  "description": "Simulates a funder's scoring panel by mapping a draft grant proposal against the published evaluation rubric, producing a criterion-by-criterion point estimate, flagged gaps, and targeted fixes before submission.",
+  "category": "Research",
+  "tags": [
+    "grants",
+    "proposal-review",
+    "scoring-rubric",
+    "funding",
+    "pre-submission"
+  ],
+  "type": "basic",
+  "dependencies": [],
+  "spec": {
+    "name": "ReviewerLensScorer: Grant Rubric Self-Audit Forge",
+    "description": "Simulates a funder's scoring panel by mapping a draft grant proposal against the published evaluation rubric, producing a criterion-by-criterion point estimate, flagged gaps, and targeted fixes before submission.",
+    "category": "Research",
+    "tags": [
+      "grants",
+      "proposal-review",
+      "scoring-rubric",
+      "funding",
+      "pre-submission"
+    ],
+    "purpose": "Give grant writers a pre-submission, reviewer's-eye score of their draft against the funder's actual weighted criteria so they can fix point-losing weaknesses while there is still time to edit.",
+    "instructions": [
+      "Parse the funder's evaluation criteria into a list of discrete scored criteria, capturing each criterion's name, max points (or weight), and the specific evidence reviewers look for; if weights are not stated, distribute evenly and flag the assumption.",
+      "For each criterion, locate the supporting evidence in the draft proposal and quote the single strongest sentence or data point that addresses it.",
+      "Assign an estimated score per criterion as a conservative reviewer would, deducting points for vague claims, missing evidence, unquantified outcomes, or unanswered sub-questions.",
+      "Label each criterion with a status: STRONG (>=85% of points), ADEQUATE (60-84%), or AT-RISK (<60%), and list the exact reason points were withheld.",
+      "For every AT-RISK or ADEQUATE criterion, write one concrete, copy-ready revision suggestion that would raise the score, referencing what specific content to add.",
+      "Compute a total estimated score, convert to a percentage, and give a one-line funding-readiness verdict (Submit / Revise-then-submit / Not-ready).",
+      "Output a clean markdown scorecard table followed by a prioritized fix list ordered by points recoverable, so the writer tackles highest-impact edits first.",
+      "Never invent facts about the project; if the draft lacks evidence for a criterion, score it as missing rather than assuming it exists."
+    ],
+    "promptTemplate": "You are a conservative grant review panelist. Audit the draft proposal against the funder's evaluation rubric and produce a scored self-audit.\n\nFUNDER EVALUATION CRITERIA (with points/weights if given):\n{{criteria}}\n\nDRAFT PROPOSAL TEXT:\n{{input}}\n\nProduce exactly this structure:\n\n## Scorecard\n| Criterion | Max | Est. Score | Status | Points at risk | Reason |\n|---|---|---|---|---|---|\n(one row per criterion; Status = STRONG/ADEQUATE/AT-RISK)\n\n**Total: X / Y points (Z%) — Verdict: [Submit / Revise-then-submit / Not-ready]**\n\n## Evidence Found\n- For each criterion, quote the strongest supporting sentence from the draft, or write \"NONE FOUND\".\n\n## Prioritized Fixes (highest points recoverable first)\n1. [Criterion] (+N pts): <concrete, copy-ready revision instruction>\n...\n\nRules: Be a tough but fair reviewer. Deduct for vague or unquantified claims and unanswered sub-questions. Never invent project facts. If weights are missing, distribute evenly and note \"[assumed equal weights]\".",
+    "examples": [
+      {
+        "title": "NSF-style research proposal audit",
+        "input": "criteria: Intellectual Merit (50 pts: significance, novelty, qualifications); Broader Impacts (30 pts: societal benefit, broadening participation); Feasibility (20 pts: methods, timeline, budget realism).\n\ndraft: Our lab will study microplastic degradation by novel enzymes. The PI has 12 years of experience and 40 publications in enzymology. We will test 3 enzyme candidates over 24 months. Budget is $450k. The work could help reduce ocean pollution.",
+        "output": "## Scorecard\n| Criterion | Max | Est. Score | Status | Points at risk | Reason |\n|---|---|---|---|---|---|\n| Intellectual Merit | 50 | 38 | ADEQUATE | 12 | Strong PI credentials and novelty claim, but 'novel enzymes' is asserted, not evidenced vs. prior art |\n| Broader Impacts | 30 | 12 | AT-RISK | 18 | Societal benefit is one vague sentence; no broadening-participation plan |\n| Feasibility | 20 | 14 | ADEQUATE | 6 | Timeline and budget stated but no methods detail or risk mitigation |\n\n**Total: 64 / 100 (64%) — Verdict: Revise-then-submit**\n\n## Evidence Found\n- Intellectual Merit: \"The PI has 12 years of experience and 40 publications in enzymology.\"\n- Broader Impacts: \"The work could help reduce ocean pollution.\"\n- Feasibility: \"We will test 3 enzyme candidates over 24 months. Budget is $450k.\"\n\n## Prioritized Fixes (highest points recoverable first)\n1. Broader Impacts (+18 pts): Add a concrete broadening-participation plan (e.g., 2 undergrad researchers from an HBCU partnership) and quantify the societal benefit (tons of microplastic processed, target communities).\n2. Intellectual Merit (+12 pts): Cite 2-3 prior-art enzymes and state the measurable performance gap your candidates close to substantiate 'novel'.\n3. Feasibility (+6 pts): Add per-phase methods, a Gantt milestone, and a risk/mitigation line for enzyme candidate failure."
+      },
+      {
+        "title": "Community nonprofit mini-grant audit",
+        "input": "criteria: Community Need (40%); Project Plan (30%); Measurable Outcomes (20%); Budget (10%).\n\ndraft: Our food bank serves a low-income neighborhood. We want $10,000 to buy a refrigerator so we can store fresh produce. This will help families eat healthier. We have been operating for 5 years.",
+        "output": "## Scorecard\n| Criterion | Max | Est. Score | Status | Points at risk | Reason |\n|---|---|---|---|---|---|\n| Community Need | 40 | 22 | ADEQUATE | 18 | Need is stated but not quantified (how many families, hunger data) |\n| Project Plan | 30 | 18 | ADEQUATE | 12 | Clear single purchase but no procurement/installation timeline |\n| Measurable Outcomes | 20 | 6 | AT-RISK | 14 | 'Eat healthier' is not a measurable outcome |\n| Budget | 10 | 8 | STRONG | 2 | Clear ask; missing itemization |\n\n**Total: 54 / 100 (54%) — Verdict: Not-ready**\n\n## Evidence Found\n- Community Need: \"Our food bank serves a low-income neighborhood.\"\n- Project Plan: \"We want $10,000 to buy a refrigerator so we can store fresh produce.\"\n- Measurable Outcomes: \"This will help families eat healthier.\" (not measurable)\n- Budget: \"$10,000 to buy a refrigerator\"\n\n## Prioritized Fixes (highest points recoverable first)\n1. Community Need (+18 pts): Add local hunger statistics and the number of households served monthly to quantify the need.\n2. Measurable Outcomes (+14 pts): Replace 'eat healthier' with targets, e.g., 'distribute 5,000 lbs of fresh produce to 200 families in year 1, tracked by intake logs.'\n3. Project Plan (+12 pts): Add a timeline: quote by month 1, purchase/install by month 2, operational by month 3.\n4. Budget (+2 pts): Itemize the $10,000 (unit cost, delivery, install, warranty)."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Flags missing-evidence criterion as AT-RISK, not assumed present",
+        "input": "criteria: Sustainability Plan (25 pts: how the project continues after the grant ends).\n\ndraft: We will run coding workshops for teens using the grant funds over one year.",
+        "expected": "Sustainability Plan scored well below 60% of 25 pts and marked AT-RISK, with Evidence Found listing 'NONE FOUND' for sustainability and a prioritized fix instructing the writer to add a post-grant continuation/funding plan; no sustainability facts are invented."
+      },
+      {
+        "name": "Assumes equal weights when none given and notes it",
+        "input": "criteria: Innovation; Impact; Team.\n\ndraft: Our team of three experienced engineers will build an open-source accessibility tool with a novel gesture interface used by an estimated 10,000 people.",
+        "expected": "Output distributes points evenly across the three criteria and includes the note '[assumed equal weights]', produces a total percentage, and gives a Submit/Revise/Not-ready verdict."
+      }
+    ],
+    "type": "basic",
+    "dependencies": []
+  },
+  "markdown": "# ReviewerLensScorer: Grant Rubric Self-Audit Forge\n\n## Purpose\nGive grant writers a pre-submission, reviewer's-eye score of their draft against the funder's actual weighted criteria so they can fix point-losing weaknesses while there is still time to edit.\n\n## Instructions\n1. Parse the funder's evaluation criteria into a list of discrete scored criteria, capturing each criterion's name, max points (or weight), and the specific evidence reviewers look for; if weights are not stated, distribute evenly and flag the assumption.\n2. For each criterion, locate the supporting evidence in the draft proposal and quote the single strongest sentence or data point that addresses it.\n3. Assign an estimated score per criterion as a conservative reviewer would, deducting points for vague claims, missing evidence, unquantified outcomes, or unanswered sub-questions.\n4. Label each criterion with a status: STRONG (>=85% of points), ADEQUATE (60-84%), or AT-RISK (<60%), and list the exact reason points were withheld.\n5. For every AT-RISK or ADEQUATE criterion, write one concrete, copy-ready revision suggestion that would raise the score, referencing what specific content to add.\n6. Compute a total estimated score, convert to a percentage, and give a one-line funding-readiness verdict (Submit / Revise-then-submit / Not-ready).\n7. Output a clean markdown scorecard table followed by a prioritized fix list ordered by points recoverable, so the writer tackles highest-impact edits first.\n8. Never invent facts about the project; if the draft lacks evidence for a criterion, score it as missing rather than assuming it exists.\n\n## Prompt Template\n```\nYou are a conservative grant review panelist. Audit the draft proposal against the funder's evaluation rubric and produce a scored self-audit.\n\nFUNDER EVALUATION CRITERIA (with points/weights if given):\n{{criteria}}\n\nDRAFT PROPOSAL TEXT:\n{{input}}\n\nProduce exactly this structure:\n\n## Scorecard\n| Criterion | Max | Est. Score | Status | Points at risk | Reason |\n|---|---|---|---|---|---|\n(one row per criterion; Status = STRONG/ADEQUATE/AT-RISK)\n\n**Total: X / Y points (Z%) — Verdict: [Submit / Revise-then-submit / Not-ready]**\n\n## Evidence Found\n- For each criterion, quote the strongest supporting sentence from the draft, or write \"NONE FOUND\".\n\n## Prioritized Fixes (highest points recoverable first)\n1. [Criterion] (+N pts): <concrete, copy-ready revision instruction>\n...\n\nRules: Be a tough but fair reviewer. Deduct for vague or unquantified claims and unanswered sub-questions. Never invent project facts. If weights are missing, distribute evenly and note \"[assumed equal weights]\".\n```\n"
+}

@@ -1,0 +1,77 @@
+{
+  "id": "insightledger-interview-to-decision-synthesis-pipeline",
+  "name": "InsightLedger: Interview-to-Decision Synthesis Pipeline",
+  "description": "An end-to-end user research workflow that ingests raw interview transcripts, synthesizes them into themed insights and product requirements, treats each requirement as a versioned contract, and uses SemVerBreakingChangeAuditor to flag which new findings would BREAK, EXTEND, or confirm your existing product assumptions — then renders the whole synthesis as a stakeholder-ready deck via Present. Use it when you finish a round of user interviews and need a defensible, change-aware readout rather than a pile of notes.",
+  "category": "Research",
+  "tags": [
+    "user-research",
+    "interview-synthesis",
+    "product-discovery",
+    "orchestration",
+    "change-management"
+  ],
+  "type": "meta",
+  "dependencies": [
+    "@dmz_agent/present",
+    "@kmd_ai/semverbreakingchangeauditor"
+  ],
+  "spec": {
+    "name": "InsightLedger: Interview-to-Decision Synthesis Pipeline",
+    "description": "An end-to-end user research workflow that ingests raw interview transcripts, synthesizes them into themed insights and product requirements, treats each requirement as a versioned contract, and uses SemVerBreakingChangeAuditor to flag which new findings would BREAK, EXTEND, or confirm your existing product assumptions — then renders the whole synthesis as a stakeholder-ready deck via Present. Use it when you finish a round of user interviews and need a defensible, change-aware readout rather than a pile of notes.",
+    "category": "Research",
+    "tags": [
+      "user-research",
+      "interview-synthesis",
+      "product-discovery",
+      "orchestration",
+      "change-management"
+    ],
+    "purpose": "Turn a batch of raw user-interview transcripts into a stakeholder-ready, change-aware synthesis deck that explicitly classifies each new insight by how severely it contradicts, extends, or confirms the team's prior product assumptions — so decision-makers see not just \"what users said\" but \"what we now have to change, and how disruptive that change is.\"",
+    "instructions": [
+      "INGEST & CODE: Parse the {{transcripts}} into atomic, attributed observations. Tag each with participant ID, the underlying job-to-be-done, sentiment, and frequency across participants. Cluster observations into 4-8 candidate themes, discarding one-off anecdotes unless they reveal a critical edge case.",
+      "FRAME AS VERSIONED ASSUMPTIONS: Convert each theme into a declarative 'product assumption contract' statement (e.g. 'Users expect onboarding to complete in <5 min'). Pair each new theme with its matching PRIOR assumption from {{prior_assumptions}} so every finding has a before/after state to diff.",
+      "AUDIT FOR BREAKAGE (via @kmd_ai/semverbreakingchangeauditor): Feed each old-assumption / new-finding pair to SemVerBreakingChangeAuditor, treating prior assumptions as the 'current API' and new findings as the 'proposed change'. Capture its MAJOR (breaking — invalidates a core assumption/roadmap item), MINOR (additive — new need, no contradiction), or PATCH (confirming/clarifying) classification plus its rationale for each.",
+      "PRIORITIZE BY SEVERITY: Rank themes using the audit output — surface MAJOR (breaking) insights first since they carry the highest decision risk, then MINOR opportunities, then PATCH confirmations. Attach supporting participant quotes and frequency counts as evidence for each.",
+      "DRAFT DECISIONS: For each breaking or additive insight, write a one-line recommended action and an owner-ready question (what the team must now decide), explicitly noting the blast radius inherited from the auditor's rationale.",
+      "RENDER THE READOUT (via @dmz_agent/present): Pass the prioritized, severity-tagged synthesis to Present to generate a stakeholder deck: a title/exec-summary slide, one slide per MAJOR breaking insight, a grouped slide for MINOR opportunities, a confirmations slide for PATCH findings, and a closing 'Decisions Needed' slide.",
+      "CLOSE THE LOOP: Output an updated assumptions ledger (the new canonical set of versioned assumptions) alongside the deck, so the next interview round can diff against it. Flag any theme the auditor could not confidently classify for manual review."
+    ],
+    "promptTemplate": "You are InsightLedger, a user-research synthesis orchestrator. Produce a change-aware interview readout.\n\nINPUTS\n- Research question / goal: {{input}}\n- Interview transcripts (raw, multi-participant): {{transcripts}}\n- Prior product assumptions (versioned ledger, or \"none\"): {{prior_assumptions}}\n- Audience for the deck: {{audience}}\n\nWORKFLOW\n1. INGEST & CODE {{transcripts}} into attributed, clustered themes (4-8), with frequency + sentiment per theme.\n2. FRAME each theme as a declarative \"product assumption contract\" and pair it with the closest matching statement from {{prior_assumptions}}.\n3. AUDIT: For every (prior assumption -> new finding) pair, invoke @kmd_ai/semverbreakingchangeauditor with the prior assumption as the current contract and the new finding as the proposed change. Record its MAJOR / MINOR / PATCH verdict and rationale.\n4. PRIORITIZE themes by audit severity (MAJOR first), attaching 1-2 supporting quotes and frequency counts as evidence.\n5. DRAFT a recommended action + a \"decision needed\" question for each MAJOR and MINOR theme.\n6. RENDER the result with @dmz_agent/present as a deck for {{audience}}: exec summary -> one slide per MAJOR breaking insight -> grouped MINOR opportunities -> PATCH confirmations -> \"Decisions Needed\".\n7. EMIT the updated versioned assumptions ledger and list any themes needing manual classification review.\n\nOUTPUT\nA) A severity-ranked synthesis table (theme | verdict | rationale | evidence | recommended action).\nB) The Present-ready deck outline.\nC) The updated assumptions ledger.\nD) A \"needs review\" list.",
+    "examples": [
+      {
+        "title": "Onboarding research round after a redesign",
+        "input": "Goal: validate whether our redesigned onboarding reduces drop-off. 12 interview transcripts attached; prior ledger says v2.1 'onboarding completes in under 5 minutes' and v1.4 'users want social login'.",
+        "output": "A) Synthesis table: Theme 'Onboarding now takes 9-12 min due to new verification step' -> MAJOR (breaking: invalidates assumption v2.1 '<5 min'); evidence 9/12 participants, frustrated sentiment; action: cut or defer verification, OWNER Q: is KYC-at-signup a hard requirement? | Theme 'Users want passkey/biometric login' -> MINOR (additive, extends v1.4 social-login need); 7/12 participants; action: scope passkeys for next sprint. | Theme 'Progress bar reassured users' -> PATCH (confirms v2.0 'progress indicators reduce anxiety'); 5/12. B) Deck outline: Slide 1 Exec summary (1 breaking, 1 additive, 1 confirmed). Slide 2 BREAKING: onboarding time regression (quotes + 75% frequency). Slide 3 OPPORTUNITIES: passkey login. Slide 4 CONFIRMED: progress bar. Slide 5 Decisions Needed: (1) Is signup KYC mandatory? (2) Prioritize passkeys this quarter? C) Updated ledger: v3.0 'onboarding target revised — verification adds ~5 min, needs resolution', v2.1 passkey-login candidate. D) Needs review: none.",
+        "output_note": "Rendered via Present; severity classifications via SemVerBreakingChangeAuditor."
+      },
+      {
+        "title": "Pricing interviews with no prior ledger",
+        "input": "Goal: understand willingness-to-pay for a new analytics add-on. 8 transcripts attached; prior_assumptions: none.",
+        "output": "Since no prior ledger exists, every theme is seeded as a new baseline assumption (PATCH-equivalent new entries, no breaking verdicts possible). Table: 'Teams expect analytics bundled, not an add-on' (6/8, baseline) -> flagged as HIGH-RISK new assumption since it contradicts the implied monetization plan; 'Admins willing to pay for export/API' (4/8, baseline). Deck: exec summary notes this is a baseline-setting round, slides per theme, Decisions Needed: 'Bundle vs. add-on?'. Updated ledger: v1.0 created with 4 new assumptions. Needs review: 'bundled expectation' flagged because it conflicts with monetization intent despite no formal prior assumption to diff against."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Breaking insight is surfaced first and correctly versioned",
+        "input": "Goal: validate onboarding speed. Transcripts: 9 of 12 participants report onboarding now takes 9-12 minutes and express frustration. Prior ledger: v2.1 'onboarding completes in under 5 minutes'.",
+        "expected": "The onboarding-time theme is classified MAJOR/breaking by the auditor (new finding contradicts the <5 min contract), ranked first in both the synthesis table and the deck, backed by the 9/12 frequency and participant quotes, paired with a 'Decisions Needed' question, and the ledger is bumped to a new major version reflecting the revised assumption."
+      },
+      {
+        "name": "No-prior-ledger run sets a baseline instead of fabricating breakage",
+        "input": "Goal: WTP for analytics add-on. 8 transcripts. prior_assumptions: none.",
+        "expected": "No MAJOR/breaking verdicts are produced (nothing to diff against); all themes become v1.0 baseline assumptions, any theme conflicting with stated intent is placed on the Needs-Review list, and a baseline ledger is emitted."
+      },
+      {
+        "name": "Orchestration order is respected",
+        "input": "Any valid transcript + ledger pair.",
+        "expected": "Coding/clustering happens before auditing, SemVerBreakingChangeAuditor classifications are computed before prioritization, and Present is only invoked after severity ranking — the final output contains the synthesis table, a Present-ready deck outline, an updated ledger, and a needs-review list."
+      }
+    ],
+    "type": "meta",
+    "dependencies": [
+      "@dmz_agent/present",
+      "@kmd_ai/semverbreakingchangeauditor"
+    ]
+  },
+  "markdown": "# InsightLedger: Interview-to-Decision Synthesis Pipeline\n\n## Purpose\nTurn a batch of raw user-interview transcripts into a stakeholder-ready, change-aware synthesis deck that explicitly classifies each new insight by how severely it contradicts, extends, or confirms the team's prior product assumptions — so decision-makers see not just \"what users said\" but \"what we now have to change, and how disruptive that change is.\"\n\n## Dependencies\nInstalling this skill also installs:\n- `@dmz_agent/present`\n- `@kmd_ai/semverbreakingchangeauditor`\n\n## Instructions\n1. INGEST & CODE: Parse the {{transcripts}} into atomic, attributed observations. Tag each with participant ID, the underlying job-to-be-done, sentiment, and frequency across participants. Cluster observations into 4-8 candidate themes, discarding one-off anecdotes unless they reveal a critical edge case.\n2. FRAME AS VERSIONED ASSUMPTIONS: Convert each theme into a declarative 'product assumption contract' statement (e.g. 'Users expect onboarding to complete in <5 min'). Pair each new theme with its matching PRIOR assumption from {{prior_assumptions}} so every finding has a before/after state to diff.\n3. AUDIT FOR BREAKAGE (via @kmd_ai/semverbreakingchangeauditor): Feed each old-assumption / new-finding pair to SemVerBreakingChangeAuditor, treating prior assumptions as the 'current API' and new findings as the 'proposed change'. Capture its MAJOR (breaking — invalidates a core assumption/roadmap item), MINOR (additive — new need, no contradiction), or PATCH (confirming/clarifying) classification plus its rationale for each.\n4. PRIORITIZE BY SEVERITY: Rank themes using the audit output — surface MAJOR (breaking) insights first since they carry the highest decision risk, then MINOR opportunities, then PATCH confirmations. Attach supporting participant quotes and frequency counts as evidence for each.\n5. DRAFT DECISIONS: For each breaking or additive insight, write a one-line recommended action and an owner-ready question (what the team must now decide), explicitly noting the blast radius inherited from the auditor's rationale.\n6. RENDER THE READOUT (via @dmz_agent/present): Pass the prioritized, severity-tagged synthesis to Present to generate a stakeholder deck: a title/exec-summary slide, one slide per MAJOR breaking insight, a grouped slide for MINOR opportunities, a confirmations slide for PATCH findings, and a closing 'Decisions Needed' slide.\n7. CLOSE THE LOOP: Output an updated assumptions ledger (the new canonical set of versioned assumptions) alongside the deck, so the next interview round can diff against it. Flag any theme the auditor could not confidently classify for manual review.\n\n## Prompt Template\n```\nYou are InsightLedger, a user-research synthesis orchestrator. Produce a change-aware interview readout.\n\nINPUTS\n- Research question / goal: {{input}}\n- Interview transcripts (raw, multi-participant): {{transcripts}}\n- Prior product assumptions (versioned ledger, or \"none\"): {{prior_assumptions}}\n- Audience for the deck: {{audience}}\n\nWORKFLOW\n1. INGEST & CODE {{transcripts}} into attributed, clustered themes (4-8), with frequency + sentiment per theme.\n2. FRAME each theme as a declarative \"product assumption contract\" and pair it with the closest matching statement from {{prior_assumptions}}.\n3. AUDIT: For every (prior assumption -> new finding) pair, invoke @kmd_ai/semverbreakingchangeauditor with the prior assumption as the current contract and the new finding as the proposed change. Record its MAJOR / MINOR / PATCH verdict and rationale.\n4. PRIORITIZE themes by audit severity (MAJOR first), attaching 1-2 supporting quotes and frequency counts as evidence.\n5. DRAFT a recommended action + a \"decision needed\" question for each MAJOR and MINOR theme.\n6. RENDER the result with @dmz_agent/present as a deck for {{audience}}: exec summary -> one slide per MAJOR breaking insight -> grouped MINOR opportunities -> PATCH confirmations -> \"Decisions Needed\".\n7. EMIT the updated versioned assumptions ledger and list any themes needing manual classification review.\n\nOUTPUT\nA) A severity-ranked synthesis table (theme | verdict | rationale | evidence | recommended action).\nB) The Present-ready deck outline.\nC) The updated assumptions ledger.\nD) A \"needs review\" list.\n```\n"
+}

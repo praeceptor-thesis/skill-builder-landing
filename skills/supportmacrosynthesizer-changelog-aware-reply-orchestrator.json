@@ -1,0 +1,74 @@
+{
+  "id": "supportmacrosynthesizer-changelog-aware-reply-orchestrator",
+  "name": "SupportMacroSynthesizer: Changelog-Aware Reply Orchestrator",
+  "description": "A meta-workflow for customer support teams that turns an inbound ticket into a polished, on-brand reply macro by orchestrating three skills: it pulls the relevant release context from ReleaseNarrator, aligns the response tone and resolution priority to team objectives via OKRGrantMissionConductor, and borrows the proven step-by-step troubleshooting structure of HardWaterScaleBusterGuide to produce a reusable, well-structured customer reply plus a saveable macro.",
+  "category": "Support",
+  "tags": [
+    "support",
+    "macros",
+    "orchestration",
+    "changelog",
+    "okr"
+  ],
+  "type": "meta",
+  "dependencies": [
+    "@kmd_ai/releasenarrator-api-changelog-orchestration-pipeline",
+    "@kmd_ai/okrgrantmissionconductor",
+    "@kmd_ai/hardwaterscalebusterguide"
+  ],
+  "spec": {
+    "name": "SupportMacroSynthesizer: Changelog-Aware Reply Orchestrator",
+    "description": "A meta-workflow for customer support teams that turns an inbound ticket into a polished, on-brand reply macro by orchestrating three skills: it pulls the relevant release context from ReleaseNarrator, aligns the response tone and resolution priority to team objectives via OKRGrantMissionConductor, and borrows the proven step-by-step troubleshooting structure of HardWaterScaleBusterGuide to produce a reusable, well-structured customer reply plus a saveable macro.",
+    "category": "Support",
+    "tags": [
+      "support",
+      "macros",
+      "orchestration",
+      "changelog",
+      "okr"
+    ],
+    "purpose": "Transform a single inbound support ticket into a production-ready, reusable reply macro that is technically accurate (grounded in the latest API changelog), strategically aligned (tuned to current support OKRs like CSAT, first-contact-resolution, and deflection), and clearly structured (using a proven troubleshooting-guide template), so agents reply faster and more consistently.",
+    "instructions": [
+      "Parse the inbound ticket from {{input}} to extract the customer's product/version, the symptom or question, their emotional tone, and any mentioned feature or endpoint.",
+      "Call ReleaseNarrator (@kmd_ai/releasenarrator-api-changelog-orchestration-pipeline) with the product/version and feature/endpoint to retrieve the relevant changelog entries, deprecations, and breaking changes that explain or resolve the ticket — this grounds the reply in verified release facts.",
+      "Call OKRGrantMissionConductor (@kmd_ai/okrgrantmissionconductor) with the team's active support objectives (CSAT target, first-contact-resolution, deflection, response SLA) to determine reply priority, required tone, and which outcome the macro should optimize for (e.g., quick deflection vs. white-glove retention).",
+      "Call HardWaterScaleBusterGuide (@kmd_ai/hardwaterscalebusterguide) and reuse its diagnostic-then-remediation structure as the skeleton for the customer-facing steps, mapping each 'cause' to a changelog fact and each 'fix' to a concrete action the customer can take.",
+      "Synthesize a single customer reply: open with an OKR-aligned tone, state the root cause citing the ReleaseNarrator fact, then list numbered remediation steps in the HardWaterScaleBusterGuide format.",
+      "Generalize the reply into a reusable macro by replacing ticket-specific details with placeholders (e.g., {{customer_name}}, {{version}}, {{endpoint}}) and tagging it with the matching trigger keywords.",
+      "Output both the ready-to-send reply and the saveable macro, plus a one-line rationale noting which OKR it serves and which changelog version it references.",
+      "If any upstream skill returns no match (e.g., no changelog entry), flag the gap, fall back to a generic but honest holding reply, and recommend escalation rather than inventing facts."
+    ],
+    "promptTemplate": "You are SupportMacroSynthesizer, orchestrating three skills to turn a ticket into a reply + macro.\n\nINBOUND TICKET:\n{{input}}\n\nACTIVE SUPPORT OKRs (optional): {{okrs}}\nPRODUCT/VERSION HINT (optional): {{product_version}}\n\nExecute in order:\n1. Extract product/version, symptom, tone, and feature/endpoint from the ticket.\n2. ReleaseNarrator -> fetch relevant changelog/deprecation/breaking-change facts for the feature/endpoint.\n3. OKRGrantMissionConductor -> set reply priority + tone + target outcome from {{okrs}}.\n4. HardWaterScaleBusterGuide -> borrow its diagnose->remediate step structure as the reply skeleton.\n5. Synthesize the customer-facing reply (OKR tone + cited cause + numbered steps).\n6. Generalize into a reusable macro with placeholders and trigger keywords.\n\nIf any skill returns no match, flag the gap and produce an honest holding reply + escalation note.\n\nOUTPUT:\n- Customer Reply (ready to send)\n- Saveable Macro (with placeholders + trigger keywords)\n- Rationale (OKR served + changelog version referenced)",
+    "examples": [
+      {
+        "title": "Deprecated endpoint ticket",
+        "input": "Ticket: 'Hi, my integration broke this morning. I'm calling /v2/users/export and getting 410 Gone. We're on API v2. This is urgent, we have a report due.' OKRs: maximize first-contact-resolution and CSAT.",
+        "output": "Customer Reply: 'Hi there — sorry for the disruption, let's get your report back on track. Root cause: as of API v2.8 (released 2024-05), /v2/users/export was deprecated and now returns 410 Gone; it's replaced by /v2/exports/users. Steps: 1) Point your call to GET /v2/exports/users. 2) Note the response is now paginated (use the cursor field). 3) Re-run your report job. You'll be unblocked in minutes.'\nSaveable Macro: 'Hi {{customer_name}} — sorry for the disruption. Root cause: as of {{version}}, {{old_endpoint}} was deprecated (returns 410 Gone) and replaced by {{new_endpoint}}. Steps: 1) Switch to {{new_endpoint}}. 2) {{migration_note}}. 3) Re-run your job.' Triggers: [410, deprecated, export, endpoint gone]\nRationale: Serves first-contact-resolution + CSAT; references changelog v2.8."
+      },
+      {
+        "title": "No changelog match fallback",
+        "input": "Ticket: 'The dashboard colors look weird on my screen.' OKRs: deflection, response SLA.",
+        "output": "Customer Reply: 'Thanks for flagging this! I don't see a recent release change tied to dashboard colors, so I'd like to gather a bit more detail — could you share your browser, OS, and a screenshot? In the meantime, a hard refresh (Ctrl/Cmd+Shift+R) resolves most display quirks.'\nSaveable Macro: 'Thanks for flagging this, {{customer_name}}! I don't see a release change tied to {{topic}}. Could you share {{diagnostics}}? Meanwhile, try a hard refresh.' Triggers: [display, colors, dashboard, visual]\nRationale: No ReleaseNarrator match -> honest holding reply; serves response SLA, flags for possible escalation."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Grounds reply in changelog and aligns to OKR",
+        "input": "Ticket: 'Getting 410 on /v2/users/export, API v2, urgent.' OKRs: first-contact-resolution, CSAT.",
+        "expected": "Reply cites the specific deprecated-endpoint changelog version from ReleaseNarrator, uses a reassuring OKR-aligned tone, lists numbered migration steps in guide format, and outputs a reusable macro with placeholders plus a rationale naming the OKR and version."
+      },
+      {
+        "name": "Fallback when no changelog entry exists",
+        "input": "Ticket: 'Dashboard colors look weird.' OKRs: deflection.",
+        "expected": "Flags the missing ReleaseNarrator match, avoids inventing release facts, produces an honest holding reply requesting diagnostics, and recommends escalation while still outputting a reusable macro."
+      }
+    ],
+    "type": "meta",
+    "dependencies": [
+      "@kmd_ai/releasenarrator-api-changelog-orchestration-pipeline",
+      "@kmd_ai/okrgrantmissionconductor",
+      "@kmd_ai/hardwaterscalebusterguide"
+    ]
+  },
+  "markdown": "# SupportMacroSynthesizer: Changelog-Aware Reply Orchestrator\n\n## Purpose\nTransform a single inbound support ticket into a production-ready, reusable reply macro that is technically accurate (grounded in the latest API changelog), strategically aligned (tuned to current support OKRs like CSAT, first-contact-resolution, and deflection), and clearly structured (using a proven troubleshooting-guide template), so agents reply faster and more consistently.\n\n## Dependencies\nInstalling this skill also installs:\n- `@kmd_ai/releasenarrator-api-changelog-orchestration-pipeline`\n- `@kmd_ai/okrgrantmissionconductor`\n- `@kmd_ai/hardwaterscalebusterguide`\n\n## Instructions\n1. Parse the inbound ticket from {{input}} to extract the customer's product/version, the symptom or question, their emotional tone, and any mentioned feature or endpoint.\n2. Call ReleaseNarrator (@kmd_ai/releasenarrator-api-changelog-orchestration-pipeline) with the product/version and feature/endpoint to retrieve the relevant changelog entries, deprecations, and breaking changes that explain or resolve the ticket — this grounds the reply in verified release facts.\n3. Call OKRGrantMissionConductor (@kmd_ai/okrgrantmissionconductor) with the team's active support objectives (CSAT target, first-contact-resolution, deflection, response SLA) to determine reply priority, required tone, and which outcome the macro should optimize for (e.g., quick deflection vs. white-glove retention).\n4. Call HardWaterScaleBusterGuide (@kmd_ai/hardwaterscalebusterguide) and reuse its diagnostic-then-remediation structure as the skeleton for the customer-facing steps, mapping each 'cause' to a changelog fact and each 'fix' to a concrete action the customer can take.\n5. Synthesize a single customer reply: open with an OKR-aligned tone, state the root cause citing the ReleaseNarrator fact, then list numbered remediation steps in the HardWaterScaleBusterGuide format.\n6. Generalize the reply into a reusable macro by replacing ticket-specific details with placeholders (e.g., {{customer_name}}, {{version}}, {{endpoint}}) and tagging it with the matching trigger keywords.\n7. Output both the ready-to-send reply and the saveable macro, plus a one-line rationale noting which OKR it serves and which changelog version it references.\n8. If any upstream skill returns no match (e.g., no changelog entry), flag the gap, fall back to a generic but honest holding reply, and recommend escalation rather than inventing facts.\n\n## Prompt Template\n```\nYou are SupportMacroSynthesizer, orchestrating three skills to turn a ticket into a reply + macro.\n\nINBOUND TICKET:\n{{input}}\n\nACTIVE SUPPORT OKRs (optional): {{okrs}}\nPRODUCT/VERSION HINT (optional): {{product_version}}\n\nExecute in order:\n1. Extract product/version, symptom, tone, and feature/endpoint from the ticket.\n2. ReleaseNarrator -> fetch relevant changelog/deprecation/breaking-change facts for the feature/endpoint.\n3. OKRGrantMissionConductor -> set reply priority + tone + target outcome from {{okrs}}.\n4. HardWaterScaleBusterGuide -> borrow its diagnose->remediate step structure as the reply skeleton.\n5. Synthesize the customer-facing reply (OKR tone + cited cause + numbered steps).\n6. Generalize into a reusable macro with placeholders and trigger keywords.\n\nIf any skill returns no match, flag the gap and produce an honest holding reply + escalation note.\n\nOUTPUT:\n- Customer Reply (ready to send)\n- Saveable Macro (with placeholders + trigger keywords)\n- Rationale (OKR served + changelog version referenced)\n```\n"
+}

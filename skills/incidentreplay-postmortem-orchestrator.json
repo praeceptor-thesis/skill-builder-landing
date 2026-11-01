@@ -1,0 +1,76 @@
+{
+  "id": "incidentreplay-postmortem-orchestrator",
+  "name": "IncidentReplay Postmortem Orchestrator",
+  "description": "Turns a raw Kubernetes/cloud incident war-room recording (video, transcript, or Slack log) into a chaptered timeline, a shareable incident thread, a remediation gut-check on proposed infrastructure spend, and an audit of leaking cloud subscriptions/resources left behind — by orchestrating ChapterMarkClipper, WebinarToThreadCarver, BigPurchaseGutCheck, and SubscriptionLeakFinder end to end.",
+  "category": "Automation",
+  "tags": [
+    "kubernetes",
+    "incident-response",
+    "postmortem",
+    "finops",
+    "orchestration"
+  ],
+  "type": "meta",
+  "dependencies": [
+    "@kmd_ai/chaptermarkclipper",
+    "@kmd_ai/bigpurchasegutcheck",
+    "@kmd_ai/webinartothreadcarver",
+    "@kmd_ai/subscriptionleakfinder"
+  ],
+  "spec": {
+    "name": "IncidentReplay Postmortem Orchestrator",
+    "description": "Turns a raw Kubernetes/cloud incident war-room recording (video, transcript, or Slack log) into a chaptered timeline, a shareable incident thread, a remediation gut-check on proposed infrastructure spend, and an audit of leaking cloud subscriptions/resources left behind — by orchestrating ChapterMarkClipper, WebinarToThreadCarver, BigPurchaseGutCheck, and SubscriptionLeakFinder end to end.",
+    "category": "Automation",
+    "tags": [
+      "kubernetes",
+      "incident-response",
+      "postmortem",
+      "finops",
+      "orchestration"
+    ],
+    "purpose": "Convert the chaos of a live incident into a complete, decision-ready postmortem package: a precise incident timeline, a public/internal narrative thread, a sanity check on any costly remediation purchases (bigger nodes, reserved instances, new vendors), and a sweep for orphaned or leaking cloud resources the incident exposed — so teams close the loop on both reliability AND cost.",
+    "instructions": [
+      "Collect the incident inputs: the war-room/bridge recording or transcript, the timestamped chat/alert log, and any proposed remediation spend or vendor decisions. Normalize timezones to UTC before proceeding.",
+      "Run ChapterMarkClipper on the war-room recording/transcript to auto-detect phase boundaries (detection, triage, mitigation, recovery, resolution) and emit timestamped chapter markers. Treat each chapter as a timeline milestone for the postmortem.",
+      "Feed the chaptered timeline into WebinarToThreadCarver to carve a clean, chronological incident narrative thread — one segment per chapter — suitable for the status page, exec update, or internal retro doc. Preserve the UTC timestamps and key decisions in each segment.",
+      "Extract every remediation action from the thread that implies new or increased spend (e.g., upsized node pools, reserved/committed-use purchases, premium support tiers, new SaaS/observability vendors). Run each through BigPurchaseGutCheck to pressure-test cost vs. benefit, alternatives, and reversibility before anyone commits.",
+      "Run SubscriptionLeakFinder across the cloud account(s) touched during the incident to find orphaned resources spun up under pressure (debug clusters, temporary load balancers, snapshots, dangling PVCs, unused reserved capacity) that will silently keep billing.",
+      "Cross-reference the leak findings against the gut-checked purchases: flag cases where the team is about to BUY capacity they already have idling, and recommend reclaim-before-buy actions.",
+      "Assemble the final deliverable: (1) chaptered timeline, (2) shareable incident thread, (3) a go/hold/reject verdict per proposed purchase, and (4) a cleanup checklist of leaking resources with est. monthly savings. Output as a single structured postmortem.",
+      "Return action items with owners and due dates, and highlight the single biggest reliability fix and the single biggest cost reclaim as the headline outcomes."
+    ],
+    "promptTemplate": "You are the IncidentReplay Postmortem Orchestrator. Produce a complete incident postmortem by orchestrating four sub-skills in order. Do not duplicate their internal logic—invoke each as a step and synthesize.\n\nINCIDENT INPUTS:\n{{input}}\n(Expected: war-room recording/transcript link or text, timestamped alert/chat log, cloud account IDs/regions touched, and any proposed remediation spend or vendor decisions.)\n\nSTEP 1 — Timeline (via ChapterMarkClipper @kmd_ai/chaptermarkclipper):\nDetect and emit UTC-timestamped chapters for detection → triage → mitigation → recovery → resolution.\n\nSTEP 2 — Narrative (via WebinarToThreadCarver @kmd_ai/webinartothreadcarver):\nCarve the chapters into a chronological incident thread, one segment per phase, preserving timestamps and key decisions.\n\nSTEP 3 — Spend sanity (via BigPurchaseGutCheck @kmd_ai/bigpurchasegutcheck):\nFor each remediation implying new/increased cost, return a go / hold / reject verdict with reasoning, alternatives, and reversibility.\n\nSTEP 4 — Cost leak sweep (via SubscriptionLeakFinder @kmd_ai/subscriptionleakfinder):\nIdentify orphaned/leaking resources in the touched accounts with estimated monthly cost.\n\nSYNTHESIS:\n- Flag any \"buying capacity we already have idle\" conflicts between Step 3 and Step 4.\n- Output: (1) Chaptered Timeline, (2) Incident Thread, (3) Purchase Verdicts, (4) Cleanup Checklist with $/mo savings, (5) Action items (owner + due date), (6) Headline: biggest reliability fix + biggest cost reclaim.",
+    "examples": [
+      {
+        "title": "Prod API outage with emergency scale-up",
+        "input": "War-room recording (47 min) + PagerDuty/Slack log for INC-2291 (EKS prod-us-east-1). Symptoms: 5xx spike 02:14 UTC after node pool OOM. Mitigation: scaled node pool 6→20, spun up a temporary debug cluster, enabled Datadog premium APM trial. Proposed spend: buy 12x m5.4xlarge 1-yr reserved instances ($~58k/yr) + annual Datadog APM contract. Accounts touched: 1234-5678 (us-east-1).",
+        "output": "1) TIMELINE: 02:14 Detection (5xx + OOMKilled), 02:19 Triage (node pool saturation), 02:33 Mitigation (scaled 6→20, debug cluster up), 02:51 Recovery (error rate <0.1%), 03:08 Resolution.\n2) THREAD: 5-segment status-page-ready narrative with UTC stamps and decisions per phase.\n3) PURCHASE VERDICTS: Reserved instances → HOLD: load spike was transient OOM, not sustained demand; right-size requests/limits + HPA first; if sustained, buy savings plans (reversible) not 1-yr RIs. Datadog APM annual → REJECT during incident: finish trial evaluation, compare to existing stack, decide calmly.\n4) CLEANUP CHECKLIST: Temporary debug cluster (~$320/mo) — delete; 14 extra nodes still running post-recovery (~$4,100/mo) — scale back to 8; orphaned ELB from debug cluster (~$18/mo); 3 dangling EBS snapshots (~$9/mo). Est. reclaim: ~$4,447/mo.\n5) ACTION ITEMS: @sre-oncall delete debug cluster (today); @platform right-size requests + add HPA (3d); @finops convert any kept capacity to savings plan (1wk).\n6) HEADLINE: Biggest reliability fix = set memory requests/limits + HPA to prevent OOM cascade. Biggest cost reclaim = scale node pool back + kill debug cluster (~$4.4k/mo). CONFLICT FLAGGED: Team proposed buying 12 reserved instances while 14 idle emergency nodes are still billing — reclaim before buy."
+      },
+      {
+        "title": "Multi-region DB failover",
+        "input": "Transcript only for INC-1180 (GKE, us-central1 + europe-west1). RDS-equivalent failover during AZ outage. Temporary read replicas created in both regions. Proposed: buy committed-use discount for 3 extra DB instances. Accounts: proj-core, proj-eu.",
+        "output": "1) TIMELINE chapters for both-region failover phases. 2) THREAD carved per phase with cross-region decisions. 3) VERDICT: committed-use for 3 DB instances → HOLD pending whether replicas stay permanent; buy only for the 1 confirmed permanent replica. 4) CLEANUP: 2 temporary read replicas in europe-west1 still live (~$620/mo), unattached PDs (~$40/mo). 5) ACTION ITEMS with owners/dates. 6) HEADLINE: reliability fix = automate cross-region failover runbook; cost reclaim = tear down temp replicas (~$660/mo). CONFLICT: don't commit-buy replicas you're about to delete."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Produces all four orchestrated sections plus conflict flag",
+        "input": "War-room transcript for INC-500 (EKS prod). Emergency node scale-up 4→16, temp debug cluster created, team wants to buy 8 reserved instances. Account 9999 us-west-2.",
+        "expected": "Output contains a chaptered UTC timeline, a carved incident thread, a go/hold/reject verdict on the reserved-instance purchase, a cleanup checklist with estimated $/mo for the still-running extra nodes and debug cluster, action items with owners/dates, and an explicit conflict flag that the team is buying capacity while idle emergency nodes still bill."
+      },
+      {
+        "name": "Handles no-spend incident gracefully",
+        "input": "Transcript for INC-77: config rollback fixed the issue, no new resources created, no proposed purchases. Account 4321 eu-west-1.",
+        "expected": "Timeline and incident thread are produced; purchase verdicts section states 'No remediation spend proposed — no gut-check needed'; leak sweep still runs and reports either found orphans with $/mo or 'no leaks detected'; headline reports biggest reliability fix with cost reclaim noted as none/minimal."
+      }
+    ],
+    "type": "meta",
+    "dependencies": [
+      "@kmd_ai/chaptermarkclipper",
+      "@kmd_ai/bigpurchasegutcheck",
+      "@kmd_ai/webinartothreadcarver",
+      "@kmd_ai/subscriptionleakfinder"
+    ]
+  },
+  "markdown": "# IncidentReplay Postmortem Orchestrator\n\n## Purpose\nConvert the chaos of a live incident into a complete, decision-ready postmortem package: a precise incident timeline, a public/internal narrative thread, a sanity check on any costly remediation purchases (bigger nodes, reserved instances, new vendors), and a sweep for orphaned or leaking cloud resources the incident exposed — so teams close the loop on both reliability AND cost.\n\n## Dependencies\nInstalling this skill also installs:\n- `@kmd_ai/chaptermarkclipper`\n- `@kmd_ai/bigpurchasegutcheck`\n- `@kmd_ai/webinartothreadcarver`\n- `@kmd_ai/subscriptionleakfinder`\n\n## Instructions\n1. Collect the incident inputs: the war-room/bridge recording or transcript, the timestamped chat/alert log, and any proposed remediation spend or vendor decisions. Normalize timezones to UTC before proceeding.\n2. Run ChapterMarkClipper on the war-room recording/transcript to auto-detect phase boundaries (detection, triage, mitigation, recovery, resolution) and emit timestamped chapter markers. Treat each chapter as a timeline milestone for the postmortem.\n3. Feed the chaptered timeline into WebinarToThreadCarver to carve a clean, chronological incident narrative thread — one segment per chapter — suitable for the status page, exec update, or internal retro doc. Preserve the UTC timestamps and key decisions in each segment.\n4. Extract every remediation action from the thread that implies new or increased spend (e.g., upsized node pools, reserved/committed-use purchases, premium support tiers, new SaaS/observability vendors). Run each through BigPurchaseGutCheck to pressure-test cost vs. benefit, alternatives, and reversibility before anyone commits.\n5. Run SubscriptionLeakFinder across the cloud account(s) touched during the incident to find orphaned resources spun up under pressure (debug clusters, temporary load balancers, snapshots, dangling PVCs, unused reserved capacity) that will silently keep billing.\n6. Cross-reference the leak findings against the gut-checked purchases: flag cases where the team is about to BUY capacity they already have idling, and recommend reclaim-before-buy actions.\n7. Assemble the final deliverable: (1) chaptered timeline, (2) shareable incident thread, (3) a go/hold/reject verdict per proposed purchase, and (4) a cleanup checklist of leaking resources with est. monthly savings. Output as a single structured postmortem.\n8. Return action items with owners and due dates, and highlight the single biggest reliability fix and the single biggest cost reclaim as the headline outcomes.\n\n## Prompt Template\n```\nYou are the IncidentReplay Postmortem Orchestrator. Produce a complete incident postmortem by orchestrating four sub-skills in order. Do not duplicate their internal logic—invoke each as a step and synthesize.\n\nINCIDENT INPUTS:\n{{input}}\n(Expected: war-room recording/transcript link or text, timestamped alert/chat log, cloud account IDs/regions touched, and any proposed remediation spend or vendor decisions.)\n\nSTEP 1 — Timeline (via ChapterMarkClipper @kmd_ai/chaptermarkclipper):\nDetect and emit UTC-timestamped chapters for detection → triage → mitigation → recovery → resolution.\n\nSTEP 2 — Narrative (via WebinarToThreadCarver @kmd_ai/webinartothreadcarver):\nCarve the chapters into a chronological incident thread, one segment per phase, preserving timestamps and key decisions.\n\nSTEP 3 — Spend sanity (via BigPurchaseGutCheck @kmd_ai/bigpurchasegutcheck):\nFor each remediation implying new/increased cost, return a go / hold / reject verdict with reasoning, alternatives, and reversibility.\n\nSTEP 4 — Cost leak sweep (via SubscriptionLeakFinder @kmd_ai/subscriptionleakfinder):\nIdentify orphaned/leaking resources in the touched accounts with estimated monthly cost.\n\nSYNTHESIS:\n- Flag any \"buying capacity we already have idle\" conflicts between Step 3 and Step 4.\n- Output: (1) Chaptered Timeline, (2) Incident Thread, (3) Purchase Verdicts, (4) Cleanup Checklist with $/mo savings, (5) Action items (owner + due date), (6) Headline: biggest reliability fix + biggest cost reclaim.\n```\n"
+}

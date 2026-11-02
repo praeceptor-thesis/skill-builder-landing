@@ -1,0 +1,61 @@
+{
+  "id": "deescalationsnapback",
+  "name": "DeEscalationSnapback",
+  "description": "Rewrites a draft support reply into a short, empathetic, de-escalating response calibrated to the customer's anger level, used when a customer is frustrated and you need a fast, tone-correct reply.",
+  "category": "Support",
+  "tags": [
+    "support",
+    "de-escalation",
+    "macros",
+    "tone",
+    "brevity"
+  ],
+  "type": "basic",
+  "dependencies": [],
+  "spec": {
+    "name": "DeEscalationSnapback",
+    "description": "Rewrites a draft support reply into a short, empathetic, de-escalating response calibrated to the customer's anger level, used when a customer is frustrated and you need a fast, tone-correct reply.",
+    "category": "Support",
+    "tags": [
+      "support",
+      "de-escalation",
+      "macros",
+      "tone",
+      "brevity"
+    ],
+    "purpose": "Produce a tight, emotionally-intelligent support reply (under 4 sentences) that acknowledges the frustration, owns the issue without over-apologizing, and states the single next action — so agents resolve heated tickets faster.",
+    "instructions": [
+      "Read the customer message and classify anger level as Low, Medium, or High based on language, caps, threats, and repetition.",
+      "Open with a one-line acknowledgment that names the specific frustration (not a generic 'sorry for the inconvenience').",
+      "Own the problem: for Medium/High, include a single accountable statement; never blame the customer or pile on apologies.",
+      "State exactly ONE concrete next action with a timeframe; avoid offering choices that create back-and-forth.",
+      "Match brevity to anger: High = 2 sentences max and no jargon; Low = up to 4 sentences allowed.",
+      "Strip filler phrases ('as per our policy', 'kindly', 'at this time') and keep reading level simple.",
+      "Never promise refunds, credits, or escalations that aren't supplied in the input context.",
+      "Output only the final reply text plus a one-line tag '[Anger: X]' at the top for the agent."
+    ],
+    "promptTemplate": "You are a senior support agent rewriting a reply to de-escalate a frustrated customer. Keep it short and tone-correct.\n\nCUSTOMER MESSAGE:\n{{input}}\n\nCONTEXT (what you can actually offer; if blank, offer only acknowledgment + next step):\n{{context}}\n\nAGENT NAME: {{agent_name}}\n\nSteps:\n1. Classify anger: Low / Medium / High.\n2. Write a reply that: names the specific frustration, owns the issue (Medium/High), and gives ONE next action with a timeframe.\n3. Enforce brevity by anger level — High: 2 sentences, Medium: 3, Low: up to 4.\n4. Remove filler and jargon. Do not invent refunds/credits/escalations not in CONTEXT.\n\nOUTPUT FORMAT:\n[Anger: Low/Medium/High]\n<reply text>\n— {{agent_name}}",
+    "examples": [
+      {
+        "title": "High-anger billing double-charge",
+        "input": "This is the THIRD time I've been charged twice and nobody has fixed it. Absolutely ridiculous. Fix it NOW or I'm disputing with my bank.",
+        "output": "[Anger: High]\nYou're right to be upset — being double-charged three times is unacceptable, and I'm fixing it now. I've reversed the duplicate charge and you'll see it back within 3–5 business days; I'll email you the confirmation today.\n— Jordan"
+      },
+      {
+        "title": "Low-anger shipping delay",
+        "input": "Hey, my order was supposed to arrive yesterday and it hasn't shown up. A little annoying but just wondering what's going on.",
+        "output": "[Anger: Low]\nSorry your order is running late — I can see it's still in transit. I've pulled up the carrier tracking and it's now scheduled to arrive tomorrow by end of day. I'll keep an eye on it and let you know if anything changes, and if it slips again I'll make it right.\n— Jordan"
+      }
+    ],
+    "tests": [
+      {
+        "name": "High anger stays to two sentences and no invented refund",
+        "input": "I have emailed you people FIVE times and no response!!! Your app deleted all my saved files. This is a disgrace.",
+        "expected": "[Anger: High] tag present; reply is at most 2 sentences; names the deleted-files frustration and takes ownership; states one next action with a timeframe; does NOT promise a refund or credit (none in context)."
+      }
+    ],
+    "type": "basic",
+    "dependencies": []
+  },
+  "markdown": "# DeEscalationSnapback\n\n## Purpose\nProduce a tight, emotionally-intelligent support reply (under 4 sentences) that acknowledges the frustration, owns the issue without over-apologizing, and states the single next action — so agents resolve heated tickets faster.\n\n## Instructions\n1. Read the customer message and classify anger level as Low, Medium, or High based on language, caps, threats, and repetition.\n2. Open with a one-line acknowledgment that names the specific frustration (not a generic 'sorry for the inconvenience').\n3. Own the problem: for Medium/High, include a single accountable statement; never blame the customer or pile on apologies.\n4. State exactly ONE concrete next action with a timeframe; avoid offering choices that create back-and-forth.\n5. Match brevity to anger: High = 2 sentences max and no jargon; Low = up to 4 sentences allowed.\n6. Strip filler phrases ('as per our policy', 'kindly', 'at this time') and keep reading level simple.\n7. Never promise refunds, credits, or escalations that aren't supplied in the input context.\n8. Output only the final reply text plus a one-line tag '[Anger: X]' at the top for the agent.\n\n## Prompt Template\n```\nYou are a senior support agent rewriting a reply to de-escalate a frustrated customer. Keep it short and tone-correct.\n\nCUSTOMER MESSAGE:\n{{input}}\n\nCONTEXT (what you can actually offer; if blank, offer only acknowledgment + next step):\n{{context}}\n\nAGENT NAME: {{agent_name}}\n\nSteps:\n1. Classify anger: Low / Medium / High.\n2. Write a reply that: names the specific frustration, owns the issue (Medium/High), and gives ONE next action with a timeframe.\n3. Enforce brevity by anger level — High: 2 sentences, Medium: 3, Low: up to 4.\n4. Remove filler and jargon. Do not invent refunds/credits/escalations not in CONTEXT.\n\nOUTPUT FORMAT:\n[Anger: Low/Medium/High]\n<reply text>\n— {{agent_name}}\n```\n"
+}

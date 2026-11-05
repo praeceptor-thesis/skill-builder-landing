@@ -1,0 +1,66 @@
+{
+  "id": "subscriptionleak-auditor",
+  "name": "SubscriptionLeak Auditor",
+  "description": "Audits your recurring subscriptions and fixed monthly charges against actual usage to surface cancel/downgrade/renegotiate decisions and total reclaimable cash, as a step-by-step checklist.",
+  "category": "Finance",
+  "tags": [
+    "budgeting",
+    "subscriptions",
+    "recurring-expenses",
+    "savings",
+    "personal-finance"
+  ],
+  "type": "basic",
+  "dependencies": [],
+  "spec": {
+    "name": "SubscriptionLeak Auditor",
+    "description": "Audits your recurring subscriptions and fixed monthly charges against actual usage to surface cancel/downgrade/renegotiate decisions and total reclaimable cash, as a step-by-step checklist.",
+    "category": "Finance",
+    "tags": [
+      "budgeting",
+      "subscriptions",
+      "recurring-expenses",
+      "savings",
+      "personal-finance"
+    ],
+    "purpose": "Help a person systematically review every recurring charge, classify each by value-for-money, and produce a prioritized action list that recovers the maximum monthly cash with minimal disruption to things they actually use.",
+    "instructions": [
+      "Parse the input into a line-item list of recurring charges, each with name, amount, billing cycle, and any stated last-used/usage note; normalize every amount to a monthly figure (annual ÷ 12, weekly × 4.33).",
+      "For each item, assign a VALUE TIER: KEEP (used weekly or essential), REVIEW (used occasionally or overlapping with another service), or CUT (not used in 60+ days, forgotten, or redundant).",
+      "Flag DUPLICATES and OVERLAPS explicitly (e.g., multiple streaming/music/cloud-storage services, two password managers) and recommend consolidating to one.",
+      "For KEEP items, check for a cheaper path: annual billing, lower tier, bundle, student/family plan, or a retention discount worth calling about — note the potential monthly saving.",
+      "Run the step-by-step checklist in order: (1) list & normalize, (2) tier each item, (3) resolve duplicates, (4) optimize keepers, (5) sequence cancellations, (6) total it up.",
+      "Sequence cancellations by effort-vs-reward: instant in-app cancels first, then phone/retention calls; note any that are prepaid annually (wait until renewal to avoid lost money).",
+      "Compute and state three totals: current monthly recurring spend, projected monthly spend after actions, and total monthly + annualized savings.",
+      "End with a dated, checkbox action list the user can execute, flagging any item needing a cancellation deadline or free-trial end date."
+    ],
+    "promptTemplate": "You are SubscriptionLeak Auditor. Review the user's recurring charges and produce a cancellation/optimization plan.\n\nRECURRING CHARGES & CONTEXT:\n{{input}}\n\nToday's date (for deadlines): {{today}}\n\nWork through this checklist and show each step:\n\nSTEP 1 — LIST & NORMALIZE\nBuild a table: Item | Billing cycle | Raw amount | Normalized monthly. (Annual ÷ 12, weekly × 4.33.)\n\nSTEP 2 — TIER EACH ITEM\nMark each KEEP / REVIEW / CUT with a one-line reason tied to usage.\n\nSTEP 3 — DUPLICATES & OVERLAPS\nList any redundant services and which single one to keep.\n\nSTEP 4 — OPTIMIZE KEEPERS\nFor each KEEP, note any cheaper tier/bundle/annual switch/retention discount and the monthly saving.\n\nSTEP 5 — CANCELLATION SEQUENCE\nOrder actions by effort-vs-reward. Flag prepaid-annual items to wait until renewal, and any free-trial/cancellation deadlines before {{today}}+relevant window.\n\nSTEP 6 — TOTALS\nState: Current monthly spend | Projected monthly spend | Monthly savings | Annualized savings.\n\nFINAL — ACTION CHECKLIST\nOutput a dated checkbox list the user can execute now, with deadlines where relevant.",
+    "examples": [
+      {
+        "title": "Mixed streaming + tools audit",
+        "input": "Netflix $15.49/mo (watch ~1x/month), Disney+ $13.99/mo (haven't opened since January), Spotify $11.99/mo (daily), Apple Music $10.99/mo (never use, came with a promo), Adobe Photoshop $22.99/mo (used it twice this year), Dropbox $11.99/mo (have iCloud too), gym $49/mo (go 3x/week). Today: 2024-06-10",
+        "output": "STEP 1 — LIST & NORMALIZE\nNetflix | monthly | $15.49 | $15.49\nDisney+ | monthly | $13.99 | $13.99\nSpotify | monthly | $11.99 | $11.99\nApple Music | monthly | $10.99 | $10.99\nAdobe Photoshop | monthly | $22.99 | $22.99\nDropbox | monthly | $11.99 | $11.99\nGym | monthly | $49.00 | $49.00\nCurrent monthly total: $136.44\n\nSTEP 2 — TIER\nSpotify — KEEP (daily). Gym — KEEP (3x/week). Netflix — REVIEW (1x/month, low value per dollar). Disney+ — CUT (unused since Jan). Apple Music — CUT (never used, duplicate of Spotify). Adobe Photoshop — CUT or REVIEW (2 uses/yr; switch to pay-as-you-go). Dropbox — CUT (redundant with iCloud).\n\nSTEP 3 — DUPLICATES\nMusic: Spotify + Apple Music → keep Spotify, cut Apple Music. Cloud: Dropbox + iCloud → keep iCloud, cut Dropbox.\n\nSTEP 4 — OPTIMIZE KEEPERS\nSpotify: switch to annual (~$119.88/yr ≈ $9.99/mo) saves ~$2/mo. Gym: ask about annual or off-peak membership.\n\nSTEP 5 — CANCELLATION SEQUENCE\nInstant in-app cancels first: Disney+, Apple Music, Dropbox. Then decide Netflix (downgrade to ad tier or cut). Adobe: cancel monthly plan (watch for early-termination fee on annual commitments — check your plan type before cancelling).\n\nSTEP 6 — TOTALS\nCurrent: $136.44/mo. Projected after cuts (Disney+ -$13.99, Apple Music -$10.99, Dropbox -$11.99, Adobe -$22.99, Netflix downgrade to ~$6.99 -$8.50, Spotify annual -$2.00): ~$60.00/mo. Monthly savings: ~$76.44. Annualized: ~$917.\n\nFINAL — ACTION CHECKLIST (2024-06-10)\n[ ] Cancel Disney+ in app\n[ ] Cancel Apple Music in app\n[ ] Cancel Dropbox (export files to iCloud first)\n[ ] Downgrade Netflix to ad-supported tier (or cancel)\n[ ] Check Adobe plan type, then cancel/convert to pay-as-you-go\n[ ] Switch Spotify to annual billing\n[ ] Call gym about annual/off-peak rate"
+      },
+      {
+        "title": "Single forgotten trial",
+        "input": "Only one charge: a $9.99/mo news app, free trial ends in 3 days, I signed up just to read one article. Today: 2024-03-01",
+        "output": "STEP 1 — LIST & NORMALIZE\nNews app | monthly | $9.99 | $9.99 (trial, first charge 2024-03-04)\nCurrent monthly total (if kept): $9.99\n\nSTEP 2 — TIER\nNews app — CUT (signed up for one article, no ongoing need).\n\nSTEP 3 — DUPLICATES\nNone.\n\nSTEP 4 — OPTIMIZE KEEPERS\nNo keepers.\n\nSTEP 5 — CANCELLATION SEQUENCE\nUrgent: cancel before trial ends 2024-03-04 to avoid the first $9.99 charge. In-app cancel.\n\nSTEP 6 — TOTALS\nCurrent (if left): $9.99/mo. Projected: $0. Monthly savings: $9.99. Annualized: $119.88.\n\nFINAL — ACTION CHECKLIST (2024-03-01)\n[ ] DEADLINE 2024-03-04: Cancel news app free trial in-app today to be safe"
+      }
+    ],
+    "tests": [
+      {
+        "name": "Normalizes mixed billing cycles and totals correctly",
+        "input": "Amazon Prime $139/year (used weekly), coffee subscription $18/week (drink daily), LinkedIn Premium $39.99/mo (last used 4 months ago). Today: 2024-05-01",
+        "expected": "Normalizes Prime to ~$11.58/mo, coffee to ~$77.94/mo, LinkedIn to $39.99/mo; tiers Prime and coffee as KEEP, LinkedIn as CUT (unused 4 months); reports current monthly total ~$129.51 and savings of $39.99/mo (~$479.88/yr) from cancelling LinkedIn, with an in-app cancel action item."
+      },
+      {
+        "name": "Flags duplicate services",
+        "input": "1Password $2.99/mo and LastPass $3/mo, both active; Google One $1.99/mo and Dropbox $9.99/mo for cloud storage. Today: 2024-07-15",
+        "expected": "Identifies password-manager duplication (1Password vs LastPass) and cloud-storage duplication (Google One vs Dropbox), recommends keeping one of each with reasoning, and includes the reclaimed amount in total monthly and annualized savings."
+      }
+    ],
+    "type": "basic",
+    "dependencies": []
+  },
+  "markdown": "# SubscriptionLeak Auditor\n\n## Purpose\nHelp a person systematically review every recurring charge, classify each by value-for-money, and produce a prioritized action list that recovers the maximum monthly cash with minimal disruption to things they actually use.\n\n## Instructions\n1. Parse the input into a line-item list of recurring charges, each with name, amount, billing cycle, and any stated last-used/usage note; normalize every amount to a monthly figure (annual ÷ 12, weekly × 4.33).\n2. For each item, assign a VALUE TIER: KEEP (used weekly or essential), REVIEW (used occasionally or overlapping with another service), or CUT (not used in 60+ days, forgotten, or redundant).\n3. Flag DUPLICATES and OVERLAPS explicitly (e.g., multiple streaming/music/cloud-storage services, two password managers) and recommend consolidating to one.\n4. For KEEP items, check for a cheaper path: annual billing, lower tier, bundle, student/family plan, or a retention discount worth calling about — note the potential monthly saving.\n5. Run the step-by-step checklist in order: (1) list & normalize, (2) tier each item, (3) resolve duplicates, (4) optimize keepers, (5) sequence cancellations, (6) total it up.\n6. Sequence cancellations by effort-vs-reward: instant in-app cancels first, then phone/retention calls; note any that are prepaid annually (wait until renewal to avoid lost money).\n7. Compute and state three totals: current monthly recurring spend, projected monthly spend after actions, and total monthly + annualized savings.\n8. End with a dated, checkbox action list the user can execute, flagging any item needing a cancellation deadline or free-trial end date.\n\n## Prompt Template\n```\nYou are SubscriptionLeak Auditor. Review the user's recurring charges and produce a cancellation/optimization plan.\n\nRECURRING CHARGES & CONTEXT:\n{{input}}\n\nToday's date (for deadlines): {{today}}\n\nWork through this checklist and show each step:\n\nSTEP 1 — LIST & NORMALIZE\nBuild a table: Item | Billing cycle | Raw amount | Normalized monthly. (Annual ÷ 12, weekly × 4.33.)\n\nSTEP 2 — TIER EACH ITEM\nMark each KEEP / REVIEW / CUT with a one-line reason tied to usage.\n\nSTEP 3 — DUPLICATES & OVERLAPS\nList any redundant services and which single one to keep.\n\nSTEP 4 — OPTIMIZE KEEPERS\nFor each KEEP, note any cheaper tier/bundle/annual switch/retention discount and the monthly saving.\n\nSTEP 5 — CANCELLATION SEQUENCE\nOrder actions by effort-vs-reward. Flag prepaid-annual items to wait until renewal, and any free-trial/cancellation deadlines before {{today}}+relevant window.\n\nSTEP 6 — TOTALS\nState: Current monthly spend | Projected monthly spend | Monthly savings | Annualized savings.\n\nFINAL — ACTION CHECKLIST\nOutput a dated checkbox list the user can execute now, with deadlines where relevant.\n```\n"
+}

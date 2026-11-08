@@ -1,0 +1,66 @@
+{
+  "id": "churnsignal-saveplay-prioritizer",
+  "name": "ChurnSignal SavePlay Prioritizer",
+  "description": "Turns a single at-risk customer's account data into a ranked, evidence-based set of churn-driver diagnoses and concrete save-play actions, each scored by expected retained value, so retention teams know exactly whom to save and how.",
+  "category": "Data",
+  "tags": [
+    "churn",
+    "retention",
+    "customer-success",
+    "prioritization",
+    "playbooks"
+  ],
+  "type": "basic",
+  "dependencies": [],
+  "spec": {
+    "name": "ChurnSignal SavePlay Prioritizer",
+    "description": "Turns a single at-risk customer's account data into a ranked, evidence-based set of churn-driver diagnoses and concrete save-play actions, each scored by expected retained value, so retention teams know exactly whom to save and how.",
+    "category": "Data",
+    "tags": [
+      "churn",
+      "retention",
+      "customer-success",
+      "prioritization",
+      "playbooks"
+    ],
+    "purpose": "Convert raw per-account signals (usage trend, support history, billing, tenure, plan) into a prioritized intervention plan that maximizes expected retained revenue per unit of CS effort.",
+    "instructions": [
+      "Parse the input into structured fields: tenure, plan/MRR, usage trend, feature adoption, support tickets/sentiment, billing events, NPS/CSAT, and any renewal date.",
+      "Compute a churn risk tier (Low/Medium/High/Critical) and state the 1-3 dominant churn drivers, citing the specific signals that support each driver.",
+      "For each identified driver, propose one concrete save-play (owner, action, timing) mapped directly to that driver — avoid generic 'reach out' advice.",
+      "Estimate retained value for the account: ExpectedRetainedValue = (annualized MRR) x (churn probability reduction from the play). Show the arithmetic.",
+      "Rank save-plays by ExpectedRetainedValue divided by estimated effort (Low/Med/High), and recommend a single next best action.",
+      "Flag any missing data that would materially change the diagnosis, and state the assumption used in its absence.",
+      "Always end with a short worked example showing the computation on the provided account so the reasoning is auditable.",
+      "Keep output as a tight structured brief; do not exceed what a CSM can act on in one sitting."
+    ],
+    "promptTemplate": "You are ChurnSignal SavePlay Prioritizer. Analyze ONE at-risk customer account and produce a prioritized retention plan.\n\nACCOUNT DATA:\n{{input}}\n\nPlaybook catalog (optional, else use best practice): {{playbooks}}\nEffort/value weighting preference (default: maximize retained value per effort): {{weighting}}\n\nProduce exactly these sections:\n\n1. RISK TIER: Low / Medium / High / Critical — with a one-line justification.\n\n2. CHURN DRIVERS (ranked, max 3): For each, name the driver and cite the exact signals from the data that support it.\n\n3. SAVE-PLAYS: For each driver, give one concrete play with: Action | Owner | Timing | Est. churn-prob reduction | Effort (L/M/H).\n\n4. EXPECTED RETAINED VALUE: For each play compute ARR = MRR x 12, then ExpectedRetainedValue = ARR x prob reduction. Show arithmetic.\n\n5. PRIORITIZED PLAN: Rank plays by value/effort. State the single NEXT BEST ACTION.\n\n6. DATA GAPS: List missing fields that would change the call and the assumption used.\n\n7. WORKED EXAMPLE: Walk through the full computation on THIS account step by step so it is auditable.\n\nBe specific and numeric. No filler.",
+    "examples": [
+      {
+        "title": "SMB SaaS account with declining usage",
+        "input": "Account: Northwind Design. Plan: Pro, MRR $900. Tenure: 14 months. Renewal in 38 days. Usage: weekly active seats dropped from 9 to 3 over last 60 days. Feature adoption: core editor used, but never adopted the collaboration or reporting modules. Support: 2 tickets last month, both about slow exports, CSAT 2/5. NPS: last score 4 (detractor). Billing: on time, no failed payments.",
+        "output": "1. RISK TIER: Critical — renewal in 38 days + seat usage down 67% + detractor NPS.\n\n2. CHURN DRIVERS:\n (1) Value realization collapse — active seats 9→3 in 60 days; collaboration/reporting modules never adopted (no stickiness).\n (2) Unresolved friction — 2 export-speed tickets, CSAT 2/5, NPS 4.\n (3) Renewal proximity — 38 days, no expansion signals.\n\n3. SAVE-PLAYS:\n - Driver 1: Exec value review + guided onboarding of reporting module | Owner: CSM | Timing: within 7 days | Est. reduction: 25% | Effort: M\n - Driver 2: Engineering hotfix/workaround for export latency + proactive update | Owner: Support lead | Timing: within 3 days | Est. reduction: 15% | Effort: L\n - Driver 3: Early renewal offer with 2-month success plan attached | Owner: AM | Timing: day 10 | Est. reduction: 10% | Effort: L\n\n4. EXPECTED RETAINED VALUE: ARR = $900 x 12 = $10,800.\n - Play 1: $10,800 x 0.25 = $2,700\n - Play 2: $10,800 x 0.15 = $1,620\n - Play 3: $10,800 x 0.10 = $1,080\n\n5. PRIORITIZED PLAN (value/effort): Play 2 ($1,620/L) first for quick win, then Play 1 ($2,700/M). NEXT BEST ACTION: Ship the export-latency fix and send a proactive update within 3 days — low effort, removes the active irritant before any value conversation.\n\n6. DATA GAPS: Contract type (auto-renew vs manual) and decision-maker engagement unknown; assumed manual renewal requiring active save. Seat license count unknown; assumed 9 licensed.\n\n7. WORKED EXAMPLE: ARR = 900*12 = 10,800. Stacked reductions are not additive here; we rank individually. Highest value = Play 1 ($2,700). Highest value/effort = Play 2 (1,620 at Low effort). Given 38-day window, sequence Play 2 (day 1-3) → Play 1 (day 4-7) → Play 3 (day 10) to compound trust before the renewal ask."
+      },
+      {
+        "title": "Enterprise account, healthy usage but billing shock",
+        "input": "Account: Atlas Logistics. Plan: Enterprise, MRR $12,000. Tenure: 3 years. Renewal in 6 months. Usage: steady, 240 DAU, high adoption across modules. Support: 0 recent tickets, CSAT 5/5. Billing: just received a 22% price increase notice for renewal; champion emailed asking to 'discuss options'.",
+        "output": "1. RISK TIER: Medium — strong product fit but a price-driven negotiation risk triggered by the 22% increase.\n\n2. CHURN DRIVERS:\n (1) Price-shock / budget pushback — champion explicitly flagged the 22% increase and asked to discuss options.\n (2) No countervailing expansion story yet — usage steady (not growing), weakening justification for the hike.\n\n3. SAVE-PLAYS:\n - Driver 1: Value realization business review quantifying ROI (240 DAU, hours saved) + tiered pricing options (multi-year lock vs smaller increase) | Owner: AM | Timing: within 5 days | Est. reduction: 30% | Effort: M\n - Driver 2: Propose expansion/usage-tier that adds value to offset the increase (new seats or module trial) | Owner: AM+SE | Timing: within 2 weeks | Est. reduction: 10% | Effort: M\n\n4. EXPECTED RETAINED VALUE: ARR = $12,000 x 12 = $144,000.\n - Play 1: $144,000 x 0.30 = $43,200\n - Play 2: $144,000 x 0.10 = $14,400\n\n5. PRIORITIZED PLAN: Play 1 dominates on both value and value/effort. NEXT BEST ACTION: Book the ROI business review within 5 days, arriving with 2-3 pricing structures so the champion has a fundable path to yes.\n\n6. DATA GAPS: Budget cycle timing and competitor evaluation unknown; assumed no active competitor bake-off. Contract length options unknown; assumed multi-year discount is available.\n\n7. WORKED EXAMPLE: ARR = 12,000*12 = 144,000. Despite healthy usage, the request to 'discuss options' is the churn trigger, so we weight the price-shock driver highest. Play 1 retained value = 144,000*0.30 = 43,200 >> Play 2 (14,400), and effort is equal (M), so Play 1 is unambiguously first."
+      }
+    ],
+    "tests": [
+      {
+        "name": "High-risk SMB produces numeric retained value and single next best action",
+        "input": "Account: Riverbend Co. Plan: Growth, MRR $500. Tenure: 8 months. Renewal in 20 days. Usage: logins dropped from daily to once in last 3 weeks. Support: 3 tickets, CSAT 2/5. NPS: 3. Billing: 1 failed payment last cycle.",
+        "expected": "Output assigns Critical (or High) risk tier; identifies declining usage, support friction, and failed payment as drivers; computes ARR = 500 x 12 = 6,000 and ExpectedRetainedValue = ARR x prob reduction for each play; ranks plays by value/effort; states one NEXT BEST ACTION; lists data gaps; and includes a worked example showing the arithmetic on this account."
+      },
+      {
+        "name": "Missing MRR triggers explicit assumption",
+        "input": "Account: Cobalt Studio. Plan: Pro. Tenure: 2 years. Usage: steady. Support: champion just left the company. Renewal in 90 days.",
+        "expected": "Output flags missing MRR in DATA GAPS, states an explicit assumed MRR for the Pro plan before computing ExpectedRetainedValue, identifies champion-departure as the primary churn driver, and recommends a multi-threading save-play as the next best action."
+      }
+    ],
+    "type": "basic",
+    "dependencies": []
+  },
+  "markdown": "# ChurnSignal SavePlay Prioritizer\n\n## Purpose\nConvert raw per-account signals (usage trend, support history, billing, tenure, plan) into a prioritized intervention plan that maximizes expected retained revenue per unit of CS effort.\n\n## Instructions\n1. Parse the input into structured fields: tenure, plan/MRR, usage trend, feature adoption, support tickets/sentiment, billing events, NPS/CSAT, and any renewal date.\n2. Compute a churn risk tier (Low/Medium/High/Critical) and state the 1-3 dominant churn drivers, citing the specific signals that support each driver.\n3. For each identified driver, propose one concrete save-play (owner, action, timing) mapped directly to that driver — avoid generic 'reach out' advice.\n4. Estimate retained value for the account: ExpectedRetainedValue = (annualized MRR) x (churn probability reduction from the play). Show the arithmetic.\n5. Rank save-plays by ExpectedRetainedValue divided by estimated effort (Low/Med/High), and recommend a single next best action.\n6. Flag any missing data that would materially change the diagnosis, and state the assumption used in its absence.\n7. Always end with a short worked example showing the computation on the provided account so the reasoning is auditable.\n8. Keep output as a tight structured brief; do not exceed what a CSM can act on in one sitting.\n\n## Prompt Template\n```\nYou are ChurnSignal SavePlay Prioritizer. Analyze ONE at-risk customer account and produce a prioritized retention plan.\n\nACCOUNT DATA:\n{{input}}\n\nPlaybook catalog (optional, else use best practice): {{playbooks}}\nEffort/value weighting preference (default: maximize retained value per effort): {{weighting}}\n\nProduce exactly these sections:\n\n1. RISK TIER: Low / Medium / High / Critical — with a one-line justification.\n\n2. CHURN DRIVERS (ranked, max 3): For each, name the driver and cite the exact signals from the data that support it.\n\n3. SAVE-PLAYS: For each driver, give one concrete play with: Action | Owner | Timing | Est. churn-prob reduction | Effort (L/M/H).\n\n4. EXPECTED RETAINED VALUE: For each play compute ARR = MRR x 12, then ExpectedRetainedValue = ARR x prob reduction. Show arithmetic.\n\n5. PRIORITIZED PLAN: Rank plays by value/effort. State the single NEXT BEST ACTION.\n\n6. DATA GAPS: List missing fields that would change the call and the assumption used.\n\n7. WORKED EXAMPLE: Walk through the full computation on THIS account step by step so it is auditable.\n\nBe specific and numeric. No filler.\n```\n"
+}

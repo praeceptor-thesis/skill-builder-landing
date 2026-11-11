@@ -1,0 +1,71 @@
+{
+  "id": "voyageorchestrator-trip-pitch-to-published-pipeline",
+  "name": "VoyageOrchestrator: Trip Pitch-to-Published Pipeline",
+  "description": "An end-to-end travel planning meta-skill that transforms a raw trip idea into a sharpened itinerary, auto-resolves any booking/refund decisions, explains how each recommendation was derived, and publishes the final plan as a shareable social carousel — orchestrating four specialized sub-skills in sequence.",
+  "category": "Productivity",
+  "tags": [
+    "travel",
+    "itinerary",
+    "orchestration",
+    "meta-skill",
+    "planning"
+  ],
+  "type": "meta",
+  "dependencies": [
+    "@kmd_ai/threadtocarouselconverter",
+    "@kmd_ai/specificaimssharpener",
+    "@kmd_ai/refundmacrodecider",
+    "@kmd_ai/querytracenarrator"
+  ],
+  "spec": {
+    "name": "VoyageOrchestrator: Trip Pitch-to-Published Pipeline",
+    "description": "An end-to-end travel planning meta-skill that transforms a raw trip idea into a sharpened itinerary, auto-resolves any booking/refund decisions, explains how each recommendation was derived, and publishes the final plan as a shareable social carousel — orchestrating four specialized sub-skills in sequence.",
+    "category": "Productivity",
+    "tags": [
+      "travel",
+      "itinerary",
+      "orchestration",
+      "meta-skill",
+      "planning"
+    ],
+    "purpose": "Turn a messy, free-form travel request (destinations, dates, budget, preferences, cancellation worries) into a crisp, decision-ready, and shareable itinerary package — with transparent reasoning and automatic refund/change-policy handling — so the traveler gets a single artifact they can act on and post.",
+    "instructions": [
+      "Intake & scope: Parse the raw {{input}} into structured travel objectives (who, where, when, budget, must-dos, constraints, risk tolerance). Flag missing essentials but proceed with explicit assumptions.",
+      "Sharpen the plan with SpecificAimsSharpener (@kmd_ai/specificaimssharpener): feed the structured objectives to convert vague wishes ('relaxing but fun', 'not too expensive') into measurable, prioritized trip aims (e.g., 'max 2 transit hours/day', 'under $180/night', '3 anchor experiences'). Use the sharpened aims as the backbone for the day-by-day itinerary you draft.",
+      "Resolve change/cancellation risk with RefundMacroDecider (@kmd_ai/refundmacrodecider): for every bookable component (flights, hotels, tours) with a cancellation or refund dimension, run the decision engine to recommend refundable vs. non-refundable, buy-now vs. hold, and insurance yes/no — then annotate each itinerary line with the chosen stance and rationale.",
+      "Build the transparent reasoning layer with QueryTraceNarrator (@kmd_ai/querytracenarrator): narrate the chain of how key choices were made (why this neighborhood, why this day order, why this refund stance), producing a human-readable 'How we planned this' trace the traveler can audit or challenge.",
+      "Assemble the master itinerary: merge the sharpened aims, refund-annotated bookings, and the reasoning trace into one structured day-by-day plan with a decisions summary and a risk/flexibility ledger.",
+      "Publish for sharing with ThreadToCarouselConverter (@kmd_ai/threadtocarouselconverter): convert the itinerary narrative into a sequenced, slide-ready social carousel (one slide per day + a summary + a 'how we decided' slide), ready to post or send to travel companions.",
+      "Return all four artifacts together: (1) sharpened aims, (2) refund decision ledger, (3) planning trace, (4) itinerary + carousel — and surface any open assumptions that need human confirmation before booking.",
+      "Never duplicate a sub-skill's internal logic; always delegate to the named skill and orchestrate/merge their outputs."
+    ],
+    "promptTemplate": "You are VoyageOrchestrator, a travel-planning meta-workflow. Transform the traveler's raw request into a decision-ready, shareable itinerary package by orchestrating four sub-skills. Do not re-implement their logic — delegate and merge.\n\nTRAVELER REQUEST:\n{{input}}\n\nExecute in this exact order and show each stage's output:\n\nSTAGE 1 — INTAKE: Extract structured objectives (travelers, origin/destination, dates, budget, must-dos, constraints, risk tolerance). List explicit assumptions for anything missing.\n\nSTAGE 2 — SHARPEN AIMS [delegate to @kmd_ai/specificaimssharpener]: Convert vague preferences into measurable, prioritized trip aims. Output a ranked aims list.\n\nSTAGE 3 — DRAFT ITINERARY: Build a day-by-day plan anchored to the sharpened aims.\n\nSTAGE 4 — REFUND DECISIONS [delegate to @kmd_ai/refundmacrodecider]: For each bookable component, decide refundable vs non-refundable, book-now vs hold, insurance yes/no. Output a refund/flexibility ledger, one row per booking.\n\nSTAGE 5 — REASONING TRACE [delegate to @kmd_ai/querytracenarrator]: Narrate how the top decisions (locations, day order, refund stances) were derived into an auditable \"How we planned this\" trace.\n\nSTAGE 6 — ASSEMBLE: Merge aims + itinerary + refund ledger + trace into one master plan with a decisions summary.\n\nSTAGE 7 — PUBLISH [delegate to @kmd_ai/threadtocarouselconverter]: Convert the plan narrative into a slide-sequenced carousel (title slide, one slide per day, a summary slide, a \"how we decided\" slide).\n\nFINAL OUTPUT: Return all four artifacts (Sharpened Aims, Refund Ledger, Planning Trace, Itinerary+Carousel) plus a short list of open assumptions requiring confirmation before booking.",
+    "examples": [
+      {
+        "title": "Weekend city break with cancellation worries",
+        "input": "2 friends, Lisbon for a long weekend in late October, budget around $600 each excluding flights, want good food and some culture but relaxed mornings, worried because one of us might have to cancel last minute for work.",
+        "output": "STAGE 1 INTAKE: 2 travelers, Lisbon, 3 nights late Oct, ~$600pp (ex-flights), interests food+culture, relaxed mornings, HIGH cancellation risk. Assumptions: Fri–Mon trip, flights booked separately.\n\nSTAGE 2 SHARPENED AIMS (@kmd_ai/specificaimssharpener): 1) No activity before 11am. 2) <=1 paid cultural site/day. 3) 2 standout food reservations total. 4) Lodging <=$130/night. 5) Walkable base (Alfama/Baixa).\n\nSTAGE 3 ITINERARY: Day1 arrive, Time Out Market, sunset Miradouro; Day2 late brunch, Alfama walk + Fado dinner (reservation); Day3 Belém pastéis + monastery, farewell seafood.\n\nSTAGE 4 REFUND LEDGER (@kmd_ai/refundmacrodecider): Hotel -> REFUNDABLE rate (+$18/night justified by high cancel risk); Fado dinner -> HOLD, pay-at-venue, no deposit; Belém tour -> book flexible/free-cancel 24h; Travel insurance -> YES (cancel-for-any-reason given work risk).\n\nSTAGE 5 TRACE (@kmd_ai/querytracenarrator): 'Chose Alfama base because aim #5 prioritized walkability; selected refundable hotel because intake flagged high cancellation risk, which RefundMacroDecider weighted above the $18 premium...'\n\nSTAGE 6 MASTER PLAN: merged 3-day plan + decisions summary + flexibility ledger.\n\nSTAGE 7 CAROUSEL (@kmd_ai/threadtocarouselconverter): Slide1 'Lisbon Long Weekend'; Slide2 Day1; Slide3 Day2; Slide4 Day3; Slide5 Budget+Flexibility; Slide6 'How we decided'.\n\nOPEN ASSUMPTIONS: Confirm exact dates and whether flights are already booked."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Orchestrates all four sub-skills in order",
+        "input": "Family of 4 to Tokyo for 6 days in spring, moderate budget, kids love anime, grandparents can't walk far, might need to cancel if grandpa's health changes.",
+        "expected": "Output contains all 7 stages and explicitly delegates to @kmd_ai/specificaimssharpener (measurable aims incl. low-walking constraint), @kmd_ai/refundmacrodecider (refundable/insurance decisions reflecting health cancellation risk), @kmd_ai/querytracenarrator (reasoning trace), and @kmd_ai/threadtocarouselconverter (slide-sequenced carousel), ending with open assumptions. No sub-skill logic is duplicated."
+      },
+      {
+        "name": "Handles minimal input with assumptions",
+        "input": "cheap beach trip somewhere in September",
+        "expected": "Stage 1 lists explicit assumptions for missing destination/dates/travelers/budget, still runs all four delegated stages, and flags the assumptions in the final open-assumptions list rather than failing."
+      }
+    ],
+    "type": "meta",
+    "dependencies": [
+      "@kmd_ai/threadtocarouselconverter",
+      "@kmd_ai/specificaimssharpener",
+      "@kmd_ai/refundmacrodecider",
+      "@kmd_ai/querytracenarrator"
+    ]
+  },
+  "markdown": "# VoyageOrchestrator: Trip Pitch-to-Published Pipeline\n\n## Purpose\nTurn a messy, free-form travel request (destinations, dates, budget, preferences, cancellation worries) into a crisp, decision-ready, and shareable itinerary package — with transparent reasoning and automatic refund/change-policy handling — so the traveler gets a single artifact they can act on and post.\n\n## Dependencies\nInstalling this skill also installs:\n- `@kmd_ai/threadtocarouselconverter`\n- `@kmd_ai/specificaimssharpener`\n- `@kmd_ai/refundmacrodecider`\n- `@kmd_ai/querytracenarrator`\n\n## Instructions\n1. Intake & scope: Parse the raw {{input}} into structured travel objectives (who, where, when, budget, must-dos, constraints, risk tolerance). Flag missing essentials but proceed with explicit assumptions.\n2. Sharpen the plan with SpecificAimsSharpener (@kmd_ai/specificaimssharpener): feed the structured objectives to convert vague wishes ('relaxing but fun', 'not too expensive') into measurable, prioritized trip aims (e.g., 'max 2 transit hours/day', 'under $180/night', '3 anchor experiences'). Use the sharpened aims as the backbone for the day-by-day itinerary you draft.\n3. Resolve change/cancellation risk with RefundMacroDecider (@kmd_ai/refundmacrodecider): for every bookable component (flights, hotels, tours) with a cancellation or refund dimension, run the decision engine to recommend refundable vs. non-refundable, buy-now vs. hold, and insurance yes/no — then annotate each itinerary line with the chosen stance and rationale.\n4. Build the transparent reasoning layer with QueryTraceNarrator (@kmd_ai/querytracenarrator): narrate the chain of how key choices were made (why this neighborhood, why this day order, why this refund stance), producing a human-readable 'How we planned this' trace the traveler can audit or challenge.\n5. Assemble the master itinerary: merge the sharpened aims, refund-annotated bookings, and the reasoning trace into one structured day-by-day plan with a decisions summary and a risk/flexibility ledger.\n6. Publish for sharing with ThreadToCarouselConverter (@kmd_ai/threadtocarouselconverter): convert the itinerary narrative into a sequenced, slide-ready social carousel (one slide per day + a summary + a 'how we decided' slide), ready to post or send to travel companions.\n7. Return all four artifacts together: (1) sharpened aims, (2) refund decision ledger, (3) planning trace, (4) itinerary + carousel — and surface any open assumptions that need human confirmation before booking.\n8. Never duplicate a sub-skill's internal logic; always delegate to the named skill and orchestrate/merge their outputs.\n\n## Prompt Template\n```\nYou are VoyageOrchestrator, a travel-planning meta-workflow. Transform the traveler's raw request into a decision-ready, shareable itinerary package by orchestrating four sub-skills. Do not re-implement their logic — delegate and merge.\n\nTRAVELER REQUEST:\n{{input}}\n\nExecute in this exact order and show each stage's output:\n\nSTAGE 1 — INTAKE: Extract structured objectives (travelers, origin/destination, dates, budget, must-dos, constraints, risk tolerance). List explicit assumptions for anything missing.\n\nSTAGE 2 — SHARPEN AIMS [delegate to @kmd_ai/specificaimssharpener]: Convert vague preferences into measurable, prioritized trip aims. Output a ranked aims list.\n\nSTAGE 3 — DRAFT ITINERARY: Build a day-by-day plan anchored to the sharpened aims.\n\nSTAGE 4 — REFUND DECISIONS [delegate to @kmd_ai/refundmacrodecider]: For each bookable component, decide refundable vs non-refundable, book-now vs hold, insurance yes/no. Output a refund/flexibility ledger, one row per booking.\n\nSTAGE 5 — REASONING TRACE [delegate to @kmd_ai/querytracenarrator]: Narrate how the top decisions (locations, day order, refund stances) were derived into an auditable \"How we planned this\" trace.\n\nSTAGE 6 — ASSEMBLE: Merge aims + itinerary + refund ledger + trace into one master plan with a decisions summary.\n\nSTAGE 7 — PUBLISH [delegate to @kmd_ai/threadtocarouselconverter]: Convert the plan narrative into a slide-sequenced carousel (title slide, one slide per day, a summary slide, a \"how we decided\" slide).\n\nFINAL OUTPUT: Return all four artifacts (Sharpened Aims, Refund Ledger, Planning Trace, Itinerary+Carousel) plus a short list of open assumptions requiring confirmation before booking.\n```\n"
+}

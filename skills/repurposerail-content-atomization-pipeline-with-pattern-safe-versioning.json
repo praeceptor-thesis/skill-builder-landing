@@ -1,0 +1,67 @@
+{
+  "id": "repurposerail-content-atomization-pipeline-with-pattern-safe-versioning",
+  "name": "RepurposeRail: Content Atomization Pipeline with Pattern-Safe Versioning",
+  "description": "An end-to-end social media repurposing workflow that atomizes one long-form source (blog, video transcript, newsletter) into a multi-platform content pack, then hardens every auto-generated extraction pattern through RegexPitfallAuditor and version-stamps each shippable asset with a clean, traceable changelog entry via Git Commit Message Writer — so content teams get a reviewable, reproducible, audit-ready publishing bundle instead of loose copy.",
+  "category": "Productivity",
+  "tags": [
+    "repurposing",
+    "social-media",
+    "orchestration",
+    "content-ops",
+    "versioning"
+  ],
+  "type": "meta",
+  "dependencies": [
+    "@kmd_ai/regexpitfallauditor",
+    "@dmz_agent/git-commit-message-writer"
+  ],
+  "spec": {
+    "name": "RepurposeRail: Content Atomization Pipeline with Pattern-Safe Versioning",
+    "description": "An end-to-end social media repurposing workflow that atomizes one long-form source (blog, video transcript, newsletter) into a multi-platform content pack, then hardens every auto-generated extraction pattern through RegexPitfallAuditor and version-stamps each shippable asset with a clean, traceable changelog entry via Git Commit Message Writer — so content teams get a reviewable, reproducible, audit-ready publishing bundle instead of loose copy.",
+    "category": "Productivity",
+    "tags": [
+      "repurposing",
+      "social-media",
+      "orchestration",
+      "content-ops",
+      "versioning"
+    ],
+    "purpose": "Turn a single long-form asset into a safely-extracted, version-controlled multi-platform content pack where the regex rules that slice the source are vetted for pitfalls and every atomized asset is paired with a conventional-commit changelog entry for reproducible publishing.",
+    "instructions": [
+      "Parse {{input}}: identify the source long-form asset (text/transcript/URL body), the target platforms (e.g., X thread, LinkedIn, Instagram caption, newsletter blurb), and any repurposing constraints (tone, character limits, hashtags).",
+      "Draft the atomization logic: for each target platform define the extraction/transformation rules — including any regex patterns used to pull quotable lines, timestamps, hashtags, @-mentions, URLs, or sentence boundaries from the source.",
+      "Pass every regex pattern generated in step 2 to RegexPitfallAuditor (@kmd_ai/regexpitfallauditor). Capture its findings on catastrophic backtracking, greedy matches, unescaped metacharacters, and unicode/edge-case gaps.",
+      "Repair patterns flagged by the auditor BEFORE extracting content, then run the hardened patterns to produce the actual per-platform assets (thread, captions, blurbs, hashtag sets).",
+      "Assemble the content pack: one ready-to-publish asset block per platform, each labeled with platform, final copy, char count, and the hardened regex rule that produced its key extractions.",
+      "For each asset (and the pack as a whole), generate a changelog entry using Git Commit Message Writer (@dmz_agent/git-commit-message-writer), treating each repurposed asset as a change set (e.g., 'feat(x-thread): ...', 'fix(regex): harden quote extractor').",
+      "Return a single bundle: the audited regex report, the multi-platform content pack, and the commit-message changelog — so the output is reviewable, reproducible, and ready to drop into a content repo.",
+      "If RegexPitfallAuditor reports no safe fix for a pattern, fall back to a literal/non-regex extraction for that slice and note the downgrade in both the pack and the commit message."
+    ],
+    "promptTemplate": "You are RepurposeRail, a meta-skill orchestrating content atomization with pattern auditing and version stamping.\n\nSOURCE & TARGETS:\n{{input}}\n\nExecute in order and show each stage's output:\n\n1. PARSE — Restate the source asset, target platforms ({{platforms}}), and constraints ({{constraints}}).\n\n2. ATOMIZATION PLAN — For each target platform, define the transformation and list every regex pattern you'll use to extract elements (quotes, hashtags, mentions, timestamps, sentence splits).\n\n3. REGEX AUDIT — Invoke RegexPitfallAuditor (@kmd_ai/regexpitfallauditor) on every pattern from step 2. Output a table: pattern | risk found | severity | hardened replacement.\n\n4. EXTRACT — Run the HARDENED patterns against the source. If any pattern is unfixable, downgrade to literal extraction and flag it.\n\n5. CONTENT PACK — Produce one publish-ready block per platform: [platform] | final copy | char count | source regex rule used.\n\n6. CHANGELOG — Invoke Git Commit Message Writer (@dmz_agent/git-commit-message-writer) to produce a conventional-commit entry per asset plus one summary commit for the pack.\n\n7. BUNDLE — Return {audit report, content pack, changelog} as the final deliverable.",
+    "examples": [
+      {
+        "title": "Blog post into multi-platform pack",
+        "input": "Source: 1,200-word blog post 'Why Your Regex Is Lying To You'. Targets: X thread, LinkedIn post, Instagram caption. Constraints: dev-friendly tone, 3 hashtags max, pull 2 best quotes.",
+        "output": "1. PARSE — Source: dev blog on regex pitfalls. Targets: X thread / LinkedIn / IG. Constraints: dev tone, <=3 hashtags, 2 pull-quotes.\n2. ATOMIZATION PLAN — Quote extractor: /\"([^\"]+)\"/g ; Hashtag harvester: /#(\\w+)/g ; Sentence splitter: /[^.!?]+[.!?]/g.\n3. REGEX AUDIT (RegexPitfallAuditor) —\n  /\"([^\"]+)\"/g | unescaped smart-quotes missed | medium | /[\"\\u201C]([^\"\\u201D]+)[\"\\u201D]/g\n  /#(\\w+)/g | \\w drops unicode tags | low | /#([\\p{L}\\p{N}_]+)/gu\n  /[^.!?]+[.!?]/g | ok, no backtracking | none | (unchanged)\n4. EXTRACT — 2 quotes pulled with hardened quote rule; 3 hashtags harvested (#regex #devtools #cleanup).\n5. CONTENT PACK —\n  [X thread] 5-tweet thread w/ hooks | ~1100 chars | quote+sentence rules\n  [LinkedIn] narrative post + CTA | ~900 chars | quote rule\n  [Instagram] caption + 3 hashtags | ~210 chars | hashtag rule\n6. CHANGELOG (Git Commit Message Writer) —\n  feat(x-thread): add 5-part thread repurposed from regex blog\n  feat(linkedin): add narrative post with pull-quote\n  feat(instagram): add caption with unicode-safe hashtag set\n  fix(regex): harden quote + hashtag extractors for unicode\n  chore(pack): assemble 3-platform repurpose bundle v1\n7. BUNDLE — delivered: audit table + 3 assets + 5 commits."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Flagged regex is hardened before extraction",
+        "input": "Source: podcast transcript. Targets: X thread. Constraints: pull timestamps. Plan uses /(\\d+:\\d+)+/ for timestamps.",
+        "expected": "RegexPitfallAuditor flags /(\\d+:\\d+)+/ for catastrophic backtracking; the pipeline replaces it with a bounded pattern like /\\d{1,2}:\\d{2}(?::\\d{2})?/ BEFORE extracting, and the changelog includes a 'fix(regex): ...' commit documenting the hardening."
+      },
+      {
+        "name": "Unfixable pattern downgrades gracefully",
+        "input": "Source: freeform notes. Targets: newsletter blurb. A quote pattern cannot be safely regex-matched.",
+        "expected": "Auditor reports no safe fix; pipeline falls back to literal extraction, flags the downgrade in the content pack, and emits a commit noting the non-regex fallback instead of silently failing."
+      }
+    ],
+    "type": "meta",
+    "dependencies": [
+      "@kmd_ai/regexpitfallauditor",
+      "@dmz_agent/git-commit-message-writer"
+    ]
+  },
+  "markdown": "# RepurposeRail: Content Atomization Pipeline with Pattern-Safe Versioning\n\n## Purpose\nTurn a single long-form asset into a safely-extracted, version-controlled multi-platform content pack where the regex rules that slice the source are vetted for pitfalls and every atomized asset is paired with a conventional-commit changelog entry for reproducible publishing.\n\n## Dependencies\nInstalling this skill also installs:\n- `@kmd_ai/regexpitfallauditor`\n- `@dmz_agent/git-commit-message-writer`\n\n## Instructions\n1. Parse {{input}}: identify the source long-form asset (text/transcript/URL body), the target platforms (e.g., X thread, LinkedIn, Instagram caption, newsletter blurb), and any repurposing constraints (tone, character limits, hashtags).\n2. Draft the atomization logic: for each target platform define the extraction/transformation rules — including any regex patterns used to pull quotable lines, timestamps, hashtags, @-mentions, URLs, or sentence boundaries from the source.\n3. Pass every regex pattern generated in step 2 to RegexPitfallAuditor (@kmd_ai/regexpitfallauditor). Capture its findings on catastrophic backtracking, greedy matches, unescaped metacharacters, and unicode/edge-case gaps.\n4. Repair patterns flagged by the auditor BEFORE extracting content, then run the hardened patterns to produce the actual per-platform assets (thread, captions, blurbs, hashtag sets).\n5. Assemble the content pack: one ready-to-publish asset block per platform, each labeled with platform, final copy, char count, and the hardened regex rule that produced its key extractions.\n6. For each asset (and the pack as a whole), generate a changelog entry using Git Commit Message Writer (@dmz_agent/git-commit-message-writer), treating each repurposed asset as a change set (e.g., 'feat(x-thread): ...', 'fix(regex): harden quote extractor').\n7. Return a single bundle: the audited regex report, the multi-platform content pack, and the commit-message changelog — so the output is reviewable, reproducible, and ready to drop into a content repo.\n8. If RegexPitfallAuditor reports no safe fix for a pattern, fall back to a literal/non-regex extraction for that slice and note the downgrade in both the pack and the commit message.\n\n## Prompt Template\n```\nYou are RepurposeRail, a meta-skill orchestrating content atomization with pattern auditing and version stamping.\n\nSOURCE & TARGETS:\n{{input}}\n\nExecute in order and show each stage's output:\n\n1. PARSE — Restate the source asset, target platforms ({{platforms}}), and constraints ({{constraints}}).\n\n2. ATOMIZATION PLAN — For each target platform, define the transformation and list every regex pattern you'll use to extract elements (quotes, hashtags, mentions, timestamps, sentence splits).\n\n3. REGEX AUDIT — Invoke RegexPitfallAuditor (@kmd_ai/regexpitfallauditor) on every pattern from step 2. Output a table: pattern | risk found | severity | hardened replacement.\n\n4. EXTRACT — Run the HARDENED patterns against the source. If any pattern is unfixable, downgrade to literal extraction and flag it.\n\n5. CONTENT PACK — Produce one publish-ready block per platform: [platform] | final copy | char count | source regex rule used.\n\n6. CHANGELOG — Invoke Git Commit Message Writer (@dmz_agent/git-commit-message-writer) to produce a conventional-commit entry per asset plus one summary commit for the pack.\n\n7. BUNDLE — Return {audit report, content pack, changelog} as the final deliverable.\n```\n"
+}

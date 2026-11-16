@@ -1,0 +1,74 @@
+{
+  "id": "trainingops-continuity-director",
+  "name": "TrainingOps Continuity Director",
+  "description": "An end-to-end reliability meta-workflow for fitness-coaching platforms that keeps athlete training programs delivering uninterrupted by auditing billing/subscription health, re-orchestrating programs around disruptions, and treating platform outages as triaged incidents with runbooks — turning scattered business, coaching, and infra signals into one continuity plan.",
+  "category": "Automation",
+  "tags": [
+    "fitness",
+    "reliability",
+    "orchestration",
+    "subscriptions",
+    "incident-response"
+  ],
+  "type": "meta",
+  "dependencies": [
+    "@kmd_ai/subscriptionleak-auditor",
+    "@kmd_ai/resilientathlete-program-orchestrator",
+    "@kmd_ai/incidentforge-k8s-blast-radius-triage-runbook-orchestrator"
+  ],
+  "spec": {
+    "name": "TrainingOps Continuity Director",
+    "description": "An end-to-end reliability meta-workflow for fitness-coaching platforms that keeps athlete training programs delivering uninterrupted by auditing billing/subscription health, re-orchestrating programs around disruptions, and treating platform outages as triaged incidents with runbooks — turning scattered business, coaching, and infra signals into one continuity plan.",
+    "category": "Automation",
+    "tags": [
+      "fitness",
+      "reliability",
+      "orchestration",
+      "subscriptions",
+      "incident-response"
+    ],
+    "purpose": "Ensure every paying athlete's training program stays continuous and correctly billed even when subscription leaks, program disruptions (injury, travel, deload), or platform/infrastructure incidents threaten delivery — producing a single prioritized continuity plan that protects revenue, athlete progress, and service uptime.",
+    "instructions": [
+      "Parse {{input}} to identify the fitness platform context: the athlete cohort or account IDs affected, the training programs in flight, the billing/subscription system, and any reported incident or anomaly window.",
+      "Run SubscriptionLeak Auditor (@kmd_ai/subscriptionleak-auditor) first to detect billing leaks, dormant/duplicate subscriptions, failed-payment churn risk, and entitlement mismatches — producing a ranked list of at-risk accounts and the revenue/entitlement each one represents.",
+      "Feed the audited entitlement + at-risk-account data into ResilientAthlete Program Orchestrator (@kmd_ai/resilientathlete-program-orchestrator) so it re-sequences, deloads, or pauses training programs ONLY for accounts whose entitlement is valid, and flags programs that should be gracefully suspended for lapsed/leaking subscriptions instead of silently failing.",
+      "In parallel, if {{input}} includes platform errors, degraded delivery, or an outage window, invoke IncidentForge (@kmd_ai/incidentforge-k8s-blast-radius-triage-runbook-orchestrator) to compute the blast radius across services and map which athlete cohorts and program-delivery pipelines are impacted, generating the matching runbook.",
+      "Correlate the three outputs: overlay the incident blast radius onto the orchestrated program schedule and the audited account list to find athletes who are simultaneously paying, actively training, and impacted by an outage — these are the highest-priority continuity cases.",
+      "Produce a single prioritized Continuity Plan with tiers: (P0) paying + active + outage-impacted, (P1) billing leaks on active athletes, (P2) program adjustments with valid entitlement, (P3) cleanup of lapsed subscriptions; attach the IncidentForge runbook step to each affected tier.",
+      "Recommend concrete next actions per tier (comp credits, program pauses, re-engagement messages, infra runbook execution) and specify owners (billing, coaching, SRE).",
+      "Summarize measurable outcomes: revenue protected, athlete-days of training preserved, and estimated incident recovery time, then list what must be re-run after the incident clears."
+    ],
+    "promptTemplate": "You are the TrainingOps Continuity Director for a fitness-coaching platform. Orchestrate three sub-skills to protect athlete training continuity, revenue, and uptime.\n\nCONTEXT & SIGNALS:\n{{input}}\n\nExecute in this order and show intermediate results:\n1. SubscriptionLeak Auditor (@kmd_ai/subscriptionleak-auditor): rank at-risk accounts, billing leaks, entitlement mismatches.\n2. ResilientAthlete Program Orchestrator (@kmd_ai/resilientathlete-program-orchestrator): re-sequence/deload/suspend programs using ONLY validated entitlements from step 1; suspend gracefully for leaking/lapsed accounts.\n3. IncidentForge (@kmd_ai/incidentforge-k8s-blast-radius-triage-runbook-orchestrator): if an outage/degradation window is present, compute blast radius over program-delivery services and output the runbook.\n4. Correlate: overlay blast radius onto orchestrated schedule + audited accounts. Flag athletes who are paying AND actively training AND outage-impacted.\n\nOUTPUT a single Continuity Plan:\n- Tiered priorities: P0 (paying+active+impacted), P1 (billing leaks on active athletes), P2 (valid-entitlement program adjustments), P3 (lapsed-subscription cleanup).\n- Per tier: affected athletes/accounts, recommended action, runbook step (if applicable), owner (Billing/Coaching/SRE).\n- Metrics: revenue protected, athlete-training-days preserved, est. recovery time.\n- Post-incident re-run checklist.",
+    "examples": [
+      {
+        "title": "Outage during peak training week",
+        "input": "Platform: CoachLoop (12,400 subscribers). Signals: K8s cluster prod-us-east reporting 500s on the 'workout-delivery' and 'progress-sync' services for the last 40 min. Billing export shows 180 accounts with failed last payment and 60 duplicate Stripe subscriptions. ~3,100 athletes are mid-way through an 8-week strength block this week. Need a continuity plan now.",
+        "output": "CONTINUITY PLAN — CoachLoop\n\nStep 1 (SubscriptionLeak Auditor): 240 at-risk accounts surfaced → 180 failed-payment (churn-risk, ~$7.2k MRR), 60 duplicate subs (~$1.8k over-billing refund exposure). 134 of the failed-payment accounts are currently ACTIVE in a training block.\n\nStep 2 (ResilientAthlete Orchestrator): For the 134 active-but-failing accounts → grace-pause programs at next rest day (not mid-session) + trigger re-engagement. For ~2,966 valid-entitlement athletes in the strength block → auto-insert a mobility/deload session to absorb delivery delay without breaking progression.\n\nStep 3 (IncidentForge): Blast radius = workout-delivery + progress-sync pods in prod-us-east; impacts ~4,100 athletes attempting sessions now. Runbook: roll back last deploy, scale replicas, replay sync queue.\n\nStep 4 Correlation — overlay:\n- P0 (paying + active + impacted): ~2,840 athletes. Action: execute IncidentForge runbook (rollback+replay) → Owner: SRE. Queue delivered sessions for offline cache.\n- P1 (billing leaks, active): 134 accounts. Action: retry payment + grace-pause, NOT hard-cut → Owner: Billing.\n- P2 (program adjustments, valid entitlement): 2,966 athletes get mobility/deload insert → Owner: Coaching.\n- P3 (cleanup): 60 duplicate subs → refund + dedupe → Owner: Billing.\n\nMetrics: ~$9k MRR/refund exposure protected; ~2,966 athlete-training-days preserved via deload instead of missed sessions; est. recovery 25–35 min post-runbook.\n\nPost-incident re-run: re-run SubscriptionLeak Auditor after payment retries; re-run Orchestrator to resume grace-paused programs; confirm progress-sync backfill before next session."
+      },
+      {
+        "title": "No outage, routine health sweep",
+        "input": "Platform: IronPath. No incidents reported. Monthly sweep requested. 300 accounts flagged by finance for anomalies; 900 athletes in active programs.",
+        "output": "CONTINUITY PLAN — IronPath (routine)\n\nStep 1 Auditor: 300 flagged → 140 leaks (lapsed-but-still-served), 90 duplicates, 70 false positives.\nStep 2 Orchestrator: 140 lapsed served accounts → graceful suspend with win-back offer; 900 valid athletes → no disruption, programs continue.\nStep 3 IncidentForge: SKIPPED (no outage window in signals).\nStep 4 Correlation: no P0 (no incident).\n- P1: 140 lapsed-served leaks → suspend+win-back → Owner: Billing.\n- P2: none required.\n- P3: 90 duplicates → refund/dedupe → Owner: Billing.\nMetrics: stops ~140 accounts of served-but-unpaid delivery; 900 athlete-training-days unaffected; recovery N/A.\nPost-sweep re-run: re-audit in 7 days to confirm suspensions and win-back conversions."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Skips IncidentForge when no outage present",
+        "input": "Platform: FlexFit. No incidents, no error signals. 50 accounts flagged for billing review, 200 athletes training.",
+        "expected": "Runs SubscriptionLeak Auditor and ResilientAthlete Orchestrator, explicitly marks IncidentForge as SKIPPED (no outage window), produces a plan with no P0 tier and populated P1/P3 billing tiers plus unaffected P2 athletes."
+      },
+      {
+        "name": "Produces P0 only for paying+active+impacted overlap",
+        "input": "Platform: GymAI. Outage on session-sync service 20 min. 100 failed-payment accounts (30 active in programs), 500 valid athletes training during outage.",
+        "expected": "Correlates all three skills so P0 contains the paying + active + outage-impacted athletes (the ~500 valid trainees plus the impact overlap), assigns the IncidentForge runbook step to P0 with SRE owner, places the 30 active failed-payment accounts in P1 with grace-pause rather than hard-cut, and reports revenue-protected and athlete-training-days metrics plus a post-incident re-run checklist."
+      }
+    ],
+    "type": "meta",
+    "dependencies": [
+      "@kmd_ai/subscriptionleak-auditor",
+      "@kmd_ai/resilientathlete-program-orchestrator",
+      "@kmd_ai/incidentforge-k8s-blast-radius-triage-runbook-orchestrator"
+    ]
+  },
+  "markdown": "# TrainingOps Continuity Director\n\n## Purpose\nEnsure every paying athlete's training program stays continuous and correctly billed even when subscription leaks, program disruptions (injury, travel, deload), or platform/infrastructure incidents threaten delivery — producing a single prioritized continuity plan that protects revenue, athlete progress, and service uptime.\n\n## Dependencies\nInstalling this skill also installs:\n- `@kmd_ai/subscriptionleak-auditor`\n- `@kmd_ai/resilientathlete-program-orchestrator`\n- `@kmd_ai/incidentforge-k8s-blast-radius-triage-runbook-orchestrator`\n\n## Instructions\n1. Parse {{input}} to identify the fitness platform context: the athlete cohort or account IDs affected, the training programs in flight, the billing/subscription system, and any reported incident or anomaly window.\n2. Run SubscriptionLeak Auditor (@kmd_ai/subscriptionleak-auditor) first to detect billing leaks, dormant/duplicate subscriptions, failed-payment churn risk, and entitlement mismatches — producing a ranked list of at-risk accounts and the revenue/entitlement each one represents.\n3. Feed the audited entitlement + at-risk-account data into ResilientAthlete Program Orchestrator (@kmd_ai/resilientathlete-program-orchestrator) so it re-sequences, deloads, or pauses training programs ONLY for accounts whose entitlement is valid, and flags programs that should be gracefully suspended for lapsed/leaking subscriptions instead of silently failing.\n4. In parallel, if {{input}} includes platform errors, degraded delivery, or an outage window, invoke IncidentForge (@kmd_ai/incidentforge-k8s-blast-radius-triage-runbook-orchestrator) to compute the blast radius across services and map which athlete cohorts and program-delivery pipelines are impacted, generating the matching runbook.\n5. Correlate the three outputs: overlay the incident blast radius onto the orchestrated program schedule and the audited account list to find athletes who are simultaneously paying, actively training, and impacted by an outage — these are the highest-priority continuity cases.\n6. Produce a single prioritized Continuity Plan with tiers: (P0) paying + active + outage-impacted, (P1) billing leaks on active athletes, (P2) program adjustments with valid entitlement, (P3) cleanup of lapsed subscriptions; attach the IncidentForge runbook step to each affected tier.\n7. Recommend concrete next actions per tier (comp credits, program pauses, re-engagement messages, infra runbook execution) and specify owners (billing, coaching, SRE).\n8. Summarize measurable outcomes: revenue protected, athlete-days of training preserved, and estimated incident recovery time, then list what must be re-run after the incident clears.\n\n## Prompt Template\n```\nYou are the TrainingOps Continuity Director for a fitness-coaching platform. Orchestrate three sub-skills to protect athlete training continuity, revenue, and uptime.\n\nCONTEXT & SIGNALS:\n{{input}}\n\nExecute in this order and show intermediate results:\n1. SubscriptionLeak Auditor (@kmd_ai/subscriptionleak-auditor): rank at-risk accounts, billing leaks, entitlement mismatches.\n2. ResilientAthlete Program Orchestrator (@kmd_ai/resilientathlete-program-orchestrator): re-sequence/deload/suspend programs using ONLY validated entitlements from step 1; suspend gracefully for leaking/lapsed accounts.\n3. IncidentForge (@kmd_ai/incidentforge-k8s-blast-radius-triage-runbook-orchestrator): if an outage/degradation window is present, compute blast radius over program-delivery services and output the runbook.\n4. Correlate: overlay blast radius onto orchestrated schedule + audited accounts. Flag athletes who are paying AND actively training AND outage-impacted.\n\nOUTPUT a single Continuity Plan:\n- Tiered priorities: P0 (paying+active+impacted), P1 (billing leaks on active athletes), P2 (valid-entitlement program adjustments), P3 (lapsed-subscription cleanup).\n- Per tier: affected athletes/accounts, recommended action, runbook step (if applicable), owner (Billing/Coaching/SRE).\n- Metrics: revenue protected, athlete-training-days preserved, est. recovery time.\n- Post-incident re-run checklist.\n```\n"
+}

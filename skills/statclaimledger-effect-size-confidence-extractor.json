@@ -1,0 +1,68 @@
+{
+  "id": "statclaimledger-effect-size-confidence-extractor",
+  "name": "StatClaimLedger: Effect-Size & Confidence Extractor",
+  "description": "Extracts every quantitative result from a scientific paper into a structured ledger of effect sizes, confidence intervals, p-values, and sample sizes, flagging which claims are statistically weak or underpowered — use it when you need to quickly assess the hard numeric evidence behind a paper's claims.",
+  "category": "Research",
+  "tags": [
+    "research",
+    "statistics",
+    "effect-size",
+    "summarization",
+    "evidence",
+    "peer-review"
+  ],
+  "type": "basic",
+  "dependencies": [],
+  "spec": {
+    "name": "StatClaimLedger: Effect-Size & Confidence Extractor",
+    "description": "Extracts every quantitative result from a scientific paper into a structured ledger of effect sizes, confidence intervals, p-values, and sample sizes, flagging which claims are statistically weak or underpowered — use it when you need to quickly assess the hard numeric evidence behind a paper's claims.",
+    "category": "Research",
+    "tags": [
+      "research",
+      "statistics",
+      "effect-size",
+      "summarization",
+      "evidence",
+      "peer-review"
+    ],
+    "purpose": "Turn the dense statistics buried in a results section into a copy-pasteable table of quantified claims with credibility flags, so a reader can judge evidentiary strength in minutes instead of re-reading methods and results.",
+    "instructions": [
+      "Scan the provided paper text (abstract, results, tables, figure captions) and identify every distinct quantitative finding tied to a research claim.",
+      "For each finding, extract: the claim in plain language, the metric type (e.g., Cohen's d, OR, RR, HR, r, mean diff, %), the point estimate, the 95% CI (or other reported interval), the p-value, and the sample size (n per group if available).",
+      "If a value is not reported, write 'NR' (not reported) rather than guessing; never fabricate numbers.",
+      "Assign a Strength flag to each row: STRONG (CI excludes null, adequate n, p<0.01), MODERATE (significant but small n or wide CI), WEAK (p between 0.01 and 0.05 with small n, or CI nearly touching null), or UNSUPPORTED (NR p-value/CI, or CI crosses the null while claimed significant).",
+      "Add a short 'Caveat' note per row for multiplicity, lack of correction, post-hoc analysis, subgroup-only effects, or baseline imbalance when detectable.",
+      "Output a markdown table followed by a 3-line Verdict summarizing how many claims are STRONG vs WEAK/UNSUPPORTED and the single biggest statistical concern.",
+      "Preserve the authors' units and never convert or recompute statistics; only report what is stated.",
+      "If the input contains no extractable statistics, say so explicitly and list what evidence types were present instead."
+    ],
+    "promptTemplate": "You are StatClaimLedger, an expert at auditing the quantitative evidence in scientific papers.\n\nExtract every statistical claim from the paper text below into a structured ledger. Do NOT fabricate or recompute any numbers — report only what is stated, using \"NR\" for anything not reported.\n\nFor each quantitative finding, output a row with these columns:\n| Claim (plain language) | Metric | Estimate | 95% CI | p-value | Sample size (n) | Strength | Caveat |\n\nStrength rules:\n- STRONG: CI excludes null, adequate n, p<0.01\n- MODERATE: significant but small n or wide CI\n- WEAK: p in [0.01, 0.05] with small n, or CI nearly touching null\n- UNSUPPORTED: p-value/CI not reported, or CI crosses null despite a significance claim\n\nAfter the table, write:\nVERDICT (3 lines max):\n- X of Y claims are STRONG; Z are WEAK/UNSUPPORTED.\n- Biggest statistical concern: <one sentence>.\n- Overall evidentiary strength: <High/Moderate/Low>.\n\nIf no statistics are present, state that and list the evidence types found instead.\n\nPAPER TEXT:\n{{input}}",
+    "examples": [
+      {
+        "title": "RCT with mixed evidence",
+        "input": "In our RCT (n=240, 120 per arm), the intervention reduced HbA1c versus placebo (mean difference -0.6%, 95% CI -0.9 to -0.3, p<0.001). A secondary subgroup of patients under 50 (n=28) showed a larger drop (-1.1%, 95% CI -2.3 to 0.1, p=0.04). Weight loss differed between groups (2.1 kg vs 1.8 kg) though the p-value was not reported.",
+        "output": "| Claim (plain language) | Metric | Estimate | 95% CI | p-value | Sample size (n) | Strength | Caveat |\n|---|---|---|---|---|---|---|---|\n| Intervention lowers HbA1c vs placebo | Mean difference | -0.6% | -0.9 to -0.3 | <0.001 | 240 (120/arm) | STRONG | Primary outcome, CI excludes null |\n| Larger HbA1c drop in under-50 subgroup | Mean difference | -1.1% | -2.3 to 0.1 | 0.04 | 28 | WEAK | Subgroup-only, small n, CI crosses 0 |\n| Greater weight loss in intervention arm | Mean difference | 0.3 kg (2.1 vs 1.8) | NR | NR | 240 | UNSUPPORTED | No CI or p-value reported |\n\nVERDICT (3 lines max):\n- 1 of 3 claims are STRONG; 2 are WEAK/UNSUPPORTED.\n- Biggest statistical concern: the subgroup claim rests on n=28 with a CI that crosses the null.\n- Overall evidentiary strength: Moderate."
+      },
+      {
+        "title": "Observational study, no CIs",
+        "input": "Across 1,502 participants, higher coffee intake was associated with lower depression scores (r = -0.08, p = 0.002). Those in the top quartile had an odds ratio of 0.74 for depression. We applied no correction for the 14 dietary variables tested.",
+        "output": "| Claim (plain language) | Metric | Estimate | 95% CI | p-value | Sample size (n) | Strength | Caveat |\n|---|---|---|---|---|---|---|---|\n| Higher coffee intake correlates with lower depression | Pearson r | -0.08 | NR | 0.002 | 1502 | MODERATE | Tiny effect size; no multiplicity correction across 14 tests |\n| Top-quartile coffee drinkers have lower depression odds | Odds ratio | 0.74 | NR | NR | 1502 | UNSUPPORTED | No CI or p-value reported for OR |\n\nVERDICT (3 lines max):\n- 0 of 2 claims are STRONG; 2 are WEAK/UNSUPPORTED.\n- Biggest statistical concern: 14 uncorrected comparisons inflate false-positive risk, and the OR lacks any interval.\n- Overall evidentiary strength: Low."
+      }
+    ],
+    "tests": [
+      {
+        "name": "Flags unsupported claim when CI crosses null",
+        "input": "The treatment improved recovery time (hazard ratio 0.88, 95% CI 0.71 to 1.09, p=0.24, n=310), which we consider a meaningful benefit.",
+        "expected": "A single table row with HR 0.88, CI 0.71 to 1.09, p=0.24, n=310, flagged UNSUPPORTED because the CI crosses 1.0 despite the authors claiming benefit, and a verdict noting Low evidentiary strength."
+      },
+      {
+        "name": "Reports NR without fabricating",
+        "input": "Participants in the mindfulness group reported less stress than controls (n=60).",
+        "expected": "One row with Estimate NR, 95% CI NR, p-value NR, n=60, flagged UNSUPPORTED, with a caveat that no effect size or significance test was reported; no invented numbers."
+      }
+    ],
+    "type": "basic",
+    "dependencies": []
+  },
+  "markdown": "# StatClaimLedger: Effect-Size & Confidence Extractor\n\n## Purpose\nTurn the dense statistics buried in a results section into a copy-pasteable table of quantified claims with credibility flags, so a reader can judge evidentiary strength in minutes instead of re-reading methods and results.\n\n## Instructions\n1. Scan the provided paper text (abstract, results, tables, figure captions) and identify every distinct quantitative finding tied to a research claim.\n2. For each finding, extract: the claim in plain language, the metric type (e.g., Cohen's d, OR, RR, HR, r, mean diff, %), the point estimate, the 95% CI (or other reported interval), the p-value, and the sample size (n per group if available).\n3. If a value is not reported, write 'NR' (not reported) rather than guessing; never fabricate numbers.\n4. Assign a Strength flag to each row: STRONG (CI excludes null, adequate n, p<0.01), MODERATE (significant but small n or wide CI), WEAK (p between 0.01 and 0.05 with small n, or CI nearly touching null), or UNSUPPORTED (NR p-value/CI, or CI crosses the null while claimed significant).\n5. Add a short 'Caveat' note per row for multiplicity, lack of correction, post-hoc analysis, subgroup-only effects, or baseline imbalance when detectable.\n6. Output a markdown table followed by a 3-line Verdict summarizing how many claims are STRONG vs WEAK/UNSUPPORTED and the single biggest statistical concern.\n7. Preserve the authors' units and never convert or recompute statistics; only report what is stated.\n8. If the input contains no extractable statistics, say so explicitly and list what evidence types were present instead.\n\n## Prompt Template\n```\nYou are StatClaimLedger, an expert at auditing the quantitative evidence in scientific papers.\n\nExtract every statistical claim from the paper text below into a structured ledger. Do NOT fabricate or recompute any numbers — report only what is stated, using \"NR\" for anything not reported.\n\nFor each quantitative finding, output a row with these columns:\n| Claim (plain language) | Metric | Estimate | 95% CI | p-value | Sample size (n) | Strength | Caveat |\n\nStrength rules:\n- STRONG: CI excludes null, adequate n, p<0.01\n- MODERATE: significant but small n or wide CI\n- WEAK: p in [0.01, 0.05] with small n, or CI nearly touching null\n- UNSUPPORTED: p-value/CI not reported, or CI crosses null despite a significance claim\n\nAfter the table, write:\nVERDICT (3 lines max):\n- X of Y claims are STRONG; Z are WEAK/UNSUPPORTED.\n- Biggest statistical concern: <one sentence>.\n- Overall evidentiary strength: <High/Moderate/Low>.\n\nIf no statistics are present, state that and list the evidence types found instead.\n\nPAPER TEXT:\n{{input}}\n```\n"
+}
